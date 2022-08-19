@@ -30,6 +30,7 @@ setup(
     install_requires=[
         'numpy',
         'matplotlib',
+        'scipy',
         'torch',
     ],
     extras_require={
