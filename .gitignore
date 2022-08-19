@@ -1,0 +1,26 @@
+# data files
+data/
+
+# notebooks
+notebooks/
+
+# output 
+output/
+
+# pyenv version file
+.python-version
+
+# virtual environment
+venv/
+
+# egg info files
+*.egg-info
+
+# python compilation files
+*.pyc
+
+# state files
+*.swp
+
+# pycharm idea
+.idea/
