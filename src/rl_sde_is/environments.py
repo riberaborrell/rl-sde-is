@@ -29,6 +29,12 @@ class DoubleWellStoppingTime1D():
     def gradient(self, state):
         return 4 * state * (state**2 - 1)
 
+    def f(self, state):
+        return 1
+
+    def g(self, state):
+        return 0
+
     def state_action_transition_function(self, next_state, state, action, h):
         mu = state + (- self.gradient(state) + self.sigma * action) * self.dt
         std_dev = self.sigma * np.sqrt(self.dt)
@@ -46,6 +52,28 @@ class DoubleWellStoppingTime1D():
             0,
         )
         return reward
+
+    def step(self, state, action):
+
+        # brownian increment
+        dbt = np.array(np.sqrt(self.dt) * np.random.randn(1), dtype=np.float32)
+
+        # sde step
+        next_state = state \
+                   + (- self.gradient(state) + self.sigma * action) * self.dt \
+                   + self.sigma * dbt
+
+        # done if position x in the target set
+        done = bool(next_state > self.lb and next_state < self.rb)
+
+        # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
+        r = np.where(
+            done,
+            - 0.5 * np.power(action, 2)[0] * self.dt - self.f(state) * self.dt - self.g(next_state),
+            - 0.5 * np.power(action, 2)[0] * self.dt - self.f(state) * self.dt,
+        )
+
+        return next_state, r, done
 
     def discretize_state_space(self, h_state):
         self.state_space_h = np.around(

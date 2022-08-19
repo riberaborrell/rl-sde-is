@@ -70,7 +70,7 @@ def main():
 
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
-    env.discretize_action_space(args.h_state)
+    env.discretize_action_space(args.h_action)
 
     # get target set indices
     env.get_idx_target_set()
