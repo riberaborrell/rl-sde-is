@@ -10,7 +10,7 @@ def get_parser():
     parser.description = ''
     return parser
 
-def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10):
+def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10, n_steps_lim=10000):
     '''
     '''
     # compute p tensor and r table
@@ -29,22 +29,37 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10):
     # for each iteration
     for i in np.arange(n_iterations):
 
-        # copy value function table
-        q_table_i = q_table.copy()
+        # reset environment
+        state = env.state_init.copy()
 
-        # loop over states not in the target set 
-        for idx_state in range(env.n_states):
+        # terminal state flag
+        complete = False
 
-            # loop over all actions
-            for idx_action in range(env.n_actions):
-                value = r_table[idx_state, idx_action] \
-                      + gamma \
-                      * np.dot(
-                          p_tensor[np.arange(env.n_states), idx_state, idx_action],
-                          np.max(q_table_i, axis=1),
-                        )
+        # sample episode
+        for k in np.arange(n_steps_lim):
 
-                q_table[idx_state, idx_action] = value
+            # interrupt if we are in a terminal state
+            if complete:
+                break
+
+            # get index of the state
+            idx_state = env.get_state_idx(state)
+
+            # choose greedy action
+            idx_action = np.argmax(q_table[idx_state])
+            action = env.action_space_h[[idx_action]]
+
+            value = r_table[idx_state, idx_action] \
+                  + gamma \
+                  * np.dot(
+                      p_tensor[np.arange(env.n_states), idx_state, idx_action],
+                      np.max(q_table, axis=1),
+                  )
+
+            q_table[idx_state, idx_action] = value
+
+            # step dynamics forward
+            state, r, complete = env.step(state, action)
 
         # logs
         if i % n_avg_iterations == 0:

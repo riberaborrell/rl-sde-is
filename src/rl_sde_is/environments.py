@@ -1,6 +1,9 @@
 import numpy as np
 import scipy.stats as stats
 
+from sde.langevin_sde import LangevinSDE
+from hjb.hjb_solver import SolverHJB
+
 class DoubleWellStoppingTime1D():
 
     def __init__(self):
@@ -16,15 +19,17 @@ class DoubleWellStoppingTime1D():
         self.lb, self.rb = 1, 2
 
         # initial state
-        self.state_init = - np.array([1.], dtype=np.float32)
+        self.state_init = np.array([-1.], dtype=np.float32)
 
         # observation space bounds
-        self.obs_space_low = -2.
-        self.obs_space_high = 2.
+        self.state_space_dim = 1
+        self.state_space_low = -2.
+        self.state_space_high = 2.
 
         # action space bounds
-        self.act_space_low = -5.
-        self.act_space_high = 5.
+        self.action_space_dim = 1
+        self.action_space_low = -5.
+        self.action_space_high = 5.
 
     def gradient(self, state):
         return 4 * state * (state**2 - 1)
@@ -78,8 +83,8 @@ class DoubleWellStoppingTime1D():
     def discretize_state_space(self, h_state):
         self.state_space_h = np.around(
             np.arange(
-                self.obs_space_low,
-                self.obs_space_high + h_state,
+                self.state_space_low,
+                self.state_space_high + h_state,
                 h_state,
             ),
             decimals=3,
@@ -89,8 +94,8 @@ class DoubleWellStoppingTime1D():
 
     def discretize_action_space(self, h_action):
         self.action_space_h = np.arange(
-            self.act_space_low,
-            self.act_space_high + h_action,
+            self.action_space_low,
+            self.action_space_high + h_action,
             h_action,
         )
         self.n_actions = self.action_space_h.shape[0]
@@ -105,3 +110,21 @@ class DoubleWellStoppingTime1D():
     def get_idx_target_set(self):
         self.idx_lb = self.get_state_idx(self.lb)
         self.idx_rb = self.get_state_idx(self.rb)
+
+    def get_hjb_solver(self, h_hjb=0.01):
+
+        # initialize Langevin sde
+        sde = LangevinSDE(
+            problem_name='langevin_stop-t',
+            potential_name='nd_2well',
+            d=1,
+            alpha=np.ones(1),
+            beta=1.,
+            domain=np.full((1, 2), [-2, 2]),
+        )
+
+        # load  hjb solver
+        sol_hjb = SolverHJB(sde, h=h_hjb)
+        sol_hjb.load()
+
+        return sol_hjb

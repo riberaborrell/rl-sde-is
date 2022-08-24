@@ -1,8 +1,5 @@
 import numpy as np
 
-from sde.langevin_sde import LangevinSDE
-from hjb.hjb_solver import SolverHJB
-
 from base_parser import get_base_parser
 from dynammic_programming import compute_p_tensor_batch, compute_r_table, \
                                  plot_policy, plot_value_function
@@ -13,17 +10,7 @@ def get_parser():
     parser.description = ''
     return parser
 
-def check_bellman_equation():
-    pass
-    # check that p_tensor and r_table are well computed
-    #a = -hjb_value_f[idx_x_init]
-    #b = np.dot(
-    #   p_tensor[np.arange(env.n_states), idx_x_init, policy[idx_x_init]],
-    #   - hjb_value_f[np.arange(env.n_states)],
-    #) + rew
-    #assert a == b, ''
-
-def policy_evaluation(env, policy, hjb_value_f, gamma=1.0,
+def policy_evaluation(env, policy, gamma=1.0,
                       n_iterations=100, n_avg_iterations=10):
     '''
     '''
@@ -49,14 +36,17 @@ def policy_evaluation(env, policy, hjb_value_f, gamma=1.0,
         for idx_state in range(env.idx_lb):
             idx_action = policy[idx_state]
 
-            value = r_table[idx_state, idx_action]
+            #v_table[idx_state] = r_table[idx_state, idx_action]
+            #for idx_next_state in range(env.n_states):
+            #    v_table[idx_state] += gamma \
+            #                       * p_tensor[idx_next_state, idx_state, idx_action] \
+            #                       * v_table[idx_next_state]
 
-            for idx_next_state in range(env.n_states):
-                value += gamma * p_tensor[idx_next_state, idx_state, idx_action] \
-                               * v_table[idx_next_state]
-
-            v_table[idx_state] = value
-
+            v_table[idx_state] = r_table[idx_state, idx_action] \
+                               + gamma * np.dot(
+                                   p_tensor[np.arange(env.n_states), idx_state, idx_action],
+                                   v_table_i[np.arange(env.n_states)],
+                               )
 
         # logs
         if i % n_avg_iterations == 0:
@@ -78,23 +68,11 @@ def main():
     # get target set indices
     env.get_idx_target_set()
 
-    # initialize Langevin sde
-    sde = LangevinSDE(
-        problem_name='langevin_stop-t',
-        potential_name='nd_2well',
-        d=1,
-        alpha=np.ones(1),
-        beta=1.,
-        domain=np.full((1, 2), [-2, 2]),
-    )
-
-    # load  hjb solver
-    h_hjb = 0.01
-    sol_hjb = SolverHJB(sde, h=h_hjb)
-    sol_hjb.load()
+    # get hjb solver
+    sol_hjb = env.get_hjb_solver()
 
     # factor between the two different discretizations steps
-    k = int(args.h_state / h_hjb)
+    k = int(args.h_state / sol_hjb.sde.h)
     assert env.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
 
     # set deterministic policy from the hjb control
@@ -107,14 +85,13 @@ def main():
     v_table = policy_evaluation(
         env,
         policy,
-        sol_hjb.value_function[::k],
         gamma=args.gamma,
         n_iterations=args.n_iterations,
         n_avg_iterations=args.n_avg_iterations,
     )
 
     # do plots
-    plot_policy(env, policy, control_hjb=sol_hjb.u_opt[::k])
+    #plot_policy(env, policy, control_hjb=sol_hjb.u_opt[::k])
     plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function[::k])
 
 

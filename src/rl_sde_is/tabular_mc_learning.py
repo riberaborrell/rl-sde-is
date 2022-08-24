@@ -1,8 +1,5 @@
 import numpy as np
 
-from sde.langevin_sde import LangevinSDE
-from hjb.hjb_solver import SolverHJB
-
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
 from tabular_learning import *
@@ -157,26 +154,14 @@ def main():
 
     returns, avg_returns, time_steps, avg_time_steps, n_table, q_table = info
 
-    # do plots
-
-    # initialize Langevin sde
-    sde = LangevinSDE(
-        problem_name='langevin_stop-t',
-        potential_name='nd_2well',
-        d=1,
-        alpha=np.ones(1),
-        beta=1.,
-        domain=np.full((1, 2), [-2, 2]),
-    )
-
-    # load hjb solution
-    h_hjb = 0.01
-    sol_hjb = SolverHJB(sde, h=h_hjb)
-    sol_hjb.load()
+    # get hjb solver
+    sol_hjb = env.get_hjb_solver()
 
     # discretization step ratio
-    k = int(args.h_state / h_hjb)
+    k = int(args.h_state / sol_hjb.sde.h)
     assert env.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
+
+    # do plots
 
     #agent.episodes = np.arange(agent.n_episodes)
     #agent.plot_total_rewards()
