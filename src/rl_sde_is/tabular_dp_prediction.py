@@ -19,7 +19,7 @@ def policy_evaluation(env, policy, gamma=1.0,
     r_table = compute_r_table(env)
 
     # initialize value function table
-    v_table = np.random.rand(env.n_states)
+    v_table = - np.random.rand(env.n_states)
 
     # set values for the target set
     v_table[env.idx_lb:env.idx_rb+1] = 0
