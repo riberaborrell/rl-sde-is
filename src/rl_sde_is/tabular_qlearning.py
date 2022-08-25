@@ -32,8 +32,7 @@ def q_learning(env, gamma=1., epsilons=None, alpha=0.01,
     for ep in np.arange(n_episodes):
 
         # reset environment
-        #state = env.state_init.copy()
-        state = np.random.uniform(env.state_space_low, env.lb, (1,))
+        state = env.reset()
 
         # reset trajectory rewards
         rewards = np.empty(0)
@@ -114,6 +113,10 @@ def main():
     # initialize environments
     env = DoubleWellStoppingTime1D()
 
+    # set explorable starts flag
+    if args.explorable_starts:
+        env.is_state_init_sampled = True
+
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
@@ -122,9 +125,9 @@ def main():
     env.get_idx_target_set()
 
     # set epsilons
-    #epsilons = get_epsilons_constant(args.n_episodes, args.eps_init)
+    epsilons = get_epsilons_constant(args.n_episodes, eps_init=0.01)
     #epsilons = get_epsilons_harmonic(args.n_episodes)
-    epsilons = get_epsilons_linear_decay(args.n_episodes, args.eps_min, exploration=0.5)
+    #epsilons = get_epsilons_linear_decay(args.n_episodes, args.eps_min, exploration=0.5)
     #epsilons = get_epsilons_exp_decay(args.n_episodes, args.eps_init, args.eps_decay)
 
     # run mc learning algorithm

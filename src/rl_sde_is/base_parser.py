@@ -17,17 +17,17 @@ def get_base_parser():
         help='discount factor (default: 1.)',
     )
     parser.add_argument(
-        '--x-init',
-        dest='x_init',
+        '--s-init',
+        dest='s_init',
         type=float,
         default=-1.,
-        help='Set initial position of the trajectory. Default: -1.',
+        help='Set initial state of the trajectory. Default: -1.',
     )
     parser.add_argument(
         '--es',
         dest='explorable_starts',
         action='store_true',
-        help='the initial point of the trajectory is uniform sampled.',
+        help='the initial point of the trajectory is uniform sampled in the domain \ target set.',
     )
     parser.add_argument(
         '--constant-alpha',
@@ -103,7 +103,7 @@ def get_base_parser():
         dest='n_steps_lim',
         type=int,
         default=10**6,
-        help='Set number of maximum steps for an episode. Default: 1000',
+        help='Set number of maximum steps for an episode. Default: 1,000,000',
     )
     parser.add_argument(
         '--n-episodes',
@@ -167,36 +167,5 @@ def get_base_parser():
         type=float,
         default=0.5,
         help='Set the discretization step size for the action space. Default: 0.5',
-    )
-    parser.add_argument(
-        '--render',
-        dest='do_render',
-        action='store_true',
-        help='render the environment',
-    )
-    parser.add_argument(
-        '--log-interval',
-        dest='log_interval',
-        type=int,
-        default=10,
-        help='interval between training status logs (default: 10)',
-    )
-    parser.add_argument(
-        '--load',
-        dest='load',
-        action='store_true',
-        help='Load already run agent. Default: False',
-    )
-    parser.add_argument(
-        '--do-plots',
-        dest='do_plots',
-        action='store_true',
-        help='Do plots. Default: False',
-    )
-    parser.add_argument(
-        '--do-report',
-        dest='do_report',
-        action='store_true',
-        help='Write report. Default: False',
     )
     return parser

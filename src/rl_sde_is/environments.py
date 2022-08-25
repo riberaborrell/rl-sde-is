@@ -6,7 +6,7 @@ from hjb.hjb_solver import SolverHJB
 
 class DoubleWellStoppingTime1D():
 
-    def __init__(self):
+    def __init__(self, is_state_init_sampled=False):
 
         # sde
         self.beta = 1
@@ -19,6 +19,7 @@ class DoubleWellStoppingTime1D():
         self.lb, self.rb = 1, 2
 
         # initial state
+        self.is_state_init_sampled = is_state_init_sampled
         self.state_init = np.array([-1.], dtype=np.float32)
 
         # observation space bounds
@@ -57,6 +58,12 @@ class DoubleWellStoppingTime1D():
             0,
         )
         return reward
+
+    def reset(self):
+        if not self.is_state_init_sampled:
+            return self.state_init.copy()
+        else:
+            return np.random.uniform(self.state_space_low, self.lb, (1,))
 
     def step(self, state, action):
 
