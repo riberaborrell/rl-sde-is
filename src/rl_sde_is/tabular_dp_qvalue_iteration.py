@@ -91,8 +91,8 @@ def main():
     assert env.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
 
     # do plots
-    plot_policy(env, policy, control_hjb=sol_hjb.u_opt[::k])
     plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function[::k])
+    plot_policy(env, policy, control_hjb=sol_hjb.u_opt[::k])
 
 
 if __name__ == '__main__':

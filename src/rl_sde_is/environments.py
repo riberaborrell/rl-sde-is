@@ -111,6 +111,9 @@ class DoubleWellStoppingTime1D():
         self.idx_lb = self.get_state_idx(self.lb)
         self.idx_rb = self.get_state_idx(self.rb)
 
+    def get_idx_null_action(self):
+        self.idx_null_action = self.get_action_idx(0.)
+
     def get_hjb_solver(self, h_hjb=0.01):
 
         # initialize Langevin sde
