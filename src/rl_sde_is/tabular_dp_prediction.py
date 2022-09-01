@@ -71,13 +71,9 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # factor between the two different discretizations steps
-    k = int(args.h_state / sol_hjb.sde.h)
-    assert env.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
-
     # set deterministic policy from the hjb control
     policy = np.array([
-        env.get_action_idx(sol_hjb.u_opt[::k][idx_state])
+        env.get_action_idx(sol_hjb.u_opt[idx_state])
         for idx_state, _ in enumerate(env.state_space_h)
     ])
 
@@ -91,8 +87,7 @@ def main():
     )
 
     # do plots
-    #plot_policy(env, policy, control_hjb=sol_hjb.u_opt[::k])
-    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function[::k])
+    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function)
 
 
 if __name__ == '__main__':

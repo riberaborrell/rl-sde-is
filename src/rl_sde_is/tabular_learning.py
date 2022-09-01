@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-def get_epsilon_greedy_action(env, q_table, epsilon, idx_state):
+def get_epsilon_greedy_action(env, q_table, idx_state, epsilon):
 
     # pick greedy action (exploitation)
     if np.random.rand() > epsilon:
@@ -15,6 +15,23 @@ def get_epsilon_greedy_action(env, q_table, epsilon, idx_state):
     action = env.action_space_h[[idx_action]]
 
     return idx_action, action
+
+def get_epsilon_greedy_actions_vectorized(env, q_table, idx_states, epsilon):
+
+    # get batch size
+    batch_size = idx_states.shape[0]
+
+    # pick greedy action (exploitation)
+    if np.random.rand() > epsilon:
+        idx_actions = np.argmax(q_table[idx_states], axis=1)
+
+    # pick random action (exploration)
+    else:
+        idx_actions = np.random.choice(np.arange(env.n_actions), batch_size)
+
+    actions = env.action_space_h[idx_actions].reshape(batch_size, 1)
+
+    return idx_actions, actions
 
 def get_epsilons_constant(n_episodes, eps_init):
     return eps_init * np.ones(n_episodes)
@@ -97,18 +114,164 @@ def plot_v_table(env, q_table, value_function_hjb):
     plt.plot(x, value_function_hjb)
     plt.show()
 
+def plot_a_table(env, q_table):
+
+    v_table = np.max(q_table, axis=1)
+    a_table = q_table - np.expand_dims(v_table, axis=1)
+
+    # set extent bounds
+    extent = env.state_space_h[0], env.state_space_h[-1], \
+             env.action_space_h[0], env.action_space_h[-1]
+
+    fig, ax = plt.subplots()
+
+    im = fig.axes[0].imshow(
+        a_table.T,
+        origin='lower',
+        extent=extent,
+        cmap=cm.plasma,
+    )
+
+    # add space for colour bar
+    fig.subplots_adjust(right=0.85)
+    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+
+    plt.show()
+
 
 def plot_greedy_policy(env, q_table, control_hjb):
 
     x = env.state_space_h
 
-    # compute greedy policy by following the q-table
-    greedy_policy = np.empty_like(x)
-    for idx, x_k in enumerate(x):
-        idx_action = np.argmax(q_table[idx])
-        greedy_policy[idx] = env.action_space_h[idx_action]
+    greedy_actions = env.get_greedy_actions(q_table)
 
     fig, ax = plt.subplots()
-    plt.plot(x, greedy_policy)
+    plt.plot(x, greedy_actions)
     plt.plot(x, control_hjb[:, 0])
     plt.show()
+
+def initialize_figures(env, n_table, q_table, n_episodes, value_function_hjb, control_hjb):
+
+    # initialize figure with multiple subplots
+    fig, axes = plt.subplots(nrows=2, ncols=3)
+    ax1, ax2 = axes[:, 0]
+    ax3, ax4 = axes[:, 1]
+    ax5, ax6 = axes[:, 2]
+
+    # frequency subplot
+    ax1.set_title('Frequency table')
+    #ax1.set_xlabel('Discretized state space')
+    #ax1.set_ylabel('Discretized action space')
+
+    ax2.set_title('Q table')
+    #ax2.set_xlabel('Discretized state space')
+    #ax2.set_ylabel('Discretized action space')
+
+    ax3.set_title('Value function')
+    #ax3.set_xlabel('Discretized state space')
+    ax3.set_xlim(env.state_space_low, env.state_space_high)
+    ax3.set_ylim(-3, 1)
+
+    ax4.set_title('Greedy policy')
+    #ax4.set_xlabel('Discretized state space')
+    #ax4.set_ylabel('Discretized action space')
+    ax4.set_xlim(env.state_space_low, env.state_space_high)
+    ax4.set_ylim(env.action_space_low, env.action_space_high)
+
+    ax5.set_title('Return')
+    ax5.set_xlim(0, n_episodes)
+    ax5.set_ylim(-10, 1)
+
+    ax6.set_title('Time steps')
+    ax6.set_xlim(0, n_episodes)
+    ax6.set_ylim(0, 1000)
+
+    plt.ion()
+
+    extent = env.state_space_low - env.h_state / 2, env.state_space_high + env.h_state / 2, \
+             env.action_space_low - env.h_action / 2, env.action_space_high + env.h_action / 2
+
+    # n table
+    im1 = ax1.imshow(
+        n_table.T,
+        vmin=0,
+        vmax=10**4,
+        extent=extent,
+        origin='lower',
+        cmap=cm.coolwarm,
+        aspect='auto',
+    )
+
+    # q table
+    im2 = ax2.imshow(
+        q_table.T,
+        origin='lower',
+        extent=extent,
+        cmap=cm.viridis,
+        aspect='auto',
+    )
+
+    # value function
+    v_table = np.max(q_table, axis=1)
+    value_function_line = ax3.plot(env.state_space_h, v_table)[0]
+    ax3.plot(env.state_space_h, -value_function_hjb)
+
+    # control
+    greedy_actions = env.get_greedy_actions(q_table)
+    policy_line = ax4.plot(env.state_space_h, greedy_actions)[0]
+    ax4.plot(env.state_space_h, control_hjb)
+
+    # episodes
+    episodes = np.arange(n_episodes)
+
+    # returns
+    returns = np.empty_like(episodes, dtype=np.float32)
+    avg_returns = np.empty_like(episodes, dtype=np.float32)
+    returns.fill(np.nan)
+    avg_returns.fill(np.nan)
+    returns_line = ax5.plot(episodes, returns)[0]
+    avg_returns_line = ax5.plot(episodes, avg_returns)[0]
+
+    # time steps
+    time_steps = np.empty_like(episodes, dtype=np.float32)
+    avg_time_steps = np.empty_like(episodes, dtype=np.float32)
+    time_steps.fill(np.nan)
+    avg_time_steps.fill(np.nan)
+    time_steps_line = ax6.plot(episodes, time_steps)[0]
+    avg_time_steps_line = ax6.plot(episodes, avg_time_steps)[0]
+
+    plt.show()
+    images = (im1, im2)
+    lines = (value_function_line, policy_line, returns_line, avg_returns_line,
+             time_steps_line, avg_time_steps_line)
+    return images, lines
+
+def update_figures(env, n_table, q_table, returns, avg_returns,
+                   time_steps, avg_time_steps, images, lines):
+
+    # update n and q table
+    im1, im2 = images
+    im1.set_data(n_table.T)
+    im2.set_data(q_table.T)
+
+    # compute value function and greedy actions
+    v_table = np.max(q_table, axis=1)
+    greedy_actions = env.get_greedy_actions(q_table)
+
+    # episodes
+    episodes = np.arange(returns.shape[0])
+
+    value_function_line, policy_line, returns_line, avg_returns_line, \
+        time_steps_line, avg_time_steps_line = lines
+
+    # update plots
+    value_function_line.set_data(env.state_space_h, v_table)
+    policy_line.set_data(env.state_space_h, greedy_actions)
+    returns_line.set_data(episodes, returns)
+    avg_returns_line.set_data(episodes, avg_returns)
+    time_steps_line.set_data(episodes, time_steps)
+    avg_time_steps_line.set_data(episodes, avg_time_steps)
+
+    # update figure frequency
+    plt.pause(0.01)

@@ -138,19 +138,12 @@ def main():
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
-    # get target set indices
-    env.get_idx_target_set()
-
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # factor between the two different discretizations steps
-    k = int(args.h_state / sol_hjb.sde.h)
-    assert env.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
-
     # set deterministic policy from the hjb control
     policy = np.array([
-        env.get_action_idx(sol_hjb.u_opt[::k][idx_state])
+        env.get_action_idx(sol_hjb.u_opt[idx_state])
         for idx_state, _ in enumerate(env.state_space_h)
     ])
 
@@ -167,8 +160,8 @@ def main():
 
     returns, avg_returns, time_steps, avg_time_steps, v_table = info
 
-    #plot_given_policy(env, policy, control_hjb=sol_hjb.u_opt[::k])
-    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function[::k])
+    #plot_given_policy(env, policy, control_hjb=sol_hjb.u_opt)
+    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function)
 
 
 if __name__ == '__main__':

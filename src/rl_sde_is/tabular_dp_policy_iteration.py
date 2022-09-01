@@ -88,10 +88,6 @@ def main():
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
-    # get target set indices
-    env.get_idx_target_set()
-    env.get_idx_null_action()
-
     # run dynamic programming value iteration
     v_table, policy = policy_iteration(
         env,
@@ -103,13 +99,9 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # factor between the two different discretizations steps
-    k = int(args.h_state / sol_hjb.sde.h)
-    assert env.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
-
     # do plots
-    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function[::k])
-    plot_policy(env, policy, control_hjb=sol_hjb.u_opt[::k])
+    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function)
+    plot_policy(env, policy, control_hjb=sol_hjb.u_opt)
 
 
 if __name__ == '__main__':

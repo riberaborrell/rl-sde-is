@@ -141,6 +141,13 @@ def get_base_parser():
         help='Set number of epochs. Default: 100',
     )
     parser.add_argument(
+        '--n-steps-per-epoch',
+        dest='n_steps_per_epoch',
+        type=int,
+        default=1000,
+        help='Set number of time steps per epoch. Default: 1000',
+    )
+    parser.add_argument(
         '--step-sliced-episodes',
         dest='step_sliced_episodes',
         type=int,

@@ -29,6 +29,16 @@ def compute_r_table(env):
 
     return r_table
 
+def check_bellman_equation():
+    pass
+    # check that p_tensor and r_table are well computed
+    #a = -hjb_value_f[idx_x_init]
+    #b = np.dot(
+    #   p_tensor[np.arange(env.n_states), idx_x_init, policy[idx_x_init]],
+    #   - hjb_value_f[np.arange(env.n_states)],
+    #) + rew
+    #assert a == b, ''
+
 def plot_policy(env, policy, control_hjb):
 
     # discretize state space
@@ -40,8 +50,10 @@ def plot_policy(env, policy, control_hjb):
     ])
 
     fig, ax = plt.subplots()
-    ax.plot(x, actions)
-    ax.plot(x, control_hjb[:, 0])
+    ax.set_title('Policy')
+    ax.plot(x, actions, label='dp')
+    ax.plot(x, control_hjb[:, 0], label='hjb solution')
+    ax.legend()
     plt.show()
 
 def plot_value_function(env, v_table, value_f_hjb):
@@ -50,7 +62,9 @@ def plot_value_function(env, v_table, value_f_hjb):
     x = env.state_space_h
 
     fig, ax = plt.subplots()
-    ax.plot(x, -v_table)
-    ax.plot(x, value_f_hjb)
+    ax.set_title('Value function')
+    ax.plot(x, -v_table, label='dp')
+    ax.plot(x, value_f_hjb, label='hjb solution')
     #fig.set_ylim(-100, 0)
+    ax.legend()
     plt.show()
