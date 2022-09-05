@@ -1,6 +1,9 @@
 # data files
 data/
 
+# config files
+src/rl_sde_is/config.py
+
 # notebooks
 notebooks/
 
