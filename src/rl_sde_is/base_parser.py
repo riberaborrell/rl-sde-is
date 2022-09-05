@@ -73,7 +73,7 @@ def get_base_parser():
     parser.add_argument(
         '--eps-type',
         dest='eps_type',
-        choices=['constant', 'harmonic', 'exp'],
+        choices=['constant', 'harmonic', 'linear-decay', 'exp-decay'],
         default='constant',
         help='Type of epsilon succession. Default: constant',
     )

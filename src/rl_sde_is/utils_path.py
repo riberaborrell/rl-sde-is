@@ -75,9 +75,14 @@ def get_eps_str(**kwargs):
         )
     elif kwargs['eps_type'] == 'harmonic':
         eps_str = 'eps_harmonic'
-    else: # kwargs['eps_type'] == 'exp'
+    elif kwargs['eps_type'] == 'linear-decay':
         eps_str = os.path.join(
-            'eps_exp',
+            'eps_linear-decay',
+            'eps-min_{:0.1f}'.format(kwargs['eps_min']),
+        )
+    elif kwargs['eps_type'] == 'exp-decay':
+        eps_str = os.path.join(
+            'eps_exp-decay',
             'eps-init_{:0.1f}'.format(kwargs['eps_init']),
             'eps-decay_{:0.4f}'.format(kwargs['eps_decay']),
         )
@@ -118,3 +123,22 @@ def get_dynamic_programming_dir_path(env, **kwargs):
 
     return dir_path
 
+def get_qlearning_dir_path(env, **kwargs):
+    '''
+    '''
+
+    dir_path = os.path.join(
+        get_data_dir(),
+        'q-learning',
+        'h-state_{:.0e}'.format(env.h_state),
+        'h-action_{:.0e}'.format(env.h_action),
+        get_initial_point_str(env),
+        'lr_{:1.2f}'.format(kwargs['lr']),
+        get_eps_str(**kwargs),
+        'K_{:.0e}'.format(kwargs['n_episodes']),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
