@@ -10,6 +10,9 @@ notebooks/
 # output 
 output/
 
+# scripts
+scripts/
+
 # pyenv version file
 .python-version
 
