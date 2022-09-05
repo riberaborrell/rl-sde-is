@@ -4,16 +4,28 @@ from base_parser import get_base_parser
 from dynammic_programming import compute_p_tensor_batch, compute_r_table, \
                                  plot_policy, plot_value_function
 from environments import DoubleWellStoppingTime1D
+from utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
 
-def policy_evaluation(env, policy, gamma=1.0,
-                      n_iterations=100, n_avg_iterations=10):
+def policy_evaluation(env, policy, gamma=1.0, n_iterations=100, n_avg_iterations=10, load=False):
+    ''' Dynamic programming policy evaluation.
     '''
-    '''
+    # get dir path
+    dir_path = get_dynamic_programming_dir_path(
+        env,
+        agent='dp-prediction',
+        n_iterations=n_iterations,
+    )
+
+    # load results
+    if load:
+        data = load_data(dir_path)
+        return data
+
     # compute p tensor and r table
     p_tensor = compute_p_tensor_batch(env)
     r_table = compute_r_table(env)
@@ -53,7 +65,13 @@ def policy_evaluation(env, policy, gamma=1.0,
             msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[idx_state_init])
             print(msg)
 
-    return v_table
+    data = {
+        'n_iterations': n_iterations,
+        'v_table' : v_table,
+    }
+    save_data(dir_path, data)
+
+    return data
 
 def main():
     args = get_parser().parse_args()
@@ -65,9 +83,6 @@ def main():
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
-    # get target set indices
-    env.get_idx_target_set()
-
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
@@ -78,16 +93,17 @@ def main():
     ])
 
     # run mc learning agent following optimal policy
-    v_table = policy_evaluation(
+    data = policy_evaluation(
         env,
         policy,
         gamma=args.gamma,
         n_iterations=args.n_iterations,
         n_avg_iterations=args.n_avg_iterations,
+        load=args.load,
     )
 
     # do plots
-    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function)
+    plot_value_function(env, data['v_table'], value_f_hjb=sol_hjb.value_function)
 
 
 if __name__ == '__main__':

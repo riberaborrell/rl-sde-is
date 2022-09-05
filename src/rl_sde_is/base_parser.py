@@ -43,6 +43,13 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
+        '--lr',
+        dest='lr',
+        type=float,
+        default=0.01,
+        help='Set learning rate. Default: 0.01',
+    )
+    parser.add_argument(
         '--lr-actor',
         dest='lr_actor',
         type=float,
@@ -174,5 +181,43 @@ def get_base_parser():
         type=float,
         default=0.5,
         help='Set the discretization step size for the action space. Default: 0.5',
+    )
+    parser.add_argument(
+        '--n-layers',
+        dest='n_layers',
+        type=int,
+        default=3,
+        help='Set total number of layers. Default: 3',
+    )
+    parser.add_argument(
+        '--d-hidden-layer',
+        dest='d_hidden_layer',
+        type=int,
+        default=30,
+        help='Set dimension of the hidden layers. Default: 30',
+    )
+    parser.add_argument(
+        '--dense',
+        dest='is_dense',
+        action='store_true',
+        help='Flag determining if the NN Architecture is dense. Default: False',
+    )
+    parser.add_argument(
+        '--load',
+        dest='load',
+        action='store_true',
+        help='Load already run agent. Default: False',
+    )
+    parser.add_argument(
+        '--do-plots',
+        dest='do_plots',
+        action='store_true',
+        help='Do plots. Default: False',
+    )
+    parser.add_argument(
+        '--do-report',
+        dest='do_report',
+        action='store_true',
+        help='Write report. Default: False',
     )
     return parser

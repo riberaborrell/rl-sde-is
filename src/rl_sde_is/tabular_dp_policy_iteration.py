@@ -4,15 +4,28 @@ from base_parser import get_base_parser
 from dynammic_programming import compute_p_tensor_batch, compute_r_table, \
                                  plot_policy, plot_value_function
 from environments import DoubleWellStoppingTime1D
+from utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
 
-def policy_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10):
-    ''' policy iteration
+def policy_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10, load=False):
+    ''' Dynamic programming policy iteration.
     '''
+    # get dir path
+    dir_path = get_dynamic_programming_dir_path(
+        env,
+        agent='dp-policy-iteration',
+        n_iterations=n_iterations,
+    )
+
+    # load results
+    if load:
+        data = load_data(dir_path)
+        return data
+
     # compute p tensor and r table
     p_tensor = compute_p_tensor_batch(env)
     r_table = compute_r_table(env)
@@ -76,7 +89,14 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10):
             msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[idx_state_init])
             print(msg)
 
-    return v_table, policy
+    data = {
+        'n_iterations': n_iterations,
+        'v_table' : v_table,
+        'policy' : policy,
+    }
+    save_data(dir_path, data)
+
+    return data
 
 def main():
     args = get_parser().parse_args()
@@ -89,19 +109,20 @@ def main():
     env.discretize_action_space(args.h_action)
 
     # run dynamic programming value iteration
-    v_table, policy = policy_iteration(
+    data = policy_iteration(
         env,
         gamma=args.gamma,
         n_iterations=args.n_iterations,
         n_avg_iterations=args.n_avg_iterations,
+        load=args.load,
     )
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
     # do plots
-    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function)
-    plot_policy(env, policy, control_hjb=sol_hjb.u_opt)
+    plot_value_function(env, data['v_table'], value_f_hjb=sol_hjb.value_function)
+    plot_policy(env, data['policy'], control_hjb=sol_hjb.u_opt)
 
 
 if __name__ == '__main__':
