@@ -10,14 +10,14 @@ def get_parser():
     parser.description = ''
     return parser
 
-def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_steps_lim=1000,
+def a_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_steps_lim=1000,
                eps_type='linear-decay', eps_init=1., eps_min=0., eps_decay=0.98,
                value_function_hjb=None, control_hjb=None, load=False):
 
     # get dir path
     dir_path = get_qlearning_dir_path(
         env,
-        agent='q-learning',
+        agent='a-learning',
         lr=lr,
         n_episodes=n_episodes,
         eps_type=eps_type,
@@ -30,12 +30,13 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
         data = load_data(dir_path)
         return data
 
+
     # initialize frequency and q-value function table
     n_table = np.zeros((env.n_states, env.n_actions), dtype=np.int32)
-    q_table = - np.random.rand(env.n_states, env.n_actions)
+    a_table = - np.random.rand(env.n_states, env.n_actions)
 
     # set values for the target set
-    q_table[env.idx_lb:env.idx_rb+1] = 0
+    a_table[env.idx_lb:env.idx_rb+1] = 0
 
     # set epsilons
     epsilons = set_epsilons(
@@ -88,7 +89,7 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
             epsilon = epsilons[ep]
 
             # choose action following epsilon greedy action
-            idx_action, action = get_epsilon_greedy_action(env, q_table, idx_state, epsilon)
+            idx_action, action = get_epsilon_greedy_action(env, a_table, idx_state, epsilon)
 
             # get idx state-action pair
             idx = (idx_state, idx_action,)
@@ -99,11 +100,12 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
 
             # update q values
             n_table[idx] += 1
-            q_table[idx] += lr * (
-                  r \
-                + gamma * np.max(q_table[idx_new_state]) \
-                - q_table[idx]
-            )
+            a_table[idx] = np.max(a_table[idx_state]) \
+                         + lr * (
+                             r \
+                           + gamma * np.max(a_table[idx_new_state]) \
+                           - np.max(a_table[idx])
+                        )
 
             # save action and reward
             rewards = np.append(rewards, r)
@@ -135,7 +137,7 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
             msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
                   'run avg time steps: {:2.2f}, epsilon: {:2.3f}'.format(
                     ep,
-                    np.max(q_table[env.idx_state_init]),
+                    np.max(a_table[env.idx_state_init]),
                     avg_returns[ep],
                     avg_time_steps[ep],
                     epsilon,
@@ -149,7 +151,7 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
         'time_steps': time_steps,
         'avg_time_steps': avg_time_steps,
         'n_table' : n_table,
-        'q_table' : q_table,
+        'a_table' : a_table,
     }
     save_data(dir_path, data)
     return data
@@ -173,7 +175,7 @@ def main():
     sol_hjb = env.get_hjb_solver()
 
     # run mc learning algorithm
-    data = q_learning(
+    data = a_learning(
         env,
         gamma=args.gamma,
         lr=args.lr,
@@ -188,16 +190,20 @@ def main():
         control_hjb=sol_hjb.u_opt,
         load=args.load,
     )
+    n_table = data['n_table']
+    a_table = data['a_table']
+
+
+    # do plots
 
     #agent.episodes = np.arange(agent.n_episodes)
     #agent.plot_total_rewards()
     #agent.plot_time_steps()
     #agent.plot_epsilons()
-    plot_frequency_table(env, data['n_table'])
-    plot_q_table(env, data['q_table'])
-    plot_v_table(env, data['q_table'], sol_hjb.value_function)
-    plot_a_table(env, data['q_table'])
-    plot_greedy_policy(env, data['q_table'], sol_hjb.u_opt)
+    plot_frequency_table(env, n_table)
+    plot_q_table(env, a_table)
+    #plot_v_table(env, q_table, sol_hjb.value_function)
+    plot_greedy_policy(env, a_table, sol_hjb.u_opt)
 
 
 if __name__ == '__main__':

@@ -10,14 +10,14 @@ def get_parser():
     parser.description = ''
     return parser
 
-def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_steps_lim=1000,
-               eps_type='linear-decay', eps_init=1., eps_min=0., eps_decay=0.98,
-               value_function_hjb=None, control_hjb=None, load=False):
+def double_q_learning(env, gamma=1., lr=0.01,  n_episodes=1000, n_avg_episodes=10, n_steps_lim=1000,
+                      eps_type='linear-decay', eps_init=1., eps_min=0., eps_decay=0.98,
+                      value_function_hjb=None, control_hjb=None, load=False):
 
     # get dir path
     dir_path = get_qlearning_dir_path(
         env,
-        agent='q-learning',
+        agent='double-learning',
         lr=lr,
         n_episodes=n_episodes,
         eps_type=eps_type,
@@ -32,10 +32,12 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
 
     # initialize frequency and q-value function table
     n_table = np.zeros((env.n_states, env.n_actions), dtype=np.int32)
-    q_table = - np.random.rand(env.n_states, env.n_actions)
+    q1_table = - np.random.rand(env.n_states, env.n_actions)
+    q2_table = - np.random.rand(env.n_states, env.n_actions)
 
     # set values for the target set
-    q_table[env.idx_lb:env.idx_rb+1] = 0
+    q1_table[env.idx_lb:env.idx_rb+1] = 0
+    q2_table[env.idx_lb:env.idx_rb+1] = 0
 
     # set epsilons
     epsilons = set_epsilons(
@@ -88,7 +90,7 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
             epsilon = epsilons[ep]
 
             # choose action following epsilon greedy action
-            idx_action, action = get_epsilon_greedy_action(env, q_table, idx_state, epsilon)
+            idx_action, action = get_epsilon_greedy_action(env, q1_table + q2_table, idx_state, epsilon)
 
             # get idx state-action pair
             idx = (idx_state, idx_action,)
@@ -99,11 +101,19 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
 
             # update q values
             n_table[idx] += 1
-            q_table[idx] += lr * (
-                  r \
-                + gamma * np.max(q_table[idx_new_state]) \
-                - q_table[idx]
-            )
+
+            if np.random.rand() > 0.5:
+                q1_table[idx] += lr * (
+                      r \
+                    + gamma * q2_table[idx_new_state, np.argmax(q1_table[idx_new_state])] \
+                    - q1_table[idx]
+                )
+            else:
+                q2_table[idx] += lr * (
+                      r \
+                    + gamma * q1_table[idx_new_state, np.argmax(q2_table[idx_new_state])] \
+                    - q2_table[idx]
+                )
 
             # save action and reward
             rewards = np.append(rewards, r)
@@ -135,7 +145,7 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
             msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
                   'run avg time steps: {:2.2f}, epsilon: {:2.3f}'.format(
                     ep,
-                    np.max(q_table[env.idx_state_init]),
+                    np.max(q1_table[env.idx_state_init]),
                     avg_returns[ep],
                     avg_time_steps[ep],
                     epsilon,
@@ -149,7 +159,8 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
         'time_steps': time_steps,
         'avg_time_steps': avg_time_steps,
         'n_table' : n_table,
-        'q_table' : q_table,
+        'q1_table' : q1_table,
+        'q2_table' : q2_table,
     }
     save_data(dir_path, data)
     return data
@@ -172,8 +183,8 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # run mc learning algorithm
-    data = q_learning(
+    # run double q learning algorithm
+    data = double_q_learning(
         env,
         gamma=args.gamma,
         lr=args.lr,
@@ -189,15 +200,19 @@ def main():
         load=args.load,
     )
 
+
+    n_table = data['n_table']
+    q_table = (data['q1_table'] + data['q2_table']) / 2
+
     #agent.episodes = np.arange(agent.n_episodes)
     #agent.plot_total_rewards()
     #agent.plot_time_steps()
     #agent.plot_epsilons()
-    plot_frequency_table(env, data['n_table'])
-    plot_q_table(env, data['q_table'])
-    plot_v_table(env, data['q_table'], sol_hjb.value_function)
-    plot_a_table(env, data['q_table'])
-    plot_greedy_policy(env, data['q_table'], sol_hjb.u_opt)
+    plot_frequency_table(env, n_table)
+    plot_q_table(env, q_table)
+    plot_v_table(env, q_table, sol_hjb.value_function)
+    plot_a_table(env, q_table)
+    plot_greedy_policy(env, q_table, sol_hjb.u_opt)
 
 
 if __name__ == '__main__':

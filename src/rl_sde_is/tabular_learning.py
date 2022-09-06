@@ -33,11 +33,40 @@ def get_epsilon_greedy_actions_vectorized(env, q_table, idx_states, epsilon):
 
     return idx_actions, actions
 
+def set_epsilons(eps_type, **kwargs):
+
+    # constant sequence
+    if eps_type == 'constant':
+        epsilons = get_epsilons_constant(
+            n_episodes=kwargs['n_episodes'],
+            eps_init=kwargs['eps_init'],
+        )
+
+    # linear decaying sequence
+    elif eps_type == 'linear-decay':
+        epsilons = get_epsilons_linear_decay(
+            n_episodes=kwargs['n_episodes'],
+            eps_min=kwargs['eps_min'],
+        )
+
+    # exponential decaying sequence
+    elif eps_type == 'exp-decay':
+        epsilons = get_epsilons_exp_decay(
+            n_episodes=kwargs['n_episodes'],
+            eps_init=kwargs['eps_init'],
+            eps_decay=kwargs['eps_decay']
+        )
+
+    # harmonic decreasing sequence
+    elif eps_type == 'harmonic':
+        epsilons = get_epsilons_harmonic(
+            n_episodes=kwargs['n_episodes'],
+        )
+
+    return epsilons
+
 def get_epsilons_constant(n_episodes, eps_init):
     return eps_init * np.ones(n_episodes)
-
-def get_epsilons_harmonic(n_episodes):
-    return np.array([1 / (ep + 1) for ep in np.arange(n_episodes)])
 
 def get_epsilons_linear_decay(n_episodes, eps_min, exploration=0.75):
     n_episodes_exploration = int(n_episodes * exploration)
@@ -52,6 +81,10 @@ def get_epsilons_exp_decay(n_epsisodes, eps_init, eps_decay):
         eps_init * (eps_decay ** ep)
         for ep in np.arange(n_episodes)
     ])
+
+def get_epsilons_harmonic(n_episodes):
+    return np.array([1 / (ep + 1) for ep in np.arange(n_episodes)])
+
 
 def discount_cumsum(x, gamma):
     n = len(x)

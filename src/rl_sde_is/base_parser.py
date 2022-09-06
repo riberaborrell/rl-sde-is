@@ -67,14 +67,14 @@ def get_base_parser():
         '--lam',
         dest='lam',
         type=float,
-        default=0.5,
-        help='Set lambda parameter for the lambda Sarsa algorithm. Default: 0.5',
+        default=0.,
+        help='Set lambda parameter for the lambda Sarsa algorithm. Default: 0.',
     )
     parser.add_argument(
         '--eps-type',
         dest='eps_type',
         choices=['constant', 'harmonic', 'linear-decay', 'exp-decay'],
-        default='constant',
+        default='linear-decay',
         help='Type of epsilon succession. Default: constant',
     )
     parser.add_argument(

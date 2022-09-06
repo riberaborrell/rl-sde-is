@@ -123,13 +123,33 @@ def get_dynamic_programming_dir_path(env, **kwargs):
 
     return dir_path
 
+def get_sarsa_lambda_dir_path(env, **kwargs):
+    '''
+    '''
+    dir_path = os.path.join(
+        get_data_dir(),
+        'sarsa-lambda',
+        'h-state_{:.0e}'.format(env.h_state),
+        'h-action_{:.0e}'.format(env.h_action),
+        get_initial_point_str(env),
+        'lr_{:1.2f}'.format(kwargs['lr']),
+        'lambda_{:0.1f}'.format(kwargs['lam']),
+        get_eps_str(**kwargs),
+        'K_{:.0e}'.format(kwargs['n_episodes']),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_qlearning_dir_path(env, **kwargs):
     '''
     '''
 
     dir_path = os.path.join(
         get_data_dir(),
-        'q-learning',
+        '{}'.format(kwargs['agent']),
         'h-state_{:.0e}'.format(env.h_state),
         'h-action_{:.0e}'.format(env.h_action),
         get_initial_point_str(env),
