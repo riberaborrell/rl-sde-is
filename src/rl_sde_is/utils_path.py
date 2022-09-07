@@ -162,3 +162,22 @@ def get_qlearning_dir_path(env, **kwargs):
     make_dir_path(dir_path)
 
     return dir_path
+
+def get_dqn_dir_path(env, **kwargs):
+    '''
+    '''
+
+    dir_path = os.path.join(
+        get_data_dir(),
+        '{}'.format(kwargs['agent']),
+        'h-action_{:.0e}'.format(env.h_action),
+        get_initial_point_str(env),
+        'lr_{:.1e}'.format(kwargs['lr']),
+        'epochs_{:.0e}'.format(kwargs['n_epochs']),
+        'K_{:.0e}'.format(kwargs['batch_size']),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
