@@ -181,3 +181,22 @@ def get_dqn_dir_path(env, **kwargs):
     make_dir_path(dir_path)
 
     return dir_path
+
+def get_ddpg_dir_path(env, **kwargs):
+    '''
+    '''
+
+    dir_path = os.path.join(
+        get_data_dir(),
+        '{}'.format(kwargs['agent']),
+        get_initial_point_str(env),
+        'lr-actor_{:.1e}'.format(kwargs['lr_actor']),
+        'lr-critic_{:.1e}'.format(kwargs['lr_critic']),
+        'n_episodes_{:.0e}'.format(kwargs['n_episodes']),
+        'K_{:.0e}'.format(kwargs['batch_size']),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path

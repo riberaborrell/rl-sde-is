@@ -8,7 +8,7 @@ from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
 from models import FeedForwardNN
 from replay_buffers import DiscreteReplayBuffer as ReplayBuffer
-from approximate_methods import get_epsilon_greedy_discrete_action
+from approximate_methods import *
 from tabular_learning import *
 from utils_path import *
 
@@ -91,25 +91,6 @@ def test_q(env, model, eps_final, n_test_eps=10):
         ep_rets.append(ep_ret)
         ep_lens.append(ep_len)
     return np.mean(ep_rets), np.mean(ep_lens)
-
-def compute_tables(env, model):
-
-    states = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-
-    # compute q table
-    with torch.no_grad():
-        q_table = model.forward(states).numpy()
-
-    # compute value function
-    v_table = np.max(q_table, axis=1)
-
-    # compute advantage table
-    a_table = q_table - np.expand_dims(v_table, axis=1)
-
-    # compute greedy actions
-    greedy_actions = env.get_greedy_actions(q_table)
-
-    return q_table, v_table, a_table, greedy_actions
 
 
 def dqn(env, gamma=1., hidden_size=32, n_layers=3, lr=1e-3,
@@ -281,7 +262,7 @@ def initialize_figures(env, model, n_epochs, value_function_hjb, control_hjb):
              env.action_space_low - env.h_action / 2, env.action_space_high + env.h_action / 2
 
     # compute tables
-    q_table, v_table, a_table, greedy_actions = compute_tables(env, model)
+    q_table, v_table, a_table, greedy_actions = compute_tables_discrete_actions(env, model)
 
     # q-value function
     im1 = ax1.imshow(
@@ -333,7 +314,7 @@ def update_figures(env, model, returns,
         time_steps_line, test_time_steps_line = lines
 
     # compute tables
-    q_table, v_table, a_table, greedy_actions = compute_tables(env, model)
+    q_table, v_table, a_table, greedy_actions = compute_tables_discrete_actions(env, model)
 
     # update plots
     im1.set_data(q_table.T)
