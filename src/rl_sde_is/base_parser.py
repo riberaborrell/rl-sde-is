@@ -159,7 +159,7 @@ def get_base_parser():
         dest='target_update_freq',
         type=int,
         default=100,
-        help='Set number of time steps between target network updates. Default: 1000',
+        help='Set number of time steps per epoch. Default: 1000',
     )
     parser.add_argument(
         '--step-sliced-episodes',

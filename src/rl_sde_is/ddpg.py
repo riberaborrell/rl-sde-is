@@ -8,6 +8,7 @@ from approximate_methods import *
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
 from models import FeedForwardNN
+from plots import *
 from replay_buffers import ContinuousReplayBuffer as ReplayBuffer
 from utils_path import *
 
@@ -109,7 +110,7 @@ def test_q(n_test_eps=10):
 
 def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-3,
          n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
-         replay_size=1000, replay_min_size=100, batch_size=100, update_every=100,
+         replay_size=10000, replay_min_size=1000, batch_size=100, target_update_freq=100,
          rho=0.995, value_function_hjb=None, control_hjb=None, load=False):
 
     # get dir path
@@ -200,7 +201,7 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
             replay_buffer.store(state, action, r, next_state, complete)
 
             # if buffer is full enough
-            if replay_buffer.size > replay_min_size and k % update_every:
+            if replay_buffer.size > replay_min_size and k % target_update_freq:
 
                 #if replay_buffer.size == replay_min_size:
                 #    print('Replay buffer is ready to sample!')
@@ -281,50 +282,31 @@ def main():
         n_episodes=args.n_episodes,
         n_avg_episodes=args.n_avg_episodes,
         n_steps_lim=args.n_steps_lim,
+        target_update_freq=args.target_update_freq,
         batch_size=args.batch_size,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
         load=args.load,
     )
-
-    # compute policy and value function
+    returns = data['returns']
+    avg_returns = data['avg_returns']
+    time_steps = data['time_steps']
+    avg_time_steps = data['avg_time_steps']
     actor = data['actor']
     critic = data['critic']
 
     # compute tables following q-value model
-    q_table, v_table, a_table, greedy_actions = compute_tables_continuous_actions(env, critic)
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
 
     # compute value function and actions following the policy model
-    v_table_policy, policy_actions = compute_tables_actor_critic(env, actor, critic)
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
 
-    # plot v function
-    x = env.state_space_h.squeeze()
-    plt.plot(x, -v_table)
-    plt.plot(x, -v_table_policy)
-    plt.plot(x, -sol_hjb.value_function)
-    plt.show()
-
-    # plot control
-    plt.plot(x, greedy_actions)
-    plt.plot(x, policy_actions)
-    plt.plot(x, sol_hjb.u_opt)
-    plt.show()
-
-    # plot returns
-    plt.figure(figsize=(12, 8))
-    plt.plot(data['returns'])
-    plt.plot(data['avg_returns'])
-    plt.ylabel('Returns')
-    plt.xlabel('Episodes')
-    plt.show()
-
-    # plot time steps
-    plt.figure(figsize=(12, 8))
-    plt.plot(data['time_steps'])
-    plt.plot(data['avg_time_steps'])
-    plt.ylabel('Total Time steps')
-    plt.xlabel('Episodes')
-    plt.show()
+    plot_returns_episodes(returns, avg_returns)
+    plot_time_steps_episodes(time_steps, avg_time_steps)
+    plot_q_value_function(env, q_table)
+    plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)
+    plot_advantage_function(env, a_table)
+    plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
 
 if __name__ == '__main__':
     main()
