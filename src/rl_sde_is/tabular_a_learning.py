@@ -2,7 +2,8 @@ import numpy as np
 
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
-from tabular_learning import *
+from tabular_methods import compute_tables
+from plots import *
 from utils_path import *
 
 def get_parser():
@@ -190,20 +191,27 @@ def main():
         control_hjb=sol_hjb.u_opt,
         load=args.load,
     )
+
+    # unpack data
+    returns = data['returns']
+    avg_returns = data['avg_returns']
+    time_steps = data['time_steps']
+    avg_time_steps = data['avg_time_steps']
     n_table = data['n_table']
     a_table = data['a_table']
 
+    # compute tables
+    #TODO!
 
     # do plots
 
-    #agent.episodes = np.arange(agent.n_episodes)
-    #agent.plot_total_rewards()
-    #agent.plot_time_steps()
-    #agent.plot_epsilons()
-    plot_frequency_table(env, n_table)
-    plot_q_table(env, a_table)
+    plot_returns_episodes(returns, avg_returns)
+    plot_time_steps_episodes(time_steps, avg_time_steps)
+    plot_frequency(env, n_table)
+    #plot_q_table(env, a_table)
     #plot_v_table(env, q_table, sol_hjb.value_function)
-    plot_greedy_policy(env, a_table, sol_hjb.u_opt)
+    #plot_greedy_policy(env, a_table, sol_hjb.u_opt)
+    plot_advantage_function(env, a_table)
 
 
 if __name__ == '__main__':

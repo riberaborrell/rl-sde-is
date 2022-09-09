@@ -1,9 +1,9 @@
 import numpy as np
 
 from base_parser import get_base_parser
-from dynammic_programming import compute_p_tensor_batch, compute_r_table, \
-                                 plot_policy, plot_value_function
+from dynammic_programming import compute_p_tensor_batch, compute_r_table
 from environments import DoubleWellStoppingTime1D
+from plots import plot_value_function
 from utils_path import *
 
 def get_parser():
@@ -103,7 +103,7 @@ def main():
     )
 
     # do plots
-    plot_value_function(env, data['v_table'], value_f_hjb=sol_hjb.value_function)
+    plot_value_function(env, data['v_table'], sol_hjb.value_function)
 
 
 if __name__ == '__main__':

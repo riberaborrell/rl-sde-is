@@ -95,94 +95,19 @@ def discount_cumsum(x, gamma):
         z[j] = sum(x[j:] * y[:n-j])
     return z
 
-def plot_frequency_table(env, n_table):
-    # set extent bounds
-    extent = env.state_space_h[0], env.state_space_h[-1], \
-             env.action_space_h[0], env.action_space_h[-1]
+def compute_tables(env, q_table):
 
-    fig, ax = plt.subplots()
-
-    im = fig.axes[0].imshow(
-        n_table.T,
-        origin='lower',
-        extent=extent,
-        cmap=cm.coolwarm,
-    )
-
-    # add space for colour bar
-    fig.subplots_adjust(right=0.85)
-    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
-    fig.colorbar(im, cax=cbar_ax)
-
-    plt.show()
-
-def plot_q_table(env, q_table):
-    # set extent bounds
-    extent = env.state_space_h[0], env.state_space_h[-1], \
-             env.action_space_h[0], env.action_space_h[-1]
-
-    fig, ax = plt.subplots()
-
-    im = fig.axes[0].imshow(
-        q_table.T,
-        origin='lower',
-        extent=extent,
-        cmap=cm.viridis,
-    )
-
-    # add space for colour bar
-    fig.subplots_adjust(right=0.85)
-    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
-    fig.colorbar(im, cax=cbar_ax)
-
-    plt.show()
-
-def plot_v_table(env, q_table, value_function_hjb):
-
-    x = env.state_space_h
+    # compute value function
     v_table = np.max(q_table, axis=1)
 
-    fig, ax = plt.subplots()
-    plt.plot(x, -v_table)
-    plt.plot(x, value_function_hjb)
-    plt.show()
-
-def plot_a_table(env, q_table):
-
-    v_table = np.max(q_table, axis=1)
+    # compute advantage table
     a_table = q_table - np.expand_dims(v_table, axis=1)
 
-    # set extent bounds
-    extent = env.state_space_h[0], env.state_space_h[-1], \
-             env.action_space_h[0], env.action_space_h[-1]
+    # compute greedy actions
+    greedy_policy = env.get_greedy_actions(q_table)
+    greedy_policy[env.idx_lb:] = env.idx_null_action
 
-    fig, ax = plt.subplots()
-
-    im = fig.axes[0].imshow(
-        a_table.T,
-        origin='lower',
-        extent=extent,
-        cmap=cm.plasma,
-    )
-
-    # add space for colour bar
-    fig.subplots_adjust(right=0.85)
-    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
-    fig.colorbar(im, cax=cbar_ax)
-
-    plt.show()
-
-
-def plot_greedy_policy(env, q_table, control_hjb):
-
-    x = env.state_space_h
-
-    greedy_actions = env.get_greedy_actions(q_table)
-
-    fig, ax = plt.subplots()
-    plt.plot(x, greedy_actions)
-    plt.plot(x, control_hjb[:, 0])
-    plt.show()
+    return v_table, a_table, greedy_policy
 
 def initialize_figures(env, n_table, q_table, n_episodes, value_function_hjb, control_hjb):
 

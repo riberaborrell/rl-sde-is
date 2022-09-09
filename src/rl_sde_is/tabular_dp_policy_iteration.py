@@ -1,9 +1,9 @@
 import numpy as np
 
 from base_parser import get_base_parser
-from dynammic_programming import compute_p_tensor_batch, compute_r_table, \
-                                 plot_policy, plot_value_function
+from dynammic_programming import compute_p_tensor_batch, compute_r_table
 from environments import DoubleWellStoppingTime1D
+from plots import plot_value_function, plot_det_policy
 from utils_path import *
 
 def get_parser():
@@ -30,7 +30,7 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10, load
     p_tensor = compute_p_tensor_batch(env)
     r_table = compute_r_table(env)
 
-    # initialize value function table and policy
+    # initialize value function table and policy (array storing the indices of the actions)
     v_table = np.zeros(env.n_states)
     policy = np.random.randint(env.n_actions, size=env.n_states)
 
@@ -89,6 +89,9 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10, load
             msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[idx_state_init])
             print(msg)
 
+    # compute policy actions
+    policy = env.action_space_h[policy]
+
     data = {
         'n_iterations': n_iterations,
         'v_table' : v_table,
@@ -121,8 +124,8 @@ def main():
     sol_hjb = env.get_hjb_solver()
 
     # do plots
-    plot_value_function(env, data['v_table'], value_f_hjb=sol_hjb.value_function)
-    plot_policy(env, data['policy'], control_hjb=sol_hjb.u_opt)
+    plot_value_function(env, data['v_table'], sol_hjb.value_function)
+    plot_det_policy(env, data['policy'], sol_hjb.u_opt)
 
 
 if __name__ == '__main__':

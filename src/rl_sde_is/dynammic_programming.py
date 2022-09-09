@@ -38,33 +38,3 @@ def check_bellman_equation():
     #   - hjb_value_f[np.arange(env.n_states)],
     #) + rew
     #assert a == b, ''
-
-def plot_policy(env, policy, control_hjb):
-
-    # discretize state space
-    x = env.state_space_h
-
-    # get actions following given policy
-    actions = np.array([
-        env.action_space_h[idx_action] for idx_action in policy
-    ])
-
-    fig, ax = plt.subplots()
-    ax.set_title('Policy')
-    ax.plot(x, actions, label='dp')
-    ax.plot(x, control_hjb[:, 0], label='hjb solution')
-    ax.legend()
-    plt.show()
-
-def plot_value_function(env, v_table, value_f_hjb):
-
-    # discretize state space
-    x = env.state_space_h
-
-    fig, ax = plt.subplots()
-    ax.set_title('Value function')
-    ax.plot(x, -v_table, label='dp')
-    ax.plot(x, value_f_hjb, label='hjb solution')
-    #fig.set_ylim(-100, 0)
-    ax.legend()
-    plt.show()

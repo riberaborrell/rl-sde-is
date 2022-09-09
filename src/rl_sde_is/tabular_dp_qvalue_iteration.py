@@ -2,9 +2,9 @@ import numpy as np
 
 from base_parser import get_base_parser
 from dynammic_programming import compute_p_tensor_batch, compute_r_table
-#                                 plot_policy, plot_value_function
-from tabular_learning import *
 from environments import DoubleWellStoppingTime1D
+from plots import plot_q_value_function, plot_value_function, plot_advantage_function, plot_det_policy
+from tabular_methods import compute_tables
 from utils_path import *
 
 def get_parser():
@@ -93,20 +93,18 @@ def main():
         load=args.load,
     )
 
-    # compute optimal policy and value function
-    #policy = np.argmax(q_table, axis=1)
-    #policy[env.idx_lb:] = idx_null_action
-    #v_table = np.max(q_table, axis=1)
+    # compute tables
+    q_table = data['q_table']
+    v_table, a_table, policy_greedy = compute_tables(env, q_table)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
     # do plots
-    q_table = data['q_table']
-    plot_q_table(env, q_table)
-    plot_v_table(env, q_table, sol_hjb.value_function)
-    plot_a_table(env, q_table)
-    plot_greedy_policy(env, q_table, sol_hjb.u_opt)
+    plot_q_value_function(env, q_table)
+    plot_value_function(env, v_table, sol_hjb.value_function)
+    plot_advantage_function(env, a_table)
+    plot_det_policy(env, policy_greedy, sol_hjb.u_opt)
 
 
 if __name__ == '__main__':
