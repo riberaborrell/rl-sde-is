@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.stats as stats
+import torch
 
 from sde.langevin_sde import LangevinSDE
 from hjb.hjb_solver import SolverHJB
@@ -11,9 +12,11 @@ class DoubleWellStoppingTime1D():
         # sde
         self.beta = 1
         self.sigma = np.sqrt(2 / self.beta)
+        self.sigma_tensor = torch.tensor(self.sigma, dtype=torch.float32)
 
         # Euler-Maruyama
         self.dt = 0.01
+        self.dt_tensor = torch.tensor(self.dt, dtype=torch.float32)
 
         # target set
         self.lb, self.rb = 1, 2
@@ -40,6 +43,12 @@ class DoubleWellStoppingTime1D():
 
     def g(self, state):
         return 0
+
+    def f_torch(self, states):
+        return torch.ones(states.shape[0])
+
+    def g_torch(self, states):
+        return torch.zeros(states.shape[0])
 
     def state_action_transition_function(self, next_state, state, action, h):
         mu = state + (- self.gradient(state) + self.sigma * action) * self.dt
@@ -89,6 +98,30 @@ class DoubleWellStoppingTime1D():
             done,
             - 0.5 * np.power(action, 2)[0] * self.dt - self.f(state) * self.dt - self.g(next_state),
             - 0.5 * np.power(action, 2)[0] * self.dt - self.f(state) * self.dt,
+        )
+
+        return next_state, r, done
+
+    def step_torch(self, state, action):
+
+        # brownian increment
+        dt = self.dt_tensor
+        dbt = torch.sqrt(dt) * torch.randn(1, dtype=np.float32)
+
+        # sde step
+        sigma = self.sigma_tensor
+        next_state = state \
+                   + (- self.gradient(state) + sigma * action) * dt \
+                   + sigma * dbt
+
+        # done if position x in the target set
+        done = bool(next_state > self.lb and next_state < self.rb)
+
+        # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
+        r = np.where(
+            done,
+            - 0.5 * np.power(action, 2)[0] * dt - self.f(state) * dt - self.g(next_state),
+            - 0.5 * np.power(action, 2)[0] * dt - self.f(state) * dt,
         )
 
         return next_state, r, done
@@ -147,6 +180,43 @@ class DoubleWellStoppingTime1D():
 
         return next_states, rewards, done
 
+    def step_vectorized_torch(self, states, actions):
+
+        # batch_size
+        batch_size = states.shape[0]
+
+        # brownian increment
+        dt = self.dt_tensor
+        dbt = torch.sqrt(dt) * torch.randn((batch_size, 1), dtype=torch.float32)
+
+        # sde step
+        sigma = self.sigma_tensor
+        next_states = states \
+                    + (- self.gradient(states) + sigma * actions) * dt \
+                    + sigma * dbt
+
+        # done if position x in the target set
+        done = torch.where(next_states > self.lb, True, False)
+
+        # rewards signal r_{n+1} = r(s_{n+1}, s_n, a_n)
+        rewards = torch.where(
+            done,
+            - 0.5 * torch.pow(actions, 2) * dt - self.f(states) * dt - self.g(next_states),
+            - 0.5 * torch.pow(actions, 2) * dt - self.f(states) * dt,
+        )
+
+        return next_states, rewards, done, dbt
+
+    def get_idx_new_in_ts(self, is_in_target_set, been_in_target_set):
+
+        idx = torch.where(
+                (is_in_target_set == True) &
+                (been_in_target_set == False)
+        )[0]
+
+        been_in_target_set[idx] = True
+
+        return idx
 
     def discretize_state_space(self, h_state):
 

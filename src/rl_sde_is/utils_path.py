@@ -182,6 +182,24 @@ def get_dqn_dir_path(env, **kwargs):
 
     return dir_path
 
+def get_reinforce_det_dir_path(env, **kwargs):
+    '''
+    '''
+
+    dir_path = os.path.join(
+        get_data_dir(),
+        '{}'.format(kwargs['agent']),
+        get_initial_point_str(env),
+        'lr{:.1e}'.format(kwargs['lr']),
+        'it_{:.0e}'.format(kwargs['n_iterations']),
+        'K_{:.0e}'.format(kwargs['batch_size']),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_ddpg_dir_path(env, **kwargs):
     '''
     '''
