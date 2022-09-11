@@ -94,19 +94,6 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
 
     return actor_loss.detach().item(), critic_loss.detach().item()
 
-def test_q(n_test_eps=10):
-    test_env = gym.make('sde-v0', beta=1., x_init=-1.)
-    ep_rets, ep_lens = [], []
-    for _ in range(n_test_eps):
-        obs, rew, done, ep_ret, ep_len = test_env.reset(), 0, False, 0, 0
-        while not(done):
-            act = get_action(model, obs, eps_final)
-            obs, rew, done, _ = test_env.step(act)
-            ep_ret += rew
-            ep_len += 1
-        ep_rets.append(ep_ret)
-        ep_lens.append(ep_len)
-    return np.mean(ep_rets), np.mean(ep_lens)
 
 def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-3,
          n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
@@ -170,6 +157,10 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
 
     # get initial state
     state_init = env.state_init.copy()
+
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
+    tuples = initialize_q_learning_figures(env, q_table, v_table_critic, a_table, policy_critic,
+                                           value_function_hjb, control_hjb)
 
     # sample trajectories
     for ep in range(n_episodes):
@@ -243,6 +234,11 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
                     avg_time_steps[ep],
                 )
             print(msg)
+
+            # update plots
+            q_table, v_table_critic, a_table, policy_critic \
+                    = compute_tables_continuous_actions(env, critic)
+            update_q_learning_figures(env, q_table, v_table_critic, a_table, policy_critic, tuples)
 
     data = {
         'n_episodes': n_episodes,

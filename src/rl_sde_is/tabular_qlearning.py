@@ -2,7 +2,7 @@ import numpy as np
 
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
-from tabular_methods import compute_tables
+from tabular_methods import *
 from plots import *
 from utils_path import *
 
@@ -48,8 +48,10 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
     )
 
     # initialize plots 
-    #images, lines = initialize_figures(env, n_table, q_table, n_episodes,
-    #                                   value_function_hjb, control_hjb)
+    tuples_episodes = initialize_episodes_figures(env, n_episodes)
+    v_table, a_table, policy = compute_tables(env, q_table)
+    tuples_q_learning = initialize_q_learning_figures(env, q_table, v_table, a_table, policy,
+                                                     value_function_hjb, control_hjb)
 
     # preallocate returns and time steps
     returns = np.empty(n_episodes)
@@ -128,8 +130,9 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
         avg_time_steps[ep] = np.mean(time_steps[idx_last_episodes])
 
         # update plots
-        #update_figures(env, n_table, q_table, returns, avg_returns, time_steps,
-        #               avg_time_steps, images, lines)
+        update_episodes_figures(env, returns, avg_returns, time_steps, avg_time_steps, tuples_episodes)
+        v_table, a_table, policy = compute_tables(env, q_table)
+        update_q_learning_figures(env, q_table, v_table, a_table, policy, tuples_q_learning)
 
         # logs
         if ep % n_avg_episodes == 0:
