@@ -158,9 +158,12 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
     # get initial state
     state_init = env.state_init.copy()
 
+    # initialize figures
     q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
-    tuples = initialize_q_learning_figures(env, q_table, v_table_critic, a_table, policy_critic,
-                                           value_function_hjb, control_hjb)
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
+    lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
+                                             a_table, policy_actor, policy_critic,
+                                             value_function_hjb, control_hjb)
 
     # sample trajectories
     for ep in range(n_episodes):
@@ -236,9 +239,10 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
             print(msg)
 
             # update plots
-            q_table, v_table_critic, a_table, policy_critic \
-                    = compute_tables_continuous_actions(env, critic)
-            update_q_learning_figures(env, q_table, v_table_critic, a_table, policy_critic, tuples)
+            q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
+            v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
+            update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
+                                        a_table, policy_actor, policy_critic, lines)
 
     data = {
         'n_episodes': n_episodes,

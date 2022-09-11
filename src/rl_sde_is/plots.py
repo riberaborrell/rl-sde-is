@@ -177,10 +177,12 @@ def initialize_episodes_figures(env, n_episodes):
 
     # returns
     ax1.set_title('Return')
+    ax1.set_xlabel('Episodes')
     ax1.set_xlim(0, n_episodes)
     ax1.set_ylim(-10, 1)
 
     ax2.set_title('Time steps')
+    ax2.set_xlabel('Episodes')
     ax2.set_xlim(0, n_episodes)
     ax2.set_ylim(0, 1000)
 
@@ -277,6 +279,78 @@ def update_q_learning_figures(env, q_table, v_table, a_table, policy, tuples):
     line_value_function.set_data(env.state_space_h, v_table)
     im_a_table.set_data(a_table.T)
     line_policy.set_data(env.state_space_h, policy)
+
+    # update figure frequency
+    plt.pause(0.01)
+
+def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
+                                    policy_actor, policy_critic, value_function_hjb, control_hjb):
+
+    # initialize figure with multiple subplots
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+    ax1, ax2 = axes[:, 0]
+    ax3, ax4 = axes[:, 1]
+
+    # 
+    plt.ion()
+
+    # q table
+    ax1.set_title('Q-value function')
+    ax1.set_xlabel('States')
+    ax1.set_ylabel('Actions')
+    im_q_table = ax1.imshow(
+        q_table.T,
+        origin='lower',
+        extent=get_extent(env),
+        cmap=cm.viridis,
+        #aspect='auto',
+    )
+
+    # value function
+    ax2.set_title('Value function')
+    ax2.set_xlabel('States')
+    line_value_f_actor_critic = ax2.plot(env.state_space_h, v_table_actor_critic)[0]
+    line_value_f_critic = ax2.plot(env.state_space_h, v_table_critic)[0]
+    ax2.plot(env.state_space_h, -value_function_hjb)
+
+    # a table
+    ax3.set_title('Advantage function')
+    ax3.set_xlabel('States')
+    ax3.set_ylabel('Actions')
+    im_a_table = ax3.imshow(
+        a_table.T,
+        origin='lower',
+        extent=get_extent(env),
+        cmap=cm.plasma,
+        #aspect='auto',
+    )
+
+    # control
+    ax4.set_title('Value function')
+    ax4.set_xlabel('States')
+    ax4.set_ylabel('Actions')
+    line_policy_actor = ax4.plot(env.state_space_h, policy_actor)[0]
+    line_policy_critic = ax4.plot(env.state_space_h, policy_critic)[0]
+    ax4.plot(env.state_space_h, control_hjb)
+
+    plt.show()
+    return (im_q_table, line_value_f_actor_critic, line_value_f_critic, im_a_table,
+            line_policy_actor, line_policy_critic)
+
+def update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
+                                policy_actor, policy_critic, tuples):
+
+    # unpack lines and images
+    im_q_table, line_value_f_actor_critic, line_value_f_critic, im_a_table, \
+            line_policy_actor, line_policy_critic = tuples
+
+    # update plots
+    im_q_table.set_data(q_table.T)
+    line_value_f_actor_critic.set_data(env.state_space_h, v_table_actor_critic)
+    line_value_f_critic.set_data(env.state_space_h, v_table_critic)
+    im_a_table.set_data(a_table.T)
+    line_policy_actor.set_data(env.state_space_h, policy_actor)
+    line_policy_critic.set_data(env.state_space_h, policy_critic)
 
     # update figure frequency
     plt.pause(0.01)
