@@ -15,7 +15,7 @@ class DoubleWellStoppingTime1D():
         self.sigma_tensor = torch.tensor(self.sigma, dtype=torch.float32)
 
         # Euler-Maruyama
-        self.dt = 0.01
+        self.dt = 0.005
         self.dt_tensor = torch.tensor(self.dt, dtype=torch.float32)
 
         # target set
