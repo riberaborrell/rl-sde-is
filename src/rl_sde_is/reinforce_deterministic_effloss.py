@@ -109,16 +109,17 @@ def sample_loss_vectorized(env, model, K):
 
     return eff_loss, phi_fht.numpy(), mean_I_u, var_I_u, re_I_u, time_steps, ct_final - ct_initial
 
-def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False, lr=0.01,
-              n_iterations=100, batch_size=10, seed=None, control_hjb=None, load=False):
+def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
+              batch_size=10, lr=0.01, n_iterations=100, seed=None,
+              control_hjb=None, load=False, plot=False):
 
     # get dir path
     dir_path = get_reinforce_det_dir_path(
         env,
         agent='reinforce-det',
+        batch_size=batch_size,
         lr=lr,
         n_iterations=n_iterations,
-        batch_size=batch_size,
     )
 
     # load results
@@ -131,13 +132,11 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False, lr=
         np.random.seed(seed)
 
     # get dimensions of each layer
-    #d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
-    d_hidden_layers = [128, 256]
+    d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
     # initialize nn model 
     model = FeedForwardNN(d_in=env.state_space_dim, hidden_sizes=d_hidden_layers,
-                          d_out=env.action_space_dim, activation=nn.ReLU(),
-                          output_activation=nn.Tanh())
+                          d_out=env.action_space_dim, activation=nn.Tanh())
 
     # define optimizer
     optimizer = optim.Adam(
@@ -164,8 +163,8 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False, lr=
     controls[0] = model.forward(state_space_h).detach().numpy().squeeze()
 
     # initialize animated figures
-    control_line = initialize_det_policy_figure(env, controls[0], control_hjb)
-    control_line2 = initialize_det_policy_figure(env, controls[0], control_hjb)
+    if plot:
+        control_line = initialize_det_policy_figure(env, controls[0], control_hjb)
 
     for i in np.arange(n_iterations):
 
@@ -204,8 +203,8 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False, lr=
         controls[i] = model.forward(state_space_h).detach().numpy().squeeze()
 
         # update figure
-        update_det_policy_figure(env, controls[i], control_line)
-        update_det_policy_figure(env, controls[i]+1, control_line2)
+        if plot:
+            update_det_policy_figure(env, controls[i], control_line)
 
     data = {
         'n_iterations': n_iterations,
@@ -258,20 +257,22 @@ def main():
     data = reinforce(
         env,
         gamma=args.gamma,
+        batch_size=args.batch_size,
         lr=args.lr,
         n_iterations=args.n_iterations,
-        batch_size=args.batch_size,
         seed=args.seed,
         control_hjb=sol_hjb.u_opt,
         load=args.load,
+        plot=args.plot,
     )
     losses = data['losses']
     controls = data['controls']
 
     # do plots
-    plot_losses(losses)
-    plot_controls(env, controls, sol_hjb.u_opt)
-    plot_det_policy(env, controls[-1], sol_hjb.u_opt)
+    if args.plot:
+        plot_losses(losses)
+        plot_controls(env, controls, sol_hjb.u_opt)
+        plot_det_policy(env, controls[-1], sol_hjb.u_opt)
 
 if __name__ == "__main__":
     main()

@@ -216,8 +216,8 @@ def get_base_parser():
         help='Load already run agent. Default: False',
     )
     parser.add_argument(
-        '--do-plots',
-        dest='do_plots',
+        '--plot',
+        dest='plot',
         action='store_true',
         help='Do plots. Default: False',
     )

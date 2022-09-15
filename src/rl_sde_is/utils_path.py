@@ -163,6 +163,27 @@ def get_qlearning_dir_path(env, **kwargs):
 
     return dir_path
 
+def get_qlearning_batch_dir_path(env, **kwargs):
+    '''
+    '''
+
+    dir_path = os.path.join(
+        get_data_dir(),
+        '{}'.format(kwargs['agent']),
+        'h-state_{:.0e}'.format(env.h_state),
+        'h-action_{:.0e}'.format(env.h_action),
+        get_initial_point_str(env),
+        'lr_{:1.2f}'.format(kwargs['lr']),
+        get_eps_str(**kwargs),
+        'epochs_{:.0e}'.format(kwargs['n_epochs']),
+        'K_{:.0e}'.format(kwargs['batch_size']),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_dqn_dir_path(env, **kwargs):
     '''
     '''
@@ -190,9 +211,9 @@ def get_reinforce_det_dir_path(env, **kwargs):
         get_data_dir(),
         '{}'.format(kwargs['agent']),
         get_initial_point_str(env),
+        'K_{:.0e}'.format(kwargs['batch_size']),
         'lr{:.1e}'.format(kwargs['lr']),
         'it_{:.0e}'.format(kwargs['n_iterations']),
-        'K_{:.0e}'.format(kwargs['batch_size']),
     )
 
     # create dir path if not exists
