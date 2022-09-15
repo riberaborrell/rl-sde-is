@@ -23,7 +23,8 @@ class TwoLayerNN(nn.Module):
         return x
 
 class FeedForwardNN(nn.Module):
-    def __init__(self, d_in, hidden_sizes, d_out, activation=torch.tanh, seed=None):
+    def __init__(self, d_in, hidden_sizes, d_out, activation=nn.Tanh(),
+                 output_activation=nn.Identity(), seed=None):
         super(FeedForwardNN, self).__init__()
 
         # set seed
@@ -47,6 +48,7 @@ class FeedForwardNN(nn.Module):
 
         # activation function
         self.activation = activation
+        self.output_activation = output_activation
 
     def forward(self, x):
         for i in range(self.n_layers):
@@ -54,13 +56,13 @@ class FeedForwardNN(nn.Module):
             # linear layer
             layer = getattr(self, 'linear{:d}'.format(i+1))
 
-            # forward layer pass with activation
+            # forward layer pass with chosen layer activation
             if i != self.n_layers -1:
                 x = self.activation(layer(x))
 
-            # last forward layer pass without activation
+            # last forward layer pass with output activation
             else:
-                x = layer(x)
+                x = self.output_activation(layer(x))
         return x
 
 class DenseNN(nn.Module):

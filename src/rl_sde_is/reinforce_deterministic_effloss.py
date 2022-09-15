@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.optim as optim
+import torch.nn as nn
 
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
 from models import FeedForwardNN, DenseNN
-from plots import plot_det_policy
+from plots import *
 from utils_path import *
 
 def get_parser():
@@ -39,6 +40,7 @@ def sample_loss_vectorized(env, model, K):
     time_steps = np.empty(K)
 
     been_in_target_set = torch.full((K, 1), False)
+    done = torch.full((K, 1), False)
 
     for k in np.arange(1, k_max + 1):
 
@@ -107,8 +109,8 @@ def sample_loss_vectorized(env, model, K):
 
     return eff_loss, phi_fht.numpy(), mean_I_u, var_I_u, re_I_u, time_steps, ct_final - ct_initial
 
-def reinforce(env, gamma=1.0, seed=None, n_layers=3, d_hidden_layer=30, is_dense=False, lr=0.01,
-              n_iterations=100, batch_size=10, load=False):
+def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False, lr=0.01,
+              n_iterations=100, batch_size=10, seed=None, control_hjb=None, load=False):
 
     # get dir path
     dir_path = get_reinforce_det_dir_path(
@@ -129,15 +131,13 @@ def reinforce(env, gamma=1.0, seed=None, n_layers=3, d_hidden_layer=30, is_dense
         np.random.seed(seed)
 
     # get dimensions of each layer
-    d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
+    #d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
+    d_hidden_layers = [128, 256]
 
     # initialize nn model 
-    if not is_dense:
-        model = FeedForwardNN(d_in=env.state_space_dim, hidden_sizes=d_hidden_layers,
-                              d_out=env.action_space_dim)
-    else:
-        model = DenseNN(d_in=env.state_space_dim, hidden_sizes=d_hidden_layers,
-                        d_out=env.action_space_dim)
+    model = FeedForwardNN(d_in=env.state_space_dim, hidden_sizes=d_hidden_layers,
+                          d_out=env.action_space_dim, activation=nn.ReLU(),
+                          output_activation=nn.Tanh())
 
     # define optimizer
     optimizer = optim.Adam(
@@ -162,7 +162,10 @@ def reinforce(env, gamma=1.0, seed=None, n_layers=3, d_hidden_layer=30, is_dense
     # save initial control
     state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
     controls[0] = model.forward(state_space_h).detach().numpy().squeeze()
-    breakpoint()
+
+    # initialize animated figures
+    control_line = initialize_det_policy_figure(env, controls[0], control_hjb)
+    control_line2 = initialize_det_policy_figure(env, controls[0], control_hjb)
 
     for i in np.arange(n_iterations):
 
@@ -199,6 +202,10 @@ def reinforce(env, gamma=1.0, seed=None, n_layers=3, d_hidden_layer=30, is_dense
 
         # save control
         controls[i] = model.forward(state_space_h).detach().numpy().squeeze()
+
+        # update figure
+        update_det_policy_figure(env, controls[i], control_line)
+        update_det_policy_figure(env, controls[i]+1, control_line2)
 
     data = {
         'n_iterations': n_iterations,
@@ -244,6 +251,9 @@ def main():
     # discretized state space (for plot purposes only)
     env.discretize_state_space(h_state=0.01)
 
+    # get hjb solver
+    sol_hjb = env.get_hjb_solver()
+
     # run reinforve algorithm with a deterministic policy
     data = reinforce(
         env,
@@ -251,15 +261,13 @@ def main():
         lr=args.lr,
         n_iterations=args.n_iterations,
         batch_size=args.batch_size,
+        seed=args.seed,
+        control_hjb=sol_hjb.u_opt,
         load=args.load,
     )
     losses = data['losses']
     controls = data['controls']
 
-    # get hjb solver
-    sol_hjb = env.get_hjb_solver()
-
-    breakpoint()
     # do plots
     plot_losses(losses)
     plot_controls(env, controls, sol_hjb.u_opt)

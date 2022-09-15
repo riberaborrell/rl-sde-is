@@ -195,7 +195,7 @@ def initialize_det_policy_figure(env, policy, control_hjb):
 
 def update_det_policy_figure(env, policy, line):
     line.set_data(env.state_space_h, policy)
-    plt.pause(0.01)
+    plt.pause(0.1)
 
 
 def initialize_episodes_figures(env, n_episodes):
