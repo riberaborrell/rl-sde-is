@@ -38,7 +38,7 @@ def plot_frequency(env, n_table):
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
-    im = fig.axes[0].imshow(
+    im = ax.imshow(
         n_table.T,
         origin='lower',
         extent=get_extent(env),
@@ -118,6 +118,38 @@ def plot_value_function_actor_critic(env, value_function_actor_critic, value_fun
     plt.legend()
     plt.show()
 
+def plot_stoch_policy(env, action_prob_dists, policy, control_hjb):
+
+    # plot action probability distributions
+    fig, ax = plt.subplots()
+    ax.set_title('Action Probability distributions')
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+
+    im = ax.imshow(
+        action_prob_dists.T,
+        origin='lower',
+        extent=get_extent(env),
+        cmap=cm.plasma,
+    )
+
+    # add space for colour bar
+    fig.subplots_adjust(right=0.85)
+    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+
+    plt.show()
+
+    # plot sampled actions following policy
+    fig, ax = plt.subplots()
+    ax.set_title('Stochastic Policy')
+    ax.set_xlabel('States')
+    ax.set_ylabel('Sampled actions')
+
+    plt.scatter(env.state_space_h, policy)
+    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
+    plt.legend()
+    plt.show()
 
 def plot_det_policy(env, policy, control_hjb):
 
@@ -127,6 +159,18 @@ def plot_det_policy(env, policy, control_hjb):
     ax.set_ylabel('Actions')
 
     plt.plot(env.state_space_h, policy)
+    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
+    plt.legend()
+    plt.show()
+
+def plot_det_policy_actor_critic(env, policy_actor, policy_critic, control_hjb):
+    fig, ax = plt.subplots()
+    ax.set_title('Deterministic Policy')
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+
+    plt.plot(env.state_space_h, policy_actor, label=r'actor: $\mu(s; \theta)$')
+    plt.plot(env.state_space_h, policy_critic, label=r'critic: $\mu(s) = argmax_a Q(s, a; w)$')
     plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
     plt.legend()
     plt.show()
@@ -152,18 +196,6 @@ def initialize_det_policy_figure(env, policy, control_hjb):
 def update_det_policy_figure(env, policy, line):
     line.set_data(env.state_space_h, policy)
     plt.pause(0.01)
-
-def plot_det_policy_actor_critic(env, policy_actor, policy_critic, control_hjb):
-    fig, ax = plt.subplots()
-    ax.set_title('Deterministic Policy')
-    ax.set_xlabel('States')
-    ax.set_ylabel('Actions')
-
-    plt.plot(env.state_space_h, policy_actor, label=r'actor: $\mu(s; \theta)$')
-    plt.plot(env.state_space_h, policy_critic, label=r'critic: $\mu(s) = argmax_a Q(s, a; w)$')
-    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
-    plt.legend()
-    plt.show()
 
 
 def initialize_episodes_figures(env, n_episodes):
