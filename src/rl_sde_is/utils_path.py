@@ -214,6 +214,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
         'K_{:.0e}'.format(kwargs['batch_size']),
         'lr{:.1e}'.format(kwargs['lr']),
         'it_{:.0e}'.format(kwargs['n_iterations']),
+        'seed_{:1d}'.format(kwargs['seed']),
     )
 
     # create dir path if not exists
@@ -225,14 +226,22 @@ def get_ddpg_dir_path(env, **kwargs):
     '''
     '''
 
+    if 'n_episodes' in kwargs.keys():
+        iter_str = 'n-episodes_{:.0e}'.format(kwargs['n_episodes'])
+    elif 'n_total_steps' in kwargs.keys():
+        iter_str = 'n-total-steps_{:.0e}'.format(kwargs['n_total_steps'])
+    else:
+        iter_str = ''
+
     dir_path = os.path.join(
         get_data_dir(),
         '{}'.format(kwargs['agent']),
         get_initial_point_str(env),
+        'K_{:.0e}'.format(kwargs['batch_size']),
         'lr-actor_{:.1e}'.format(kwargs['lr_actor']),
         'lr-critic_{:.1e}'.format(kwargs['lr_critic']),
-        'n_episodes_{:.0e}'.format(kwargs['n_episodes']),
-        'K_{:.0e}'.format(kwargs['batch_size']),
+        iter_str,
+        'seed_{:1d}'.format(kwargs['seed']),
     )
 
     # create dir path if not exists

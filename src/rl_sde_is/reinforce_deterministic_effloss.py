@@ -63,7 +63,7 @@ def sample_loss_vectorized(env, model, K):
         ).squeeze()
 
         # get indices of trajectories which are new to the target set
-        idx = env.get_idx_new_in_ts(done, been_in_target_set)
+        idx = env.get_idx_new_in_ts_torch(done, been_in_target_set)
 
         if idx.shape[0] != 0:
 
@@ -120,6 +120,7 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
         batch_size=batch_size,
         lr=lr,
         n_iterations=n_iterations,
+        seed=seed,
     )
 
     # load results
@@ -127,9 +128,10 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
         data = load_data(dir_path)
         return data
 
-    # fix seed
+    # set seed
     if seed is not None:
         np.random.seed(seed)
+        torch.manual_seed(seed)
 
     # get dimensions of each layer
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
@@ -271,7 +273,7 @@ def main():
     # do plots
     if args.plot:
         plot_losses(losses)
-        plot_controls(env, controls, sol_hjb.u_opt)
+        #plot_controls(env, controls, sol_hjb.u_opt)
         plot_det_policy(env, controls[-1], sol_hjb.u_opt)
 
 if __name__ == "__main__":

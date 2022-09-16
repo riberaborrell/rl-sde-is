@@ -1,27 +1,6 @@
 import torch
 import torch.nn as nn
 
-class TwoLayerNN(nn.Module):
-    def __init__(self, d_in, hidden_size, d_out, activation=torch.tanh):
-        super(TwoLayerNN, self).__init__()
-
-        # input, hidden and output dimensions
-        self.d_in = d_in
-        self.hidden_size = hidden_size
-        self.d_out = d_out
-
-        # two linear layers
-        self.linear1 = nn.Linear(d_in, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, d_out)
-
-        # activation function
-        self.activation = activation
-
-    def forward(self, x):
-        x = self.activation(self.linear1(x))
-        x = self.linear2(x)
-        return x
-
 class FeedForwardNN(nn.Module):
     def __init__(self, d_in, hidden_sizes, d_out, activation=nn.Tanh(),
                  output_activation=nn.Identity(), seed=None):

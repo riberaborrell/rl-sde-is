@@ -8,7 +8,6 @@ from approximate_methods import *
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
 from models import FeedForwardNN
-from policies import Actor
 from plots import *
 from replay_buffers import ContinuousReplayBuffer as ReplayBuffer
 from utils_path import *
@@ -19,7 +18,7 @@ def get_parser():
     return parser
 
 def update_parameters(actor, actor_target, actor_optimizer, critic, critic_target,
-                      critic_optimizer, batch, gamma, rho):
+                      critic_optimizer, rho, batch, gamma):
 
     # unpack tuples in batch
     states = torch.tensor(batch['state'])
@@ -31,7 +30,7 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
     # get batch size
     batch_size = states.shape[0]
 
-    # 1) gradient descent step for q-value netz (critic)
+    # 1) run 1 gradient descent step for Q (critic)
 
     # reset critic gradients
     critic_optimizer.zero_grad()
@@ -56,7 +55,7 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
     critic_loss.backward()
     critic_optimizer.step()
 
-    # 2) gradient descent step for policy (actor)
+    # 2) run 1 gradient descent step for mu (actor)
 
     # reset actor gradients
     actor_optimizer.zero_grad()
@@ -79,42 +78,34 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
 
     # update actor and critic target networks "softly”
     with torch.no_grad():
-        for target_param, param in zip(actor_target.parameters(), actor.parameters()):
+        for param, target_param in zip(actor.parameters(), actor_target.parameters()):
             target_param.data.copy_(target_param.data * rho + param.data * (1. - rho))
 
-        for target_param, param in zip(critic_target.parameters(), critic.parameters()):
+        for param, target_param in zip(critic.parameters(), critic_target.parameters()):
             target_param.data.copy_(target_param.data * rho + param.data * (1. - rho))
 
     return actor_loss.detach().item(), critic_loss.detach().item()
 
 
-def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
-         n_total_steps=100000, n_steps_episode_lim=600,
-         start_steps=0, update_after=1000, update_freq=100, policy_freq=60, test_freq=100,
-         replay_size=10000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4,
-         rho=0.95, seed=None,
-         value_function_hjb=None, control_hjb=None, load=False, plot=False):
+def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-3,
+         n_episodes=100, n_avg_episodes=10, n_steps_lim=500,
+         replay_size=10000, replay_min_size=1000, batch_size=100, target_update_freq=100,
+         rho=0.95, value_function_hjb=None, control_hjb=None, load=False, plot=False):
 
     # get dir path
     dir_path = get_ddpg_dir_path(
         env,
-        agent='ddpg',
+        agent='ddpg-episodic',
         batch_size=batch_size,
         lr_actor=lr_actor,
         lr_critic=lr_critic,
-        n_total_steps=n_total_steps,
-        seed=seed,
+        n_episodes=n_episodes,
     )
 
     # load results
     if load:
         data = load_data(dir_path)
         return data
-
-    # set seed
-    if seed is not None:
-        torch.manual_seed(seed)
-        np.random.seed(seed)
 
     # dimensions of the state and action space
     d_state_space = env.state_space_dim
@@ -126,8 +117,6 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
     actor_hidden_sizes = [hidden_size for i in range(n_layers -1)]
     actor = FeedForwardNN(d_in, actor_hidden_sizes, d_out)
     actor_target = FeedForwardNN(d_in, actor_hidden_sizes, d_out)
-    #actor = Actor(d_in, d_out, max_action=5)
-    #actor_target = Actor(d_in, d_out, max_action=5)
 
     # initialize critic representations
     d_in = d_state_space + d_action_space
@@ -151,6 +140,16 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
     # initialize replay buffer
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
                                  size=replay_size)
+
+    # define list to store results
+    returns = np.empty(n_episodes)
+    avg_returns = np.empty(n_episodes)
+    time_steps = np.empty(n_episodes, dtype=np.int32)
+    avg_time_steps = np.empty(n_episodes)
+
+    # get initial state
+    state_init = env.state_init.copy()
+
     # initialize figures
     if plot:
         q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
@@ -159,85 +158,77 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
                                                 a_table, policy_actor, policy_critic,
                                                 value_function_hjb, control_hjb)
 
-    # define list to store episodic results
-    returns = np.empty((0), dtype=np.float32)
-    time_steps = np.empty((0), dtype=np.float32)
+    # sample trajectories
+    for ep in range(n_episodes):
 
-    # preallocate lists to store test results
-    test_returns = np.empty((0), dtype=np.float32)
-    test_time_steps = np.empty((0), dtype=np.float32)
+        # initialization
+        state = env.reset()
 
-    # reset episode
-    state, rew, complete, ep_ret, ep_len, ep = env.reset(), 0, False, 0, 0, 0
+        # reset trajectory return
+        ep_return = 0
 
-    for k in range(n_total_steps):
+        # terminal state flag
+        complete = False
 
-        # sample action
+        # sample trajectory
+        for k in np.arange(n_steps_lim):
 
-        # sample action randomly
-        if k < start_steps:
-            action = np.random.uniform(env.action_space_low, env.action_space_high, (1,))
+            # interrupt if we are in a terminal state
+            if complete:
+                break
 
-        # get action following the actor
-        else:
+            # get action following the actor
             action = actor.forward(torch.FloatTensor(state)).detach().numpy()
 
-        # step dynamics forward
-        next_state, rew, complete = env.step(state, action)
+            # env step
+            next_state, r, complete = env.step(state, action)
+            #print(k, state, action, r, next_state)
 
-        # store tuple
-        replay_buffer.store(state, action, rew, next_state, complete)
+            # store tuple
+            replay_buffer.store(state, action, r, next_state, complete)
 
-        # update state
-        state = next_state
+            # if buffer is full enough
+            if replay_buffer.size > replay_min_size and k % target_update_freq:
 
-        # update episode return and length
-        ep_ret += rew
-        ep_len += 1
+                #if replay_buffer.size == replay_min_size:
+                #    print('Replay buffer is ready to sample!')
 
-        # update step when buffer is full enough
-        if k >= update_after:
+                # sample minibatch of transition uniformlly from the replay buffer
+                batch = replay_buffer.sample_batch(batch_size)
 
-            # sample minibatch of transition uniformly from the replay buffer
-            batch = replay_buffer.sample_batch(batch_size)
+                # update actor and critic parameters
+                actor_loss, critic_loss = update_parameters(actor, actor_target, actor_optimizer,
+                                  critic, critic_target, critic_optimizer, rho, batch, gamma)
 
-            # update actor and critic parameters
-            actor_loss, critic_loss = update_parameters(
-            #update_parameters(
-                actor, actor_target, actor_optimizer,
-                critic, critic_target, critic_optimizer,
-                batch, gamma, rho,
-            )
+            # save action and reward
+            ep_return += (gamma**k) * r
+            #print(ep_return)
 
-        # if trajectory is complete
-        if complete:
-            msg = 'total k: {:3d}, ep: {:3d}, return {:2.2f}, time steps: {:2.2f}'.format(
-                    k,
+            # update state
+            state = next_state
+
+        # get indices episodes to averaged
+        if ep < n_avg_episodes:
+            idx_last_episodes = slice(0, ep + 1)
+        else:
+            idx_last_episodes = slice(ep + 1 - n_avg_episodes, ep + 1)
+
+        # save episode
+        returns[ep] = ep_return
+        avg_returns[ep] = np.mean(returns[idx_last_episodes])
+        time_steps[ep] = k
+        avg_time_steps[ep] = np.mean(time_steps[idx_last_episodes])
+
+        # logs
+        v_value = compute_v_value_critic(env, critic, state_init)
+        if ep % n_avg_episodes == 0:
+            msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
+                  'run avg time steps: {:2.2f}'.format(
                     ep,
-                    ep_ret,
-                    ep_len,
+                    v_value,
+                    avg_returns[ep],
+                    avg_time_steps[ep],
                 )
-            print(msg)
-            returns = np.append(returns, ep_ret)
-            time_steps = np.append(time_steps, ep_len)
-
-            # reset episode 
-            state, rew, complete, ep_ret, ep_len = env.reset(), 0, False, 0, 0
-            ep += 1
-
-        # when epoch is finish evaluate the agent
-        if (k + 1) % test_freq == 0:
-
-            # test model
-            test_ep_ret, test_ep_len = test_policy_vectorized(env, actor, batch_size=10)
-            test_returns = np.append(test_returns, test_ep_ret)
-            test_time_steps = np.append(test_time_steps, test_ep_len)
-
-            msg = 'total k: {:3d}, test avg return: {:2.2f} \t test avg time steps: {:2.2f} '.format(
-                k,
-                test_ep_ret,
-                test_ep_len,
-            )
             print(msg)
 
             # update plots
@@ -247,15 +238,12 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
                 update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                         a_table, policy_actor, policy_critic, lines)
 
-
-
     data = {
-        'n_total_steps': n_total_steps,
-        'n_episodes': ep,
+        'n_episodes': n_episodes,
         'returns': returns,
+        'avg_returns': avg_returns,
         'time_steps': time_steps,
-        'test_time_steps': test_time_steps,
-        'test_returns': test_returns,
+        'avg_time_steps': avg_time_steps,
         'actor': actor,
         'critic': critic,
     }
@@ -283,31 +271,26 @@ def main():
     data = ddpg(
         env=env,
         gamma=args.gamma,
-        batch_size=args.batch_size,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
-        n_total_steps=args.n_total_steps,
-        seed=args.seed,
-        replay_size=10000,
-        n_steps_episode_lim=500,
-        start_steps=0,
-        update_after=1000,
-        update_freq=100,
-        policy_freq=60,
-        test_freq=1000,
+        n_episodes=args.n_episodes,
+        n_avg_episodes=args.n_avg_episodes,
+        n_steps_lim=args.n_steps_lim,
+        target_update_freq=args.target_update_freq,
+        batch_size=args.batch_size,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
         load=args.load,
         plot=args.plot,
     )
     returns = data['returns']
+    avg_returns = data['avg_returns']
     time_steps = data['time_steps']
-    avg_returns = compute_smoothed_array(returns, 10)
-    avg_time_steps = compute_smoothed_array(time_steps, 10)
+    avg_time_steps = data['avg_time_steps']
     actor = data['actor']
     critic = data['critic']
 
-    # do plots
+    # plots
     if args.plot:
 
         # compute tables following q-value model

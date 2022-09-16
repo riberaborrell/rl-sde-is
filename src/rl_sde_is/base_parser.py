@@ -106,6 +106,13 @@ def get_base_parser():
         help='Set maximum value for epsilon. Default: 1',
     )
     parser.add_argument(
+        '--n-total-steps',
+        dest='n_total_steps',
+        type=int,
+        default=10**6,
+        help='Set number of maximum steps for the algorithm. Default: 1,000,000',
+    )
+    parser.add_argument(
         '--n-steps-lim',
         dest='n_steps_lim',
         type=int,

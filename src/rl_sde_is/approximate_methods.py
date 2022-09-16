@@ -1,6 +1,14 @@
 import numpy as np
 import torch
 
+def compute_smoothed_array(array, run_window=10):
+    ''' computes the running averages of the given array along the given running window.
+    '''
+    return [
+        np.mean(array[i-run_window:i+1]) if i > run_window
+        else np.mean(array[:i+1]) for i in range(len(array))
+    ]
+
 def get_epsilon_greedy_discrete_action(env, model, state, epsilon):
 
     # pick greedy action (exploitation)
@@ -87,8 +95,16 @@ def compute_tables_actor_critic(env, actor, critic):
 
     return v_table, actions
 
+def compute_v_value_critic(env, critic, state):
+    action_space_h = torch.FloatTensor(env.action_space_h).unsqueeze(dim=1)
+    states = torch.ones_like(action_space_h) * torch.FloatTensor(state)
+    inputs = torch.hstack((states, action_space_h))
+    with torch.no_grad():
+        q_values = critic.forward(inputs).numpy()
+    return np.max(q_values)
 
-def test_model(env, model, batch_size=10):
+
+def test_policy(env, model, batch_size=10):
 
     # preallocate returns and time steps
     ep_rets, ep_lens = [], []
@@ -114,5 +130,54 @@ def test_model(env, model, batch_size=10):
 
         ep_rets.append(ep_ret)
         ep_lens.append(ep_len)
+
+    return np.mean(ep_rets), np.mean(ep_lens)
+
+def test_policy_vectorized(env, model, batch_size=10, k_max=10**5):
+
+    # preallocate returns and time steps
+    total_rewards = np.zeros(batch_size)
+    ep_rets = np.empty(batch_size)
+    ep_lens = np.empty(batch_size)
+
+    # set been in target set and done arrays
+    been_in_target_set = np.full((batch_size, 1), False)
+    done = np.full((batch_size, 1), False)
+
+    # initialize episodes
+    states = env.reset_vectorized(batch_size=batch_size)
+
+    # sample episodes
+    for k in np.arange(k_max):
+
+        # actions
+        with torch.no_grad():
+            states = torch.FloatTensor(states)
+            actions = model.forward(states).numpy()
+
+        # step dynamics forward
+        next_states, rewards, done = env.step_vectorized(states, actions)
+
+        # update total rewards for all trajectories
+        total_rewards += np.squeeze(rewards)
+
+        # get indices of episodes which are new to the target set
+        idx = env.get_idx_new_in_ts(done, been_in_target_set)
+
+        # if there are episodes which are done
+        if idx.shape[0] != 0:
+
+            # fix episode returns
+            ep_rets[idx] = total_rewards[idx]
+
+            # fix episode time steps
+            ep_lens[idx] = k
+
+        # stop if xt_traj in target set
+        if been_in_target_set.all() == True:
+           break
+
+        # update states
+        states = next_states
 
     return np.mean(ep_rets), np.mean(ep_lens)

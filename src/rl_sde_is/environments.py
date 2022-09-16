@@ -209,6 +209,17 @@ class DoubleWellStoppingTime1D():
 
     def get_idx_new_in_ts(self, is_in_target_set, been_in_target_set):
 
+        idx = np.where(
+                (is_in_target_set == True) &
+                (been_in_target_set == False)
+        )[0]
+
+        been_in_target_set[idx] = True
+
+        return idx
+
+    def get_idx_new_in_ts_torch(self, is_in_target_set, been_in_target_set):
+
         idx = torch.where(
                 (is_in_target_set == True) &
                 (been_in_target_set == False)
@@ -279,15 +290,12 @@ class DoubleWellStoppingTime1D():
 
     def get_greedy_actions(self, q_table):
 
-        # preallocate greedy actions for each state
-        greedy_actions = np.empty_like(self.state_space_h)
-        greedy_actions[self.idx_lb:] = 0.
-
         # compute greedy action by following the q-table
-        for idx_state in range(self.idx_lb):
-            idx_action = np.argmax(q_table[idx_state])
-            greedy_actions[idx_state] = self.action_space_h[idx_action]
+        idx_actions = np.argmax(q_table, axis=1)
+        greedy_actions = self.action_space_h[idx_actions]
 
+        # set actions in the target set to 0
+        greedy_actions[self.idx_lb:] = 0.
         return greedy_actions
 
     def get_hjb_solver(self, h_hjb=0.01):
