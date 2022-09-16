@@ -8,7 +8,6 @@ from approximate_methods import *
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
 from models import FeedForwardNN
-from policies import Actor
 from plots import *
 from replay_buffers import ContinuousReplayBuffer as ReplayBuffer
 from utils_path import *
@@ -126,8 +125,6 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
     actor_hidden_sizes = [hidden_size for i in range(n_layers -1)]
     actor = FeedForwardNN(d_in, actor_hidden_sizes, d_out)
     actor_target = FeedForwardNN(d_in, actor_hidden_sizes, d_out)
-    #actor = Actor(d_in, d_out, max_action=5)
-    #actor_target = Actor(d_in, d_out, max_action=5)
 
     # initialize critic representations
     d_in = d_state_space + d_action_space
