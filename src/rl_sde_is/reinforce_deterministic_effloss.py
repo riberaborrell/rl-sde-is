@@ -6,11 +6,11 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 
-from base_parser import get_base_parser
-from environments import DoubleWellStoppingTime1D
-from models import FeedForwardNN, DenseNN
-from plots import *
-from utils_path import *
+from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.models import FeedForwardNN, DenseNN
+from rl_sde_is.plots import *
+from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()

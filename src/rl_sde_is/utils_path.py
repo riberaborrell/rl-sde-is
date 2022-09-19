@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 
-from config import PROJECT_ROOT_DIR, DATA_ROOT_DIR
+from rl_sde_is.config import PROJECT_ROOT_DIR, DATA_ROOT_DIR
 
 def get_project_dir():
     ''' returns the absolute path of the repository's directory

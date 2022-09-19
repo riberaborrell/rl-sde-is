@@ -5,10 +5,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from environments import DoubleWellStoppingTime1D
-from base_parser import get_base_parser
-from plots import *
-from policies import DiscreteStochPolicy as Policy
+from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.plots import *
+from rl_sde_is.policies import DiscreteStochPolicy as Policy
 
 def get_parser():
     parser = get_base_parser()

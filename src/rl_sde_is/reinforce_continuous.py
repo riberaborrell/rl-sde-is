@@ -7,10 +7,10 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.optim as optim
 
-from base_parser import get_base_parser
-from environments import DoubleWellStoppingTime1D
-from policies import GaussStochPolicy1, GaussStochPolicy2
-from plots import *
+from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.policies import GaussStochPolicy1, GaussStochPolicy2
+from rl_sde_is.plots import *
 
 def get_parser():
     parser = get_base_parser()

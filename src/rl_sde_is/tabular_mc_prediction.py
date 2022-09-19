@@ -2,10 +2,10 @@ import sys
 
 import numpy as np
 
-from base_parser import get_base_parser
-from environments import DoubleWellStoppingTime1D
-from tabular_learning import *
-from utils_path import *
+from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.tabular_learning import *
+from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()

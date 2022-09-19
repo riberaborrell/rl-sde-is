@@ -1,10 +1,10 @@
 import numpy as np
 
-from base_parser import get_base_parser
-from dynammic_programming import compute_p_tensor_batch, compute_r_table
-from environments import DoubleWellStoppingTime1D
-from plots import plot_q_value_function, plot_value_function, plot_advantage_function, plot_det_policy
-from tabular_methods import compute_tables
+from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.dynammic_programming import compute_p_tensor_batch, compute_r_table
+from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.plots import plot_q_value_function, plot_value_function, plot_advantage_function, plot_det_policy
+from rl_sde_is.tabular_methods import compute_tables
 
 def get_parser():
     parser = get_base_parser()

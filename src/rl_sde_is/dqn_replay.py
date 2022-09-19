@@ -4,13 +4,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from base_parser import get_base_parser
-from environments import DoubleWellStoppingTime1D
-from models import FeedForwardNN
-from replay_buffers import DiscreteReplayBuffer as ReplayBuffer
-from approximate_methods import *
-from tabular_methods import *
-from utils_path import *
+from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.models import FeedForwardNN
+from rl_sde_is.replay_buffers import DiscreteReplayBuffer as ReplayBuffer
+from rl_sde_is.approximate_methods import *
+from rl_sde_is.tabular_methods import *
+from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
