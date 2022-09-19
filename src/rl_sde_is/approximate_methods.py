@@ -80,9 +80,10 @@ def compute_tables_continuous_actions(env, model):
     a_table = q_table - np.expand_dims(v_table, axis=1)
 
     # compute greedy actions
-    actions = env.get_greedy_actions(q_table)
+    idx_actions = np.argmax(q_table, axis=1)
+    greedy_actions = env.action_space_h[idx_actions]
 
-    return q_table, v_table, a_table, actions
+    return q_table, v_table, a_table, greedy_actions
 
 def compute_tables_actor_critic(env, actor, critic):
 
