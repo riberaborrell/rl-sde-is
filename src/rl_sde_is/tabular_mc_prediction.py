@@ -1,8 +1,11 @@
+import sys
+
 import numpy as np
 
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
 from tabular_learning import *
+from utils_path import *
 
 def get_parser():
     parser = get_base_parser()
@@ -46,15 +49,28 @@ def plot_value_function(env, v_table, value_f_hjb):
 
 
 def mc_prediction(env, policy, gamma=1.0, n_episodes=100, n_avg_episodes=10,
-                  n_steps_lim=1000, constant_alpha=True, alpha=0.01):
+                  n_steps_lim=1000, constant_alpha=True, alpha=0.01, load=False):
     '''
     '''
+    # get dir path
+    dir_path = get_prediction_mc_dir_path(
+        env,
+        constant_alpha=constant_alpha,
+        alpha=alpha,
+        n_episodes=n_episodes,
+    )
+
+    # load results
+    if load:
+        data = load_data(dir_path)
+        return data
+
     # preallocate alphas if they are not constant
     if not constant_alpha:
         alphas = np.empty(0)
 
     # initialize frequency and value function table
-    n_table = np.zeros(env.n_states)
+    #n_table = np.zeros(env.n_states)
     v_table = -np.random.rand(env.n_states)
 
     # set values for the target set
@@ -78,6 +94,8 @@ def mc_prediction(env, policy, gamma=1.0, n_episodes=100, n_avg_episodes=10,
         # reset trajectory
         states = np.empty(0)
         rewards = np.empty(0)
+
+        n_table = np.zeros(env.n_states)
 
         # terminal state flag
         complete = False
@@ -156,7 +174,19 @@ def mc_prediction(env, policy, gamma=1.0, n_episodes=100, n_avg_episodes=10,
                 )
             print(msg)
 
-    return returns, avg_returns, time_steps, avg_time_steps, n_table, v_table
+    data = {
+        'n_episodes' : n_episodes,
+        'returns' : returns,
+        'avg_returns' : avg_returns,
+        'time_steps' : time_steps,
+        'avg_time_steps' : avg_time_steps,
+        'n_table' : n_table,
+        'v_table' : v_table,
+    }
+
+    save_data(dir_path, data)
+
+    return data
 
 def main():
     args = get_parser().parse_args()
@@ -168,24 +198,17 @@ def main():
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
-    # get target set indices
-    env.get_idx_target_set()
-
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # factor between the two different discretizations steps
-    k = int(args.h_state / sol_hjb.sde.h)
-    assert env.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
-
     # set deterministic policy from the hjb control
     policy = np.array([
-        env.get_action_idx(sol_hjb.u_opt[::k][idx_state])
+        env.get_action_idx(sol_hjb.u_opt[idx_state])
         for idx_state, _ in enumerate(env.state_space_h)
     ])
 
     # run mc learning agent following optimal policy
-    info = mc_prediction(
+    data = mc_prediction(
         env,
         policy,
         gamma=args.gamma,
@@ -194,12 +217,11 @@ def main():
         n_steps_lim=args.n_steps_lim,
         n_episodes=args.n_episodes,
         n_avg_episodes=args.n_avg_episodes,
+        load=args.load,
     )
 
-    returns, avg_returns, time_steps, avg_time_steps, n_table, v_table = info
-
-    #plot_given_policy(env, policy, control_hjb=sol_hjb.u_opt[::k])
-    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function[::k])
+    #plot_given_policy(env, policy, control_hjb=sol_hjb.u_opt)
+    plot_value_function(env, data['v_table'], value_f_hjb=sol_hjb.value_function)
     #if not agent.constant_alpha:
     #    agent.plot_alphas()
 

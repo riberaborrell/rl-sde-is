@@ -2,7 +2,9 @@ import numpy as np
 
 from base_parser import get_base_parser
 from environments import DoubleWellStoppingTime1D
-from tabular_learning import *
+from tabular_methods import *
+from plots import *
+from utils_path import *
 
 def get_parser():
     parser = get_base_parser()
@@ -47,9 +49,27 @@ def test_q(test_env, q_table, batch_size=100):
 
     return np.mean(returns), np.mean(time_steps)
 
-def q_learning(env, gamma=1., batch_size=10, epsilons=None, alpha=0.01,
+def q_learning(env, gamma=1., batch_size=10, lr=0.01,
                n_epochs=100, n_avg_epochs=1, n_steps_per_epoch=5000,
-               value_function_hjb=None, control_hjb=None):
+               eps_type='linear-decay', eps_init=1., eps_min=0., eps_decay=0.98,
+               value_function_hjb=None, control_hjb=None, load=False):
+
+    # get dir path
+    dir_path = get_qlearning_batch_dir_path(
+        env,
+        agent='q-learning-batch',
+        lr=lr,
+        n_epochs=n_epochs,
+        batch_size=batch_size,
+        eps_type=eps_type,
+        eps_init=eps_init,
+        eps_min=eps_min,
+    )
+
+    # load results
+    if load:
+        data = load_data(dir_path)
+        return data
 
     # initialize frequency and q-value function table
     n_table = np.zeros((env.n_states, env.n_actions), dtype=np.int32)
@@ -58,6 +78,14 @@ def q_learning(env, gamma=1., batch_size=10, epsilons=None, alpha=0.01,
     # set values for the target set
     q_table[env.idx_lb:env.idx_rb+1] = 0
 
+    # set epsilons
+    epsilons = set_epsilons(
+        eps_type,
+        n_episodes=n_epochs,
+        eps_init=eps_init,
+        eps_min=eps_min,
+        eps_decay=eps_decay,
+    )
     # initialize plots 
     #images, lines = initialize_figures(env, n_table, q_table, n_episodes,
     #                                   value_function_hjb, control_hjb)
@@ -107,7 +135,7 @@ def q_learning(env, gamma=1., batch_size=10, epsilons=None, alpha=0.01,
 
             # update q values
             n_table[idx_states, idx_actions] += 1
-            q_table[idx_states, idx_actions] += alpha * (
+            q_table[idx_states, idx_actions] += lr * (
                   np.squeeze(rewards) \
                 + gamma * np.max(q_table[idx_new_states], axis=1) \
                 - q_table[idx_states, idx_actions]
@@ -137,7 +165,15 @@ def q_learning(env, gamma=1., batch_size=10, epsilons=None, alpha=0.01,
                 )
             print(msg)
 
-    return n_table, q_table
+    data = {
+        'n_epochs': n_epochs,
+        'test_returns': test_returns,
+        'test_time_steps': test_time_steps,
+        'n_table' : n_table,
+        'q_table' : q_table,
+    }
+    save_data(dir_path, data)
+    return data
 
 
 def main():
@@ -154,36 +190,36 @@ def main():
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
-    # set epsilons
-    #epsilons = get_epsilons_constant(args.n_episodes, eps_init=0.1)
-    #epsilons = get_epsilons_harmonic(args.n_episodes)
-    epsilons = get_epsilons_linear_decay(args.n_epochs, args.eps_min, exploration=0.5)
-    #epsilons = get_epsilons_exp_decay(args.n_episodes, args.eps_init, args.eps_decay)
-
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
     # run mc learning algorithm
-    info = q_learning(
+    data = q_learning(
         env,
         gamma=args.gamma,
         batch_size=args.batch_size,
-        epsilons=epsilons,
-        alpha=args.alpha,
+        lr=args.lr,
         n_epochs=args.n_epochs,
         n_steps_per_epoch=args.n_steps_per_epoch,
+        eps_type=args.eps_type,
+        eps_init=args.eps_init,
+        eps_min=args.eps_min,
+        eps_decay=args.eps_decay,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
+        load=args.load,
     )
+    n_table, q_table = data['n_table'], data['q_table']
 
-    n_table, q_table = info
+    # compute tables
+    v_table, a_table, policy = compute_tables(env, q_table)
 
     # do plots
-    plot_frequency_table(env, n_table)
-    plot_q_table(env, q_table)
-    plot_v_table(env, q_table, sol_hjb.value_function)
-    plot_a_table(env, q_table)
-    plot_greedy_policy(env, q_table, sol_hjb.u_opt)
+    plot_frequency(env, n_table)
+    plot_q_value_function(env, q_table)
+    plot_value_function(env, v_table, sol_hjb.value_function)
+    plot_advantage_function(env, a_table)
+    plot_det_policy(env, policy, sol_hjb.u_opt)
 
 
 if __name__ == '__main__':

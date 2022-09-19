@@ -19,6 +19,9 @@ def mc_learning(env, gamma=1., epsilons=None, constant_alpha=False, alpha=0.01,
     # set values for the target set
     q_table[env.idx_lb:env.idx_rb+1] = 0
 
+    # get index initial state
+    idx_state_init = env.get_state_idx(env.state_init)
+
     # preallocate returns and time steps
     returns = np.empty(n_episodes)
     avg_returns = np.empty(n_episodes)
@@ -56,7 +59,7 @@ def mc_learning(env, gamma=1., epsilons=None, constant_alpha=False, alpha=0.01,
             idx_state = env.get_state_idx(state)
 
             # choose action following epsilon greedy policy
-            idx_action, action = get_epsilon_greedy_action(env, q_table, epsilon, idx_state)
+            idx_action, action = get_epsilon_greedy_action(env, q_table, idx_state, epsilon)
 
             # step dynamics forward
             new_state, r, complete = env.step(state, action)
@@ -111,9 +114,10 @@ def mc_learning(env, gamma=1., epsilons=None, constant_alpha=False, alpha=0.01,
 
         # logs
         if ep % n_avg_episodes == 0:
-            msg = 'ep: {:3d}, run avg return {:2.2f}, ' \
+            msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
                     'run avg time steps: {:2.2f}, epsilon: {:.2f}'.format(
                     ep,
+                    np.max(q_table[idx_state_init]),
                     avg_returns[ep],
                     avg_time_steps[ep],
                     epsilon,
@@ -134,11 +138,9 @@ def main():
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
-    # get target set indices
-    env.get_idx_target_set()
-
     # set epsilons
-    epsilons = get_epsilons_linear_decay(args.n_episodes, args.eps_min)
+    #epsilons = get_epsilons_constant(args.n_episodes, eps_init=1.)
+    epsilons = get_epsilons_linear_decay(args.n_episodes, eps_min=0.01, exploration=0.5)
 
     # run mc learning algorithm
     info = mc_learning(
@@ -157,20 +159,16 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # discretization step ratio
-    k = int(args.h_state / sol_hjb.sde.h)
-    assert env.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
-
     # do plots
 
-    #agent.episodes = np.arange(agent.n_episodes)
     #agent.plot_total_rewards()
     #agent.plot_time_steps()
     #agent.plot_epsilons()
     plot_frequency_table(env, n_table)
     plot_q_table(env, q_table)
-    plot_greedy_policy(env, q_table, control_hjb=sol_hjb.u_opt[::k])
-    #agent.plot_sliced_q_tables()
+    plot_v_table(env, q_table, value_function_hjb=sol_hjb.value_function)
+    plot_a_table(env, q_table)
+    plot_greedy_policy(env, q_table, control_hjb=sol_hjb.u_opt)
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ from environments import DoubleWellStoppingTime1D
 from models import FeedForwardNN
 from replay_buffers import DiscreteReplayBuffer as ReplayBuffer
 from approximate_methods import *
-from tabular_learning import *
+from tabular_methods import *
 from utils_path import *
 
 def get_parser():
@@ -57,13 +57,51 @@ def update_parameters(optimizer, model, target_model, batch, gamma):
     # get batch size
     batch_size = states.shape[0]
 
-    # get q values of state action pairs 
+    # get q values of state-action pairs following the model
     phi = model.forward(states)
     q_vals = phi[torch.arange(batch_size, dtype=torch.int64), idx_acts]
 
-    # get maximum q values of next states (using target network)
+    # get maximum q values of next states following the target model
     target_phi = target_model.forward(next_states)
     q_vals_next = torch.max(target_phi, axis=1)[0]
+
+    # compute target
+    d = torch.where(done, 1., 0.)
+    targets = rews + gamma * (1. - d) * q_vals_next
+
+    # Bellman error loss 
+    loss = ((q_vals - targets)**2).mean()
+
+    # compute gradient
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    return loss.detach().item()
+
+def update_parameters_double_dqn(optimizer, model, target_model, batch, gamma):
+
+    # unpack tuples in batch
+    states = torch.tensor(batch['state'])
+    next_states = torch.tensor(batch['next_state'])
+    idx_acts = torch.tensor(batch['idx_act'])
+    rews = torch.tensor(batch['rew'])
+    done = torch.tensor(batch['done'])
+
+    # get batch size
+    batch_size = states.shape[0]
+
+    # get q values of state-action pairs following the model
+    phi = model.forward(states)
+    q_vals = phi[torch.arange(batch_size, dtype=torch.int64), idx_acts]
+
+    # get next actions corresponding to the maximum q values for the next state following the taget model
+    target_phi = target_model.forward(next_states)
+    idx_next_actions = torch.argmax(target_phi, axis=1)[0]
+
+    # get q values of next state- next action pairs following the model
+    phi_next = model.forward(next_states)
+    q_vals_next = phi_next[torch.arange(batch_size, dtype=torch.int64), idx_next_actions]
 
     # compute target
     d = torch.where(done, 1., 0.)
@@ -153,8 +191,9 @@ def dqn(env, gamma=1., hidden_size=32, n_layers=3, lr=1e-3,
     images, lines = initialize_figures(env, model, n_epochs, value_function_hjb, control_hjb)
 
     state, rew, done, epsilon, ep_ret, ep_len = env.reset(), 0, False, 1, 0, 0
-    epoch_losses, epoch_rets, epoch_lens = [], [], []
-    for t in range(total_steps):
+    epoch, epoch_losses, epoch_rets, epoch_lens = 0, [], [], []
+
+    for k in range(total_steps):
 
         # get action
         action_idx, action = get_epsilon_greedy_discrete_action(env, model, state, epsilon)
@@ -177,12 +216,13 @@ def dqn(env, gamma=1., hidden_size=32, n_layers=3, lr=1e-3,
             epoch_lens.append(ep_len)
             state, rew, done, ep_ret, ep_len = env.reset(), 0, False, 0, 0
 
-        if t > steps_before_training:
+        if k > steps_before_training:
             batch = replay_buffer.sample_batch(batch_size)
             step_loss = update_parameters(optimizer, model, target_model, batch, gamma)
+            #step_loss = update_parameters_double_dqn(optimizer, model, target_model, batch, gamma)
             epoch_losses.append(step_loss)
 
-        if t % target_update_freq == 0:
+        if k % target_update_freq == 0:
             target_model.load_state_dict(model.state_dict())
 
             # update figures
@@ -190,11 +230,11 @@ def dqn(env, gamma=1., hidden_size=32, n_layers=3, lr=1e-3,
                            test_time_steps, images, lines)
 
 
-        epsilon = 1 + (eps_final- 1)*min(1, t/finish_decay)
+        epsilon = 1 + (eps_final- 1)*min(1, k/finish_decay)
 
         # at the end of each epoch, evaluate the agent
-        if (t - steps_before_training) % steps_per_epoch == 0 and (t - steps_before_training)>0:
-            epoch = (t - steps_before_training) // steps_per_epoch
+        if (k - steps_before_training) % steps_per_epoch == 0 and (k - steps_before_training)>0:
+            epoch = (k - steps_before_training) // steps_per_epoch
             test_ep_ret, test_ep_len = test_q(env, model, eps_final)
 
             losses[epoch] = np.mean(epoch_losses)
@@ -363,7 +403,7 @@ def main():
     )
 
     # compute q-value function, value function, advantage function and greedy actions
-    q_table, v_table, a_table, greedy_actions = compute_tables(env, data['model'])
+    q_table, v_table, a_table, greedy_actions = compute_tables_discrete_actions(env, data['model'])
 
     # plot v function
     x = env.state_space_h.squeeze()
