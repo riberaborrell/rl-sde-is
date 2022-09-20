@@ -13,6 +13,17 @@ def plot_returns_episodes(returns, avg_returns):
     plt.legend()
     plt.show()
 
+def plot_var_returns_episodes(run_var_returns):
+    fig, ax = plt.subplots()
+    ax.set_title('Running variance Returns')
+    ax.set_xlabel('Episodes')
+    #ax.set_ylim(-10, 0)
+
+    plt.semilogy(run_var_returns)
+    plt.legend()
+    plt.show()
+
+
 def plot_time_steps_episodes(time_steps, avg_time_steps):
     fig, ax = plt.subplots()
     ax.set_title('Time steps')

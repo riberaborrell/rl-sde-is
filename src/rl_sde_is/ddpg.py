@@ -298,9 +298,10 @@ def main():
         plot=args.plot,
     )
     returns = data['returns']
+    run_mean_returns = compute_running_mean(returns, 10)
+    run_var_returns = compute_running_variance(returns, 10)
     time_steps = data['time_steps']
-    avg_returns = compute_smoothed_array(returns, 10)
-    avg_time_steps = compute_smoothed_array(time_steps, 10)
+    run_mean_time_steps = compute_running_mean(time_steps, 10)
     actor = data['actor']
     critic = data['critic']
 
@@ -313,8 +314,9 @@ def main():
         # compute value function and actions following the policy model
         v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
 
-        plot_returns_episodes(returns, avg_returns)
-        plot_time_steps_episodes(time_steps, avg_time_steps)
+        plot_returns_episodes(returns, run_mean_returns)
+        plot_var_returns_episodes(run_var_returns)
+        plot_time_steps_episodes(time_steps, run_mean_time_steps)
         plot_q_value_function(env, q_table)
         plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)
         plot_advantage_function(env, a_table)

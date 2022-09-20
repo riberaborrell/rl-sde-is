@@ -1,12 +1,20 @@
 import numpy as np
 import torch
 
-def compute_smoothed_array(array, run_window=10):
-    ''' computes the running averages of the given array along the given running window.
+def compute_running_mean(array, run_window=10):
+    ''' computes the running mean / moving average of the given array along the given running window.
     '''
     return [
         np.mean(array[i-run_window:i+1]) if i > run_window
         else np.mean(array[:i+1]) for i in range(len(array))
+    ]
+
+def compute_running_variance(array, run_window=10):
+    ''' computes the running variance of the given array along the given running window.
+    '''
+    return [
+        np.var(array[i-run_window:i+1]) if i > run_window
+        else np.var(array[:i+1]) for i in range(len(array))
     ]
 
 def get_epsilon_greedy_discrete_action(env, model, state, epsilon):
