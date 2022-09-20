@@ -106,7 +106,7 @@ class DoubleWellStoppingTime1D():
 
         # brownian increment
         dt = self.dt_tensor
-        dbt = torch.sqrt(dt) * torch.randn(1, dtype=np.float32)
+        dbt = torch.sqrt(dt) * torch.randn(1, dtype=torch.float32)
 
         # sde step
         sigma = self.sigma_tensor
@@ -115,16 +115,16 @@ class DoubleWellStoppingTime1D():
                    + sigma * dbt
 
         # done if position x in the target set
-        done = bool(next_state > self.lb and next_state < self.rb)
+        done = torch.where(next_state > self.lb, True, False)
 
         # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
-        r = np.where(
+        r = torch.where(
             done,
-            - 0.5 * np.power(action, 2)[0] * dt - self.f(state) * dt - self.g(next_state),
-            - 0.5 * np.power(action, 2)[0] * dt - self.f(state) * dt,
+            - 0.5 * torch.pow(action, 2)[0] * dt - self.f(state) * dt - self.g(next_state),
+            - 0.5 * torch.pow(action, 2)[0] * dt - self.f(state) * dt,
         )
 
-        return next_state, r, done
+        return next_state, r, done, dbt
 
     def step_vectorized(self, states, actions):
 

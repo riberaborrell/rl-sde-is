@@ -85,6 +85,15 @@ def compute_tables_continuous_actions(env, model):
 
     return q_table, v_table, a_table, greedy_actions
 
+def compute_det_policy_actions(env, model):
+
+    # discretized states
+    state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
+
+    with torch.no_grad():
+        return model.forward(state_space_h).numpy()
+
+
 def compute_tables_actor_critic(env, actor, critic):
 
     # discretized states
