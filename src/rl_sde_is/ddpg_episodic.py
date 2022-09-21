@@ -18,7 +18,7 @@ def get_parser():
     return parser
 
 def update_parameters(actor, actor_target, actor_optimizer, critic, critic_target,
-                      critic_optimizer, rho, batch, gamma):
+                      critic_optimizer, batch, gamma, rho):
 
     # unpack tuples in batch
     states = torch.tensor(batch['state'])
@@ -87,10 +87,12 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
     return actor_loss.detach().item(), critic_loss.detach().item()
 
 
-def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-3,
-         n_episodes=100, n_avg_episodes=10, n_steps_lim=500,
-         replay_size=10000, replay_min_size=1000, batch_size=100, target_update_freq=100,
-         rho=0.95, value_function_hjb=None, control_hjb=None, load=False, plot=False):
+def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
+         n_episodes=100, n_steps_episode_lim=1000,
+         start_steps=0, update_after=1000, update_freq=100, policy_freq=60, test_freq_episodes=100,
+         replay_size=10000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4,
+         rho=0.95, seed=None,
+         value_function_hjb=None, control_hjb=None, load=False, plot=False):
 
     # get dir path
     dir_path = get_ddpg_dir_path(
@@ -100,12 +102,18 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
         lr_actor=lr_actor,
         lr_critic=lr_critic,
         n_episodes=n_episodes,
+        seed=seed,
     )
 
     # load results
     if load:
         data = load_data(dir_path)
         return data
+
+    # set seed
+    if seed is not None:
+        torch.manual_seed(seed)
+        np.random.seed(seed)
 
     # dimensions of the state and action space
     d_state_space = env.state_space_dim
@@ -141,15 +149,6 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
                                  size=replay_size)
 
-    # define list to store results
-    returns = np.empty(n_episodes)
-    avg_returns = np.empty(n_episodes)
-    time_steps = np.empty(n_episodes, dtype=np.int32)
-    avg_time_steps = np.empty(n_episodes)
-
-    # get initial state
-    state_init = env.state_init.copy()
-
     # initialize figures
     if plot:
         q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
@@ -157,6 +156,17 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
         lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                                 a_table, policy_actor, policy_critic,
                                                 value_function_hjb, control_hjb)
+    # define list to store results
+    returns = np.empty(n_episodes)
+    time_steps = np.empty(n_episodes, dtype=np.int32)
+
+    # preallocate lists to store test results
+    test_mean_returns = np.empty((0), dtype=np.float32)
+    test_var_returns = np.empty((0), dtype=np.float32)
+    test_mean_lengths = np.empty((0), dtype=np.float32)
+
+    # get initial state
+    state_init = env.state_init.copy()
 
     # sample trajectories
     for ep in range(n_episodes):
@@ -171,7 +181,7 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
         complete = False
 
         # sample trajectory
-        for k in np.arange(n_steps_lim):
+        for k in np.arange(n_steps_episode_lim):
 
             # interrupt if we are in a terminal state
             if complete:
@@ -188,17 +198,17 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
             replay_buffer.store(state, action, r, next_state, complete)
 
             # if buffer is full enough
-            if replay_buffer.size > replay_min_size and k % target_update_freq:
-
-                #if replay_buffer.size == replay_min_size:
-                #    print('Replay buffer is ready to sample!')
+            if replay_buffer.size > update_after:
 
                 # sample minibatch of transition uniformlly from the replay buffer
                 batch = replay_buffer.sample_batch(batch_size)
 
                 # update actor and critic parameters
-                actor_loss, critic_loss = update_parameters(actor, actor_target, actor_optimizer,
-                                  critic, critic_target, critic_optimizer, rho, batch, gamma)
+                actor_loss, critic_loss = update_parameters(
+                    actor, actor_target, actor_optimizer,
+                    critic, critic_target, critic_optimizer,
+                    batch, gamma, rho,
+                )
 
             # save action and reward
             ep_return += (gamma**k) * r
@@ -207,43 +217,49 @@ def ddpg(env, gamma=1., hidden_size=32, n_layers=3, lr_actor=1e-3, lr_critic=1e-
             # update state
             state = next_state
 
-        # get indices episodes to averaged
-        if ep < n_avg_episodes:
-            idx_last_episodes = slice(0, ep + 1)
-        else:
-            idx_last_episodes = slice(ep + 1 - n_avg_episodes, ep + 1)
-
         # save episode
         returns[ep] = ep_return
-        avg_returns[ep] = np.mean(returns[idx_last_episodes])
         time_steps[ep] = k
-        avg_time_steps[ep] = np.mean(time_steps[idx_last_episodes])
 
         # logs
-        v_value = compute_v_value_critic(env, critic, state_init)
-        if ep % n_avg_episodes == 0:
-            msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
-                  'run avg time steps: {:2.2f}'.format(
-                    ep,
-                    v_value,
-                    avg_returns[ep],
-                    avg_time_steps[ep],
-                )
+        if ep % test_freq_episodes == 0:
+
+            # test model
+            test_mean_ret, test_var_ret, test_mean_len = test_policy_vectorized(env, actor, batch_size=10)
+            test_mean_returns = np.append(test_mean_returns, test_mean_ret)
+            test_var_returns = np.append(test_var_returns, test_var_ret)
+            test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
+
+            msg = 'ep: {:3d}, test mean return: {:2.2f}, test var return: {:.2e},' \
+                  'test mean time steps: {:2.2f} '.format(
+                ep,
+                test_mean_ret,
+                test_var_ret,
+                test_mean_len,
+            )
             print(msg)
 
-            # update plots
-            if plot:
-                q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
-                v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
-                update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
-                                        a_table, policy_actor, policy_critic, lines)
+        # update plots
+        if plot and ep % 10 == 0:
+            q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
+            v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
+            update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
+                                    a_table, policy_actor, policy_critic, lines)
 
     data = {
+        'gamma' : gamma,
+        'batch_size' : batch_size,
+        'lr_actor' : lr_actor,
+        'lr_critic' : lr_critic,
         'n_episodes': n_episodes,
+        'seed': seed,
+        'replay_size': replay_size,
+        'update_after': update_after,
         'returns': returns,
-        'avg_returns': avg_returns,
         'time_steps': time_steps,
-        'avg_time_steps': avg_time_steps,
+        'test_mean_returns': test_mean_returns,
+        'test_var_returns': test_var_returns,
+        'test_mean_lengths': test_mean_lengths,
         'actor': actor,
         'critic': critic,
     }
@@ -271,40 +287,57 @@ def main():
     data = ddpg(
         env=env,
         gamma=args.gamma,
+        batch_size=args.batch_size,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
-        n_avg_episodes=args.n_avg_episodes,
-        n_steps_lim=args.n_steps_lim,
-        target_update_freq=args.target_update_freq,
-        batch_size=args.batch_size,
+        seed=args.seed,
+        replay_size=10000,
+        n_steps_episode_lim=500,
+        #update_freq=100,
+        test_freq_episodes=10,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
         load=args.load,
         plot=args.plot,
     )
+
+    # plots
+    if not args.plot:
+        return
+
+    # plot moving averages for each episode
     returns = data['returns']
-    avg_returns = data['avg_returns']
+    run_mean_returns = compute_running_mean(returns, 10)
+    run_var_returns = compute_running_variance(returns, 10)
     time_steps = data['time_steps']
-    avg_time_steps = data['avg_time_steps']
+    run_mean_time_steps = compute_running_mean(time_steps, 10)
+    plot_returns_episodes(returns, run_mean_returns)
+    plot_run_var_returns_episodes(run_var_returns)
+    plot_run_mean_returns_with_error_episodes(run_mean_returns, run_var_returns)
+    plot_time_steps_episodes(time_steps, run_mean_time_steps)
+
+    # plot expected values for each epoch
+    test_mean_returns = data['test_mean_returns']
+    test_var_returns = data['test_var_returns']
+    test_mean_lengths = data['test_mean_lengths']
+    plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns)
+
+    # get models
     actor = data['actor']
     critic = data['critic']
 
-    # plots
-    if args.plot:
+    # compute tables following q-value model
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
 
-        # compute tables following q-value model
-        q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
+    # compute value function and actions following the policy model
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
 
-        # compute value function and actions following the policy model
-        v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
+    plot_q_value_function(env, q_table)
+    plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)
+    plot_advantage_function(env, a_table)
+    plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
 
-        plot_returns_episodes(returns, avg_returns)
-        plot_time_steps_episodes(time_steps, avg_time_steps)
-        plot_q_value_function(env, q_table)
-        plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)
-        plot_advantage_function(env, a_table)
-        plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
 
 if __name__ == '__main__':
     main()

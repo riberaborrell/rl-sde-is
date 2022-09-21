@@ -31,27 +31,84 @@ def plot_episode_states(env, ep_states):
     ax.scatter(ep_states[::1], ep_pot[::1], alpha=.5, color='black', marker='o')
     plt.show()
 
-def plot_returns_episodes(returns, avg_returns):
+def plot_returns_episodes(returns, run_mean_returns):
     fig, ax = plt.subplots()
     ax.set_title('Returns')
     ax.set_xlabel('Episodes')
     ax.set_ylim(-10, 0)
 
-    plt.plot(returns, label='returns')
-    plt.plot(avg_returns, label='running averages returns')
+    plt.plot(returns, label='return')
+    plt.plot(run_mean_returns, label='running mean of last returns')
     plt.legend()
     plt.show()
 
-def plot_var_returns_episodes(run_var_returns):
+def plot_run_var_returns_episodes(run_var_returns):
     fig, ax = plt.subplots()
     ax.set_title('Running variance Returns')
     ax.set_xlabel('Episodes')
-    #ax.set_ylim(-10, 0)
 
     plt.semilogy(run_var_returns)
+    #plt.legend()
+    plt.show()
+
+def plot_run_mean_returns_with_error_episodes(run_mean_returns, run_var_returns):
+    fig, ax = plt.subplots()
+    ax.set_title('Returns')
+    ax.set_xlabel('Episodes')
+    ax.set_ylim(-10, 0)
+
+    n_episodes = run_mean_returns.shape[0]
+    x = np.arange(n_episodes)
+    y = run_mean_returns
+    error = np.sqrt(run_var_returns)
+    ax.plot(x, y, label='running mean of last returns')
+    ax.fill_between(x, y-error, y+error, alpha=0.5, label='standard deviation')
     plt.legend()
     plt.show()
 
+def plot_time_steps_episodes(time_steps, avg_time_steps):
+    fig, ax = plt.subplots()
+    ax.set_title('Time steps')
+    ax.set_xlabel('Episodes')
+
+    plt.plot(time_steps, label='time steps')
+    plt.plot(avg_time_steps, label='running mean of last time steps')
+    plt.legend()
+    plt.show()
+
+def plot_expected_returns_epochs(test_mean_returns):
+    fig, ax = plt.subplots()
+    ax.set_title('Expected return')
+    ax.set_xlabel('Epochs')
+    ax.set_ylim(-10, 0)
+
+    plt.plot(test_mean_returns)
+    #plt.legend()
+    plt.show()
+
+def plot_var_returns_epochs(test_var_returns):
+    fig, ax = plt.subplots()
+    ax.set_title('Sample variance return')
+    ax.set_xlabel('Epochs')
+
+    plt.semilogy(test_var_returns)
+    #plt.legend()
+    plt.show()
+
+def plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns):
+    fig, ax = plt.subplots()
+    ax.set_title('Expected Return')
+    ax.set_xlabel('Epochs')
+    ax.set_ylim(-10, 0)
+
+    n_epochs = test_mean_returns.shape[0]
+    x = np.arange(n_epochs)
+    y = test_mean_returns
+    error = np.sqrt(test_var_returns)
+    ax.plot(x, y, label='expected return')
+    ax.fill_between(x, y-error, y+error, alpha=0.5, label='standard deviation')
+    plt.legend()
+    plt.show()
 
 def plot_time_steps_episodes(time_steps, avg_time_steps):
     fig, ax = plt.subplots()

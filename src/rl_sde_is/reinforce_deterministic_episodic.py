@@ -44,7 +44,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
     # get dir path
     dir_path = get_reinforce_det_dir_path(
         env,
-        agent='reinforce-det-episodic-2',
+        agent='reinforce-det-episodic',
         batch_size=batch_size,
         lr=lr,
         n_iterations=n_iterations,
@@ -155,7 +155,6 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
             optimizer.step()
 
             # save info
-            breakpoint()
             losses.append(loss.item())
 
             # reset batch
@@ -180,13 +179,6 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
         'returns': returns,
         'time_steps': time_steps,
         'model': model,
-        #'controls': controls,
-        #'losses': losses,
-        #'var_losses': var_losses,
-        #'means_I_u': means_I_u,
-        #'vars_I_u': vars_I_u,
-        #'res_I_u': res_I_u,
-        #'cts': cts,
     }
     save_data(dir_path, data)
     return data
@@ -218,25 +210,37 @@ def main():
         load=args.load,
         plot=args.plot,
     )
+
+    # plots
+    if not args.plot:
+        return
+
+    # plot moving averages for each episode
     returns = data['returns']
+    run_mean_returns = compute_running_mean(returns, args.batch_size)
+    run_var_returns = compute_running_variance(returns, args.batch_size)
     time_steps = data['time_steps']
+    run_mean_time_steps = compute_running_mean(time_steps, args.batch_size)
+    plot_returns_episodes(returns, run_mean_returns)
+    plot_run_var_returns_episodes(run_var_returns)
+    plot_run_mean_returns_with_error_episodes(run_mean_returns, run_var_returns)
+    plot_time_steps_episodes(time_steps, run_mean_time_steps)
+
+    # plot expected values for each epoch
+    test_mean_returns = run_mean_returns[::args.batch_size]
+    test_var_returns = run_var_returns[::args.batch_size]
+    #test_mean_lengths = data['test_mean_lengths']
+    plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns)
+
+    # get model
     model = data['model']
 
-    # do plots
-    if args.plot:
+    # compute actions following the deterministic policy
+    policy = compute_det_policy_actions(env, model)
 
-        # smoothed arrays
-        run_mean_returns = compute_running_mean(returns, args.batch_size)
-        run_var_returns = compute_running_variance(returns, args.batch_size)
-        run_mean_time_steps = compute_running_mean(time_steps, args.batch_size)
+    # plot policy
+    plot_det_policy(env, policy, sol_hjb.u_opt)
 
-        # compute actions following the deterministic policy
-        policy = compute_det_policy_actions(env, model)
-
-        plot_returns_episodes(returns, run_mean_returns)
-        plot_var_returns_episodes(run_var_returns)
-        plot_time_steps_episodes(time_steps, run_mean_time_steps)
-        plot_det_policy(env, policy, sol_hjb.u_opt)
 
 if __name__ == '__main__':
     main()

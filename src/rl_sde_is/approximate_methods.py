@@ -1,21 +1,40 @@
 import numpy as np
 import torch
 
+def discount_cumsum_torch(x, gamma):
+    import scipy
+    """
+    magic from rllab for computing discounted cumulative sums of vectors.
+    See https://github.com/openai/spinningup/blob/master/spinup/algos/pytorch/vpg/core.py
+    input:
+        vector x,
+        [x0,
+         x1,
+         x2]
+
+     output:
+        [x0 + gamma * x1 + gamma^2 * x2,
+         x1 + gamma * x2,
+         x2]
+    """
+    breakpoint()
+    return scipy.signal.lfilter([1], [1, float(-gamma)], x[::-1], axis=0)[::-1]
+
 def compute_running_mean(array, run_window=10):
     ''' computes the running mean / moving average of the given array along the given running window.
     '''
-    return [
+    return np.array([
         np.mean(array[i-run_window:i+1]) if i > run_window
         else np.mean(array[:i+1]) for i in range(len(array))
-    ]
+    ])
 
 def compute_running_variance(array, run_window=10):
     ''' computes the running variance of the given array along the given running window.
     '''
-    return [
+    return np.array([
         np.var(array[i-run_window:i+1]) if i > run_window
         else np.var(array[:i+1]) for i in range(len(array))
-    ]
+    ])
 
 def get_epsilon_greedy_discrete_action(env, model, state, epsilon):
 
@@ -149,7 +168,7 @@ def test_policy(env, model, batch_size=10):
         ep_rets.append(ep_ret)
         ep_lens.append(ep_len)
 
-    return np.mean(ep_rets), np.mean(ep_lens)
+    return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)
 
 def test_policy_vectorized(env, model, batch_size=10, k_max=10**5):
 
@@ -198,4 +217,4 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5):
         # update states
         states = next_states
 
-    return np.mean(ep_rets), np.mean(ep_lens)
+    return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)
