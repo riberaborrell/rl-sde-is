@@ -149,7 +149,7 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
     # number of discretized states
     Nh = env.state_space_h.shape[0]
 
-    # preallocate parameters
+    # preallocate arrays
     losses = np.empty(n_iterations)
     var_losses = np.empty(n_iterations)
     controls = np.empty((n_iterations, Nh))

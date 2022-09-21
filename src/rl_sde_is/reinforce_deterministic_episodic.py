@@ -44,7 +44,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
     # get dir path
     dir_path = get_reinforce_det_dir_path(
         env,
-        agent='reinforce-det-episodic',
+        agent='reinforce-det-episodic-2',
         batch_size=batch_size,
         lr=lr,
         n_iterations=n_iterations,

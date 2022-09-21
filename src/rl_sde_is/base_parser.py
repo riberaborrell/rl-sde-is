@@ -3,6 +3,27 @@ import argparse
 def get_base_parser():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument(
+        '--alpha',
+        dest='alpha',
+        type=float,
+        default=1.,
+        help='Double well potential parameter. Default: 1.',
+    )
+    parser.add_argument(
+        '--beta',
+        dest='beta',
+        type=float,
+        default=1.,
+        help='Set inverse of the temperature. Default: 1.',
+    )
+    parser.add_argument(
+        '--dt',
+        dest='dt',
+        type=float,
+        default=0.005,
+        help='Set Euler-Marujama time discretization step. Default: 0.01',
+    )
+    parser.add_argument(
         '--seed',
         dest='seed',
         type=int,
@@ -30,17 +51,10 @@ def get_base_parser():
         help='the initial point of the trajectory is uniform sampled in the domain \ target set.',
     )
     parser.add_argument(
-        '--constant-alpha',
-        dest='constant_alpha',
+        '--constant-lr',
+        dest='constant_lr',
         action='store_true',
-        help='the step size / learning rate parameter is given by alpha.',
-    )
-    parser.add_argument(
-        '--alpha',
-        dest='alpha',
-        type=float,
-        default=0.01,
-        help='Set learning rate. Default: 0.01',
+        help='the step size / learning rate parameter is constant.',
     )
     parser.add_argument(
         '--lr',

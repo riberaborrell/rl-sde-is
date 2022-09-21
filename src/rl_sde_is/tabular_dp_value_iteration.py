@@ -106,7 +106,7 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environments
-    env = DoubleWellStoppingTime1D()
+    env = DoubleWellStoppingTime1D(dt=args.dt)
 
     # discretize observation and action space
     env.discretize_state_space(args.h_state)

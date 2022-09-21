@@ -7,15 +7,21 @@ from hjb.hjb_solver import SolverHJB
 
 class DoubleWellStoppingTime1D():
 
-    def __init__(self, is_state_init_sampled=False):
+    def __init__(self, beta=1., alpha=1., dt=0.005, is_state_init_sampled=False):
+
+        # environment log name
+        self.name = 'doublewell-1d-st__beta{:.1f}_alpha{:.1f}'.format(beta, alpha)
+
+        # double well potential
+        self.alpha = alpha
 
         # sde
-        self.beta = 1
+        self.beta = beta
         self.sigma = np.sqrt(2 / self.beta)
         self.sigma_tensor = torch.tensor(self.sigma, dtype=torch.float32)
 
         # Euler-Maruyama
-        self.dt = 0.005
+        self.dt = dt
         self.dt_tensor = torch.tensor(self.dt, dtype=torch.float32)
 
         # target set
