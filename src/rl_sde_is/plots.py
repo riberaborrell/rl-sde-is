@@ -1,6 +1,35 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from shapely.geometry import Polygon
+
+def plot_episode_states(env, ep_states):
+
+    # compute potential at each state
+    ep_pot = env.potential(ep_states)
+
+    # draw target set
+    target_set = Polygon([
+       (1, 0),
+       (1, 15),
+       (3, 15),
+       (3, 0),
+    ])
+    target_set_x, target_set_y = target_set.exterior.xy
+
+    # compute potential on the grid
+    potential = env.potential(env.state_space_h)
+
+    fig, ax = plt.subplots()
+    ax.set_title(r'States trajectory')
+    ax.set_xlabel(r'$s$')
+    ax.set_xlim(-2, 2)
+    ax.set_ylim(0, 4)
+    ax.text(1.2, 2., r'target set', size=15, rotation=0.)
+    ax.plot(env.state_space_h, potential)
+    ax.fill(target_set_x, target_set_y, alpha=0.4, fc='tab:orange', ec='none')
+    ax.scatter(ep_states[::1], ep_pot[::1], alpha=.5, color='black', marker='o')
+    plt.show()
 
 def plot_returns_episodes(returns, avg_returns):
     fig, ax = plt.subplots()
@@ -93,6 +122,8 @@ def plot_advantage_function(env, a_table):
 
     im = fig.axes[0].imshow(
         a_table.T,
+        vmin=-0.10,
+        vmax=0,
         origin='lower',
         extent=get_extent(env),
         cmap=cm.plasma,

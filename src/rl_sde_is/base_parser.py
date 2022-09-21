@@ -243,9 +243,9 @@ def get_base_parser():
         help='Do plots. Default: False',
     )
     parser.add_argument(
-        '--do-report',
-        dest='do_report',
+        '--save-traj',
+        dest='save_traj',
         action='store_true',
-        help='Write report. Default: False',
+        help='Save states, actions and rewards of the first trajectory. Default: False',
     )
     return parser

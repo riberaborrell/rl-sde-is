@@ -83,20 +83,22 @@ def get_eps_str(**kwargs):
     return eps_str
 
 
-def get_random_dir_path(**kwargs):
+def get_agent_dir_path(env, **kwargs):
     '''
     '''
 
     # set parameters string
-    param_str = get_initial_point_str(**kwargs) \
-              + 'n-episodes{:.0e}'.format(kwargs['n_episodes'])
+    param_str = get_initial_point_str(env) \
+              + 'dt{:.0e}_'.format(env.dt) \
+              + 'n-episodes{:.0e}_'.format(kwargs['n_episodes']) \
+              + 'seed{:1d}'.format(kwargs['seed'])
 
 
     # set dir path
     dir_path = os.path.join(
         get_data_dir(),
         env.name,
-        'random',
+        'agent-{}'.format(kwargs['agent']),
         param_str,
     )
 

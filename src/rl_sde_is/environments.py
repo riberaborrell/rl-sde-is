@@ -41,6 +41,9 @@ class DoubleWellStoppingTime1D():
         self.action_space_low = 0.
         self.action_space_high = 3.
 
+    def potential(self, state):
+        return (state**2 - 1) ** 2
+
     def gradient(self, state):
         return 4 * state * (state**2 - 1)
 
