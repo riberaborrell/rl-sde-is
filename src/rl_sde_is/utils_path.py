@@ -290,7 +290,7 @@ def get_ddpg_dir_path(env, **kwargs):
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
               + 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) \
-              + get_iter_str(kwargs) \
+              + get_iter_str(**kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
     dir_path = os.path.join(

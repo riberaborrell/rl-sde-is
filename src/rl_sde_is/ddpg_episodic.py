@@ -164,6 +164,7 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
     test_mean_returns = np.empty((0), dtype=np.float32)
     test_var_returns = np.empty((0), dtype=np.float32)
     test_mean_lengths = np.empty((0), dtype=np.float32)
+    test_u_l2_errors = np.empty((0), dtype=np.float32)
 
     # get initial state
     state_init = env.state_init.copy()
@@ -222,25 +223,28 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
         time_steps[ep] = k
 
         # logs
-        if ep % test_freq_episodes == 0:
+        if (ep + 1) % test_freq_episodes == 0:
 
             # test model
-            test_mean_ret, test_var_ret, test_mean_len = test_policy_vectorized(env, actor, batch_size=10)
+            test_mean_ret, test_var_ret, test_mean_len, test_u_l2_error \
+                    = test_policy_vectorized(env, actor, batch_size=10, control_hjb=control_hjb)
             test_mean_returns = np.append(test_mean_returns, test_mean_ret)
             test_var_returns = np.append(test_var_returns, test_var_ret)
             test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
+            test_u_l2_errors = np.append(test_u_l2_errors, test_u_l2_error)
 
-            msg = 'ep: {:3d}, test mean return: {:2.2f}, test var return: {:.2e},' \
-                  'test mean time steps: {:2.2f} '.format(
-                ep,
+            msg = 'ep: {:3d}, test mean return: {:2.2f}, test var return: {:.2e}, ' \
+                  'test mean time steps: {:2.2f}, test u l2 error: {:.2e}'.format(
+                ep + 1,
                 test_mean_ret,
                 test_var_ret,
                 test_mean_len,
+                test_u_l2_error,
             )
             print(msg)
 
         # update plots
-        if plot and ep % 10 == 0:
+        if plot and (ep + 1) % 1 == 0:
             q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
             v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
             update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
@@ -260,6 +264,7 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
         'test_mean_returns': test_mean_returns,
         'test_var_returns': test_var_returns,
         'test_mean_lengths': test_mean_lengths,
+        'test_u_l2_errors': test_u_l2_errors,
         'actor': actor,
         'critic': critic,
     }
@@ -312,8 +317,6 @@ def main():
     run_var_returns = compute_running_variance(returns, 10)
     time_steps = data['time_steps']
     run_mean_time_steps = compute_running_mean(time_steps, 10)
-    plot_returns_episodes(returns, run_mean_returns)
-    plot_run_var_returns_episodes(run_var_returns)
     plot_run_mean_returns_with_error_episodes(run_mean_returns, run_var_returns)
     plot_time_steps_episodes(time_steps, run_mean_time_steps)
 
@@ -321,7 +324,9 @@ def main():
     test_mean_returns = data['test_mean_returns']
     test_var_returns = data['test_var_returns']
     test_mean_lengths = data['test_mean_lengths']
+    test_u_l2_errors = data['test_u_l2_errors']
     plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns)
+    plot_det_policy_l2_error_epochs(test_u_l2_errors)
 
     # get models
     actor = data['actor']

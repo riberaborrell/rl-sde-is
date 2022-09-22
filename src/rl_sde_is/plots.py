@@ -142,14 +142,20 @@ def plot_losses_with_errors_epochs(losses, var_losses):
     plt.legend()
     plt.show()
 
-def plot_time_steps_episodes(time_steps, avg_time_steps):
+def plot_time_steps_epochs(time_steps):
     fig, ax = plt.subplots()
-    ax.set_title('Time steps')
-    ax.set_xlabel('Episodes')
+    ax.set_title('Estimated time steps')
+    ax.set_xlabel('Epochs')
+    plt.plot(time_steps)
+    #plt.legend()
+    plt.show()
 
-    plt.plot(time_steps, label='time steps')
-    plt.plot(avg_time_steps, label='running averages time steps')
-    plt.legend()
+def plot_det_policy_l2_error_epochs(l2_errors):
+    fig, ax = plt.subplots()
+    ax.set_title('Estimated L^2 det policy error')
+    ax.set_xlabel('Epochs')
+    plt.semilogy(l2_errors)
+    #plt.legend()
     plt.show()
 
 def get_extent(env):

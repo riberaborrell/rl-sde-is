@@ -170,12 +170,17 @@ def test_policy(env, model, batch_size=10):
 
     return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)
 
-def test_policy_vectorized(env, model, batch_size=10, k_max=10**5):
+def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=None):
 
     # preallocate returns and time steps
     total_rewards = np.zeros(batch_size)
     ep_rets = np.empty(batch_size)
     ep_lens = np.empty(batch_size)
+
+    # preallocate u l2 error array
+    if control_hjb is not None:
+        ep_u_l2_error_fht = np.empty(batch_size)
+        ep_u_l2_error_t = np.zeros(batch_size)
 
     # set been in target set and done arrays
     been_in_target_set = np.full((batch_size, 1), False)
@@ -189,14 +194,21 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5):
 
         # actions
         with torch.no_grad():
-            states = torch.FloatTensor(states)
-            actions = model.forward(states).numpy()
+            actions = model.forward(torch.FloatTensor(states)).numpy()
 
         # step dynamics forward
         next_states, rewards, done = env.step_vectorized(states, actions)
 
         # update total rewards for all trajectories
         total_rewards += np.squeeze(rewards)
+
+        # hjb control
+        idx_states = env.get_states_idx_vectorized(states)
+        actions_hjb = control_hjb[idx_states]
+
+        # computer running u l2 error
+        if control_hjb is not None:
+            ep_u_l2_error_t += (np.linalg.norm(actions - actions_hjb, axis=1) ** 2) * env.dt
 
         # get indices of episodes which are new to the target set
         idx = env.get_idx_new_in_ts(done, been_in_target_set)
@@ -210,6 +222,10 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5):
             # fix episode time steps
             ep_lens[idx] = k
 
+            # fix l2 error
+            if control_hjb is not None:
+                ep_u_l2_error_fht[idx] = ep_u_l2_error_t[idx]
+
         # stop if xt_traj in target set
         if been_in_target_set.all() == True:
            break
@@ -217,4 +233,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5):
         # update states
         states = next_states
 
-    return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)
+    if control_hjb is not None:
+        return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens), np.mean(ep_u_l2_error_fht)
+    else:
+        return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)
