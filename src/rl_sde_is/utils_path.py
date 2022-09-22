@@ -266,7 +266,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
     param_str = get_initial_point_str(env) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr{:.1e}_'.format(kwargs['lr']) \
-              + get_iter_str(kwargs) \
+              + get_iter_str(**kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
     dir_path = os.path.join(

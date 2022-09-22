@@ -34,20 +34,25 @@ def get_reward_following_action_with_baseline(ep_rewards, ep_states, sol_hjb):
     ep_baselines = torch.FloatTensor(sol_hjb.value_function[idx])
     return cumsum_torch(ep_rewards - ep_baselines)
 
-def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
+def reinforce(env, return_estimator='total-rewards', gamma=0.99, n_layers=3, d_hidden_layer=30,
               batch_size=10, lr=0.01, n_episodes=2000, seed=1,
               sol_hjb=None, load=False, plot=False):
 
-    assert n_episodes % batch_size == 0, ''
-    n_iterations = int(n_episodes / batch_size)
+    # check type of the return estimator
+    if return_estimator not in ['total-rewards', 'rewards-following-action', 'optimal-baseline']:
+        raise ValueError
+
+    # check ratio number of episodes and batch size
+    if not n_episodes % batch_size == 0:
+        raise ValueError
 
     # get dir path
     dir_path = get_reinforce_det_dir_path(
         env,
-        agent='reinforce-det-episodic',
+        agent='reinforce-det-episodic_' + return_estimator,
         batch_size=batch_size,
         lr=lr,
-        n_iterations=n_iterations,
+        n_episodes=n_episodes,
         seed=seed,
     )
 
@@ -119,9 +124,12 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
             ep_rewards = torch.cat((ep_rewards, r), 0)
 
         # compute advantatge function
-        ep_psi = get_total_reward(ep_rewards)
-        #ep_psi = get_reward_following_action(ep_rewards)
-        #ep_psi = get_reward_following_action_with_baseline(ep_rewards, ep_states, sol_hjb)
+        if return_estimator == 'total-rewards' :
+            ep_psi = get_total_reward(ep_rewards)
+        elif return_estimator == 'rewards-following-action' :
+            ep_psi = get_reward_following_action(ep_rewards)
+        elif return_estimator == 'optimal-baseline' :
+            ep_psi = get_reward_following_action_with_baseline(ep_rewards, ep_states, sol_hjb)
 
         # update batch data
         batch_states = torch.cat((batch_states, ep_states), 0)
@@ -202,6 +210,7 @@ def main():
     # run reinforce
     data = reinforce(
         env=env,
+        return_estimator=args.return_estimator,
         gamma=args.gamma,
         batch_size=args.batch_size,
         lr=args.lr,
@@ -221,10 +230,10 @@ def main():
     run_var_returns = compute_running_variance(returns, args.batch_size)
     time_steps = data['time_steps']
     run_mean_time_steps = compute_running_mean(time_steps, args.batch_size)
-    plot_returns_episodes(returns, run_mean_returns)
-    plot_run_var_returns_episodes(run_var_returns)
-    plot_run_mean_returns_with_error_episodes(run_mean_returns, run_var_returns)
-    plot_time_steps_episodes(time_steps, run_mean_time_steps)
+    #plot_returns_episodes(returns, run_mean_returns)
+    #plot_run_var_returns_episodes(run_var_returns)
+    #plot_run_mean_returns_with_error_episodes(run_mean_returns, run_var_returns)
+    #plot_time_steps_episodes(time_steps, run_mean_time_steps)
 
     # plot expected values for each epoch
     test_mean_returns = run_mean_returns[::args.batch_size]

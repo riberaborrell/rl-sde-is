@@ -231,6 +231,13 @@ def get_base_parser():
         help='Flag determining if the NN Architecture is dense. Default: False',
     )
     parser.add_argument(
+        '--return-estimator',
+        dest='return_estimator',
+        type=str,
+        default='total-rewards',
+        help='Type of return estimator. Default: "total rewards"',
+    )
+    parser.add_argument(
         '--load',
         dest='load',
         action='store_true',
