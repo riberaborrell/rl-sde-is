@@ -234,8 +234,14 @@ def get_dqn_dir_path(env, **kwargs):
 def get_reinforce_stoch_dir_path(env, **kwargs):
     '''
     '''
+    if kwargs['agent'] == 'reinforce-stochastic-discrete':
+        h_action_str = 'h-action{:.0e}_'.format(env.h_action)
+    else:
+        h_action_str = ''
+
     # set parameters string
     param_str = get_initial_point_str(env) \
+              + h_action_str \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr{:.1e}_'.format(kwargs['lr']) \
               + get_iter_str(**kwargs) \
