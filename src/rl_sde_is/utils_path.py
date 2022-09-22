@@ -82,6 +82,16 @@ def get_eps_str(**kwargs):
                 + 'eps-decay{:0.4f}_'.format(kwargs['eps_decay'])
     return eps_str
 
+def get_iter_str(**kwargs):
+    if 'n_episodes' in kwargs.keys():
+        iter_str = 'n-episodes{:.0e}_'.format(kwargs['n_episodes'])
+    elif 'n_total_steps' in kwargs.keys():
+        iter_str = 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps'])
+    elif 'n_iterations' in kwargs.keys():
+        iter_str = 'n-iter{:.0e}_'.format(kwargs['n_iterations'])
+    else:
+        iter_str = ''
+    return iter_str
 
 def get_agent_dir_path(env, **kwargs):
     '''
@@ -221,6 +231,28 @@ def get_dqn_dir_path(env, **kwargs):
 
     return dir_path
 
+def get_reinforce_stoch_dir_path(env, **kwargs):
+    '''
+    '''
+    # set parameters string
+    param_str = get_initial_point_str(env) \
+              + 'K{:.0e}_'.format(kwargs['batch_size']) \
+              + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + get_iter_str(**kwargs) \
+              + 'seed{:1d}'.format(kwargs['seed'])
+
+    dir_path = os.path.join(
+        get_data_dir(),
+        env.name,
+        kwargs['agent'],
+        param_str,
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_reinforce_det_dir_path(env, **kwargs):
     '''
     '''
@@ -228,7 +260,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
     param_str = get_initial_point_str(env) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr{:.1e}_'.format(kwargs['lr']) \
-              + 'n-it{:.0e}_'.format(kwargs['n_iterations']) \
+              + get_iter_str(kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
     dir_path = os.path.join(
@@ -247,19 +279,12 @@ def get_ddpg_dir_path(env, **kwargs):
     '''
     '''
 
-    if 'n_episodes' in kwargs.keys():
-        iter_str = 'n-episodes{:.0e}_'.format(kwargs['n_episodes'])
-    elif 'n_total_steps' in kwargs.keys():
-        iter_str = 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps'])
-    else:
-        iter_str = ''
-
     # set parameters string
     param_str = get_initial_point_str(env) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
               + 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) \
-              + iter_str \
+              + get_iter_str(kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
     dir_path = os.path.join(

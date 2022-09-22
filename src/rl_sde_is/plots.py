@@ -110,6 +110,38 @@ def plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns)
     plt.legend()
     plt.show()
 
+def plot_loss_epochs(losses):
+    fig, ax = plt.subplots()
+    ax.set_title('Loss function')
+    ax.set_xlabel('Epochs')
+    #ax.set_ylim(-10, 0)
+    plt.plot(losses)
+    #plt.legend()
+    plt.show()
+
+def plot_var_losses_epochs(var_losses):
+    fig, ax = plt.subplots()
+    ax.set_title('Sample variance loss')
+    ax.set_xlabel('Epochs')
+
+    plt.semilogy(test_var_returns)
+    #plt.legend()
+    plt.show()
+
+def plot_losses_with_errors_epochs(losses, var_losses):
+    fig, ax = plt.subplots()
+    ax.set_title('Estimated Loss function')
+    ax.set_xlabel('Epochs')
+    #ax.set_ylim(-10, 0)
+    n_epochs = len(losses)
+    x = np.arange(n_epochs)
+    y = losses
+    error = np.sqrt(var_losses)
+    ax.plot(x, y, label='estimated loss')
+    ax.fill_between(x, y-error, y+error, alpha=0.5, label='standard deviation')
+    plt.legend()
+    plt.show()
+
 def plot_time_steps_episodes(time_steps, avg_time_steps):
     fig, ax = plt.subplots()
     ax.set_title('Time steps')
@@ -224,7 +256,6 @@ def plot_stoch_policy(env, action_prob_dists, policy, control_hjb):
     ax.set_title('Action Probability distributions')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
-
     im = ax.imshow(
         action_prob_dists.T,
         origin='lower',
@@ -244,10 +275,36 @@ def plot_stoch_policy(env, action_prob_dists, policy, control_hjb):
     ax.set_title('Stochastic Policy')
     ax.set_xlabel('States')
     ax.set_ylabel('Sampled actions')
-
     plt.scatter(env.state_space_h, policy)
     plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
     plt.legend()
+    plt.show()
+
+def plot_mu_and_simga_gaussian_stoch_policy(env, mu, sigma_sq):
+
+    # plot mu
+    fig, ax = plt.subplots()
+    ax.plot(env.state_space_h, mu)
+    ax.set_title('mu')
+    ax.set_xlabel('State space')
+    plt.show()
+
+    # plot sigma
+    fig, ax = plt.subplots()
+    ax.plot(env.state_space_h, sigma_sq)
+    ax.set_title('sigma')
+    ax.set_xlabel('State space')
+    plt.show()
+
+    # plot mu with error
+    fig, ax = plt.subplots()
+    x = env.state_space_h
+    y = mu
+    error = np.sqrt(sigma_sq)
+    ax.plot(x, y, label='mu')
+    ax.fill_between(x, y-error, y+error, alpha=0.5, label='standard deviation')
+    ax.set_title('mu')
+    ax.set_xlabel('State space')
     plt.show()
 
 def plot_det_policy(env, policy, control_hjb):
