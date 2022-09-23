@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 
+import torch
 import numpy as np
 
 from rl_sde_is.config import PROJECT_ROOT_DIR, DATA_ROOT_DIR
@@ -51,6 +52,17 @@ def load_data(dir_path):
     except FileNotFoundError as e:
         print(e)
         sys.exit()
+
+
+def save_model(model, dir_path, file_name):
+    torch.save(
+        model.state_dict(),
+        os.path.join(dir_path, file_name),
+    )
+
+def load_model(model, dir_path, file_name):
+    model.load_state_dict(torch.load(os.path.join(dir_path, file_name)))
+
 
 def get_initial_point_str(env):
     if not env.is_state_init_sampled:

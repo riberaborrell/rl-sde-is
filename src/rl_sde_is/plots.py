@@ -325,6 +325,16 @@ def plot_det_policy(env, policy, control_hjb):
     plt.legend()
     plt.show()
 
+def plot_det_policies(env, policies, u_hjb):
+    n_policies = policies.shape[0]
+
+    fig, ax = plt.subplots()
+    for i in range(n_policies):
+        ax.plot(env.state_space_h, policies[i])
+        ax.plot(env.state_space_h, u_hjb, color='cyan')
+    ax.set_ylim(-3, 3)
+    plt.show()
+
 def plot_det_policy_actor_critic(env, policy_actor, policy_critic, control_hjb):
     fig, ax = plt.subplots()
     ax.set_title('Deterministic Policy')

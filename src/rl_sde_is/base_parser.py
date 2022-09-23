@@ -148,6 +148,12 @@ def get_base_parser():
         help='Set number last episodes to averaged the statistics. Default: 100',
     )
     parser.add_argument(
+        '--backup-freq-episodes',
+        dest='backup_freq_episodes',
+        type=int,
+        help='Set frequency of backups in terms of number of episodes . Default: None',
+    )
+    parser.add_argument(
         '--n-iterations',
         dest='n_iterations',
         type=int,
@@ -160,6 +166,12 @@ def get_base_parser():
         type=int,
         default=10,
         help='Set number last iterations to averaged the statistics. Default: 10',
+    )
+    parser.add_argument(
+        '--backup-freq-iterations',
+        dest='backup_freq_iterations',
+        type=int,
+        help='Set frequency of backups in terms of number of iterations . Default: None',
     )
     parser.add_argument(
         '--n-epochs',
