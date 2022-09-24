@@ -325,14 +325,26 @@ def plot_det_policy(env, policy, control_hjb):
     plt.legend()
     plt.show()
 
-def plot_det_policies(env, policies, u_hjb):
+def plot_det_policies(env, policies, control_hjb):
     n_policies = policies.shape[0]
 
     fig, ax = plt.subplots()
     for i in range(n_policies):
         ax.plot(env.state_space_h, policies[i])
-        ax.plot(env.state_space_h, u_hjb, color='cyan')
-    ax.set_ylim(-3, 3)
+    ax.plot(env.state_space_h, control_hjb, color='cyan')
+    #ax.set_ylim(-3, 3)
+    plt.show()
+
+def plot_det_policies_black_and_white(env, policies, control_hjb):
+    n_policies = policies.shape[0]
+    cmap = cm.get_cmap('Greys')
+    colors = cmap(np.linspace(0, 1, n_policies))
+
+    fig, ax = plt.subplots()
+    for i in range(n_policies):
+        ax.plot(env.state_space_h, policies[i], c=colors[i])
+    ax.plot(env.state_space_h, control_hjb, c='black', ls='-.')
+    #ax.set_ylim(-3, 3)
     plt.show()
 
 def plot_det_policy_actor_critic(env, policy_actor, policy_critic, control_hjb):

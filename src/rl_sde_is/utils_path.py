@@ -37,13 +37,13 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
-def save_data(dir_path, data_dict):
-    file_path = os.path.join(dir_path, 'agent.npz')
+def save_data(data_dict, rel_dir_path):
+    file_path = os.path.join(get_data_dir(), rel_dir_path, 'agent.npz')
     np.savez(file_path, **data_dict)
 
-def load_data(dir_path):
+def load_data(rel_dir_path):
     try:
-        file_path = os.path.join(dir_path, 'agent.npz')
+        file_path = os.path.join(get_data_dir(), rel_dir_path, 'agent.npz')
         data = dict(np.load(file_path, allow_pickle=True))
         for file_name in data.keys():
             if data[file_name].ndim == 0:
@@ -54,14 +54,14 @@ def load_data(dir_path):
         sys.exit()
 
 
-def save_model(model, dir_path, file_name):
+def save_model(model, rel_dir_path, file_name):
     torch.save(
         model.state_dict(),
-        os.path.join(dir_path, file_name),
+        os.path.join(get_data_dir(), rel_dir_path, file_name),
     )
 
-def load_model(model, dir_path, file_name):
-    model.load_state_dict(torch.load(os.path.join(dir_path, file_name)))
+def load_model(model, rel_dir_path, file_name):
+    model.load_state_dict(torch.load(os.path.join(get_data_dir(), rel_dir_path, file_name)))
 
 
 def get_initial_point_str(env):
@@ -281,17 +281,16 @@ def get_reinforce_det_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
-    dir_path = os.path.join(
-        get_data_dir(),
+    rel_dir_path = os.path.join(
         env.name,
         kwargs['agent'],
         param_str,
     )
 
     # create dir path if not exists
-    make_dir_path(dir_path)
+    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
 
-    return dir_path
+    return rel_dir_path
 
 def get_ddpg_dir_path(env, **kwargs):
     '''
@@ -305,14 +304,13 @@ def get_ddpg_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
-    dir_path = os.path.join(
-        get_data_dir(),
+    rel_dir_path = os.path.join(
         env.name,
         kwargs['agent'],
         param_str,
     )
 
     # create dir path if not exists
-    make_dir_path(dir_path)
+    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
 
-    return dir_path
+    return rel_dir_path

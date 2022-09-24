@@ -115,7 +115,7 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
               control_hjb=None, load=False, plot=False):
 
     # get dir path
-    dir_path = get_reinforce_det_dir_path(
+    rel_dir_path = get_reinforce_det_dir_path(
         env,
         agent='reinforce-deterministic',
         batch_size=batch_size,
@@ -126,7 +126,7 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
 
     # load results
     if load:
-        data = load_data(dir_path)
+        data = load_data(rel_dir_path)
         return data
 
     # set seed
@@ -149,13 +149,14 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
 
     # preallocate arrays
     losses = np.empty(n_iterations)
-    var_losses = np.empty(n_iterations)
-    avg_time_steps = np.empty(n_iterations)
+    exp_returns = np.empty(n_iterations)
+    var_returns = np.empty(n_iterations)
+    exp_time_steps = np.empty(n_iterations)
     policy_l2_errors = np.empty(n_iterations)
     cts = np.empty(n_iterations)
 
     # save initial parameters
-    save_model(model, dir_path, 'model_n-it{}'.format(0))
+    save_model(model, rel_dir_path, 'model_n-it{}'.format(0))
 
     for i in np.arange(n_iterations):
 
@@ -170,21 +171,26 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
         # update parameters
         optimizer.step()
 
-        # compute loss and variance
-        loss = np.mean(return_fht)
-        var = np.var(return_fht)
-
-        msg = 'it.: {:2d}, loss: {:.3e}, var: {:.1e}, ' \
-              'avg ts: {:.3e}, policy l2-error: {:.2e}, ct: {:.3f}' \
-              ''.format(i, loss, var, avg_len, policy_l2_error, ct)
-        print(msg)
-
         # save statistics
-        losses[i] = loss
-        var_losses[i] = var
-        avg_time_steps[i] = avg_len
+        losses[i] = eff_loss.detach().numpy()
+        exp_returns[i] = np.mean(return_fht)
+        var_returns[i] = np.var(return_fht)
+        exp_time_steps[i] = avg_len
         policy_l2_errors[i] = policy_l2_error
         cts[i] = ct
+
+        msg = 'it.: {:2d}, loss: {:.3e}, exp return: {:.3e}, var return: {:.1e}, ' \
+              'avg ts: {:.3e}, policy l2-error: {:.2e}, ct: {:.3f}' \
+              ''.format(
+                  i,
+                  losses[i],
+                  exp_returns[i],
+                  var_returns[i],
+                  avg_len,
+                  policy_l2_error,
+                  ct,
+              )
+        print(msg)
 
         # update figure
         if plot:
@@ -193,21 +199,22 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
 
         # save model
         if backup_freq_iterations is not None and (i+1) % backup_freq_iterations == 0:
-            save_model(model, dir_path, 'model_n-it{}'.format(i+1))
+            save_model(model, rel_dir_path, 'model_n-it{}'.format(i+1))
 
     data = {
-        'dir_path': dir_path,
+        'rel_dir_path': rel_dir_path,
         'n_iterations': n_iterations,
         'backup_freq_iterations': backup_freq_iterations,
         'batch_size': batch_size,
         'losses': losses,
-        'var_losses': var_losses,
-        'avg_time_steps': avg_time_steps,
+        'exp_returns': exp_returns,
+        'var_returns': var_returns,
+        'exp_time_steps': exp_time_steps,
         'policy_l2_errors': policy_l2_errors,
         'cts': cts,
         'model': model,
     }
-    save_data(dir_path, data)
+    save_data(data, rel_dir_path)
     return data
 
 def get_policy(env, model):
@@ -218,7 +225,7 @@ def get_policy(env, model):
 
 def get_policies(env, data):
 
-    dir_path = data['dir_path']
+    rel_dir_path = data['rel_dir_path']
     model = data['model']
     n_iterations = data['n_iterations']
     backup_freq_iterations = data['backup_freq_iterations']
@@ -227,13 +234,12 @@ def get_policies(env, data):
     policies = np.empty((0, Nx), dtype=np.float32)
 
     for i in range(data['n_iterations']):
-        print(i)
         if i == 0:
-            load_model(model, dir_path, file_name='model_n-it{}'.format(0))
+            load_model(model, rel_dir_path, file_name='model_n-it{}'.format(0))
             policies = np.vstack((policies, get_policy(env, model).reshape(1, Nx)))
 
         elif (i + 1) % backup_freq_iterations == 0:
-            load_model(model, dir_path, file_name='model_n-it{}'.format(0))
+            load_model(model, rel_dir_path, file_name='model_n-it{}'.format(i+1))
             policies = np.vstack((policies, get_policy(env, model).reshape(1, Nx)))
 
     return policies
@@ -274,14 +280,28 @@ def main():
     if not args.plot:
         return
 
+    # plot expected values for each epoch
+    plot_expected_returns_with_error_epochs(data['exp_returns'], data['var_returns'])
+    plot_time_steps_epochs(data['avg_time_steps'])
+
+    # plot policy l2 error
+    plot_det_policy_l2_error_epochs(data['policy_l2_errors'])
+
+    # plot loss function
+    plot_loss_epochs(data['losses'])
+
+    # plot policy
     policies = get_policies(env, data)
     plot_det_policies(env, policies, sol_hjb.u_opt)
+    #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
+    policy = get_policy(env, data['model'])
+    plot_det_policy(env, policy, sol_hjb.u_opt)
+
     return
 
-    losses = data['losses']
 
+    losses = data['losses']
     plot_losses(losses)
-    plot_det_policy(env, controls[-1], sol_hjb.u_opt)
 
 if __name__ == "__main__":
     main()
