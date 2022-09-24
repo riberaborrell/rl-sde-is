@@ -89,13 +89,13 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
 
 def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
          n_episodes=100, n_steps_episode_lim=1000,
-         start_steps=0, update_after=1000, update_freq=100, policy_freq=60, test_freq_episodes=100,
-         replay_size=10000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4,
+         start_steps=0, update_after=1000, update_freq=100, test_freq_episodes=100, backup_freq_episodes=None,
+         replay_size=10000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=100,
          rho=0.95, seed=None,
          value_function_hjb=None, control_hjb=None, load=False, plot=False):
 
     # get dir path
-    dir_path = get_ddpg_dir_path(
+    rel_dir_path = get_ddpg_dir_path(
         env,
         agent='ddpg-episodic',
         batch_size=batch_size,
@@ -107,7 +107,7 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
 
     # load results
     if load:
-        data = load_data(dir_path)
+        data = load_data(rel_dir_path)
         return data
 
     # set seed
@@ -156,6 +156,11 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
         lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                                 a_table, policy_actor, policy_critic,
                                                 value_function_hjb, control_hjb)
+
+    # save initial parameters
+    save_model(actor, rel_dir_path, 'actor_n-epi{}'.format(0))
+    save_model(critic, rel_dir_path, 'critic_n-epi{}'.format(0))
+
     # define list to store results
     returns = np.empty(n_episodes)
     time_steps = np.empty(n_episodes, dtype=np.int32)
@@ -222,12 +227,12 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
         returns[ep] = ep_return
         time_steps[ep] = k
 
-        # logs
+        # test actor
         if (ep + 1) % test_freq_episodes == 0:
 
             # test model
             test_mean_ret, test_var_ret, test_mean_len, test_u_l2_error \
-                    = test_policy_vectorized(env, actor, batch_size=10, control_hjb=control_hjb)
+                    = test_policy_vectorized(env, actor, batch_size=100, control_hjb=control_hjb)
             test_mean_returns = np.append(test_mean_returns, test_mean_ret)
             test_var_returns = np.append(test_var_returns, test_var_ret)
             test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
@@ -242,6 +247,11 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
                 test_u_l2_error,
             )
             print(msg)
+
+        # save actor and critic models
+        if backup_freq_episodes is not None and (ep + 1) % backup_freq_episodes == 0:
+            save_model(actor, rel_dir_path, 'actor_n-epi{}'.format(ep + 1))
+            save_model(critic, rel_dir_path, 'critic_n-epi{}'.format(ep + 1))
 
         # update plots
         if plot and (ep + 1) % 1 == 0:
@@ -261,15 +271,22 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
         'update_after': update_after,
         'returns': returns,
         'time_steps': time_steps,
+        'test_batch_size' : test_batch_size,
         'test_mean_returns': test_mean_returns,
         'test_var_returns': test_var_returns,
         'test_mean_lengths': test_mean_lengths,
         'test_u_l2_errors': test_u_l2_errors,
         'actor': actor,
         'critic': critic,
+        'rel_dir_path': rel_dir_path,
     }
-    save_data(dir_path, data)
+    save_data(data, rel_dir_path)
     return data
+
+def load_backup_models(actor, critic, rel_dir_path, ep=0):
+    load_model(actor, rel_dir_path, file_name='actor_n-epi{}'.format(ep))
+    load_model(critic, rel_dir_path, file_name='critic_n-epi{}'.format(ep))
+
 
 def main():
     args = get_parser().parse_args()
@@ -298,9 +315,9 @@ def main():
         n_episodes=args.n_episodes,
         seed=args.seed,
         replay_size=10000,
-        n_steps_episode_lim=500,
-        #update_freq=100,
-        test_freq_episodes=10,
+        n_steps_episode_lim=10000,
+        test_freq_episodes=100,
+        backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
         load=args.load,
@@ -331,6 +348,9 @@ def main():
     # get models
     actor = data['actor']
     critic = data['critic']
+
+    # get backup models
+    load_backup_models(actor, critic, data['rel_dir_path'], ep=0)
 
     # compute tables following q-value model
     q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)

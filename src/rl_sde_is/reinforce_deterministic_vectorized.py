@@ -202,10 +202,12 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
             save_model(model, rel_dir_path, 'model_n-it{}'.format(i+1))
 
     data = {
-        'rel_dir_path': rel_dir_path,
-        'n_iterations': n_iterations,
-        'backup_freq_iterations': backup_freq_iterations,
+        'gamma': gamma,
         'batch_size': batch_size,
+        'lr': lr,
+        'n_iterations': n_iterations,
+        'seed': seed,
+        'backup_freq_iterations': backup_freq_iterations,
         'losses': losses,
         'exp_returns': exp_returns,
         'var_returns': var_returns,
@@ -213,6 +215,7 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
         'policy_l2_errors': policy_l2_errors,
         'cts': cts,
         'model': model,
+        'rel_dir_path': rel_dir_path,
     }
     save_data(data, rel_dir_path)
     return data
@@ -282,7 +285,7 @@ def main():
 
     # plot expected values for each epoch
     plot_expected_returns_with_error_epochs(data['exp_returns'], data['var_returns'])
-    plot_time_steps_epochs(data['avg_time_steps'])
+    plot_time_steps_epochs(data['exp_time_steps'])
 
     # plot policy l2 error
     plot_det_policy_l2_error_epochs(data['policy_l2_errors'])
