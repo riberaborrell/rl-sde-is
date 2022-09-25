@@ -247,7 +247,8 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
 
             # test model
             test_mean_ret, test_var_ret, test_mean_len, test_u_l2_error \
-                    = test_policy_vectorized(env, actor, batch_size=100, control_hjb=control_hjb)
+                    = test_policy_vectorized(env, actor, batch_size=test_batch_size,
+                                             control_hjb=control_hjb)
             test_mean_returns = np.append(test_mean_returns, test_mean_ret)
             test_var_returns = np.append(test_var_returns, test_var_ret)
             test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
@@ -316,9 +317,10 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        replay_size=10000,
+        replay_size=100000,
         n_steps_episode_lim=10000,
-        test_freq_episodes=100,
+        test_freq_episodes=1000,
+        test_batch_size=1000,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
