@@ -168,7 +168,7 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
     }
     save_data(data, rel_dir_path)
 
-    # save initial parameters
+    # save model initial parameters
     save_model(model, rel_dir_path, 'model_n-it{}'.format(0))
 
     for i in np.arange(n_iterations):
@@ -224,15 +224,16 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
     save_data(data, rel_dir_path)
     return data
 
-def load_backup_model(model, rel_dir_path, it=0):
+def load_backup_model(data, it=0):
     try:
-        load_model(model, rel_dir_path, file_name='model_n-it{}'.format(it))
+        load_model(data['model'], data['rel_dir_path'], file_name='model_n-it{}'.format(it))
     except FileNotFoundError as e:
         print('there is no backup for iteration {:d}'.format(it))
 
-def get_policy(env, model, rel_dir_path=None, it=None):
-    if it is not None and rel_dir_path is not None:
-        load_backup_model(model, rel_dir_path, it)
+def get_policy(env, data, it=None):
+    model = data['model']
+    if it is not None:
+        load_backup_model(data, it)
 
     state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
     with torch.no_grad():
@@ -240,9 +241,6 @@ def get_policy(env, model, rel_dir_path=None, it=None):
     return policy
 
 def get_policies(env, data):
-
-    rel_dir_path = data['rel_dir_path']
-    model = data['model']
     n_iterations = data['n_iterations']
     backup_freq_iterations = data['backup_freq_iterations']
 
@@ -251,12 +249,12 @@ def get_policies(env, data):
 
     for i in range(data['n_iterations']):
         if i == 0:
-            load_backup_model(model, rel_dir_path, 0)
-            policies = np.vstack((policies, get_policy(env, model).reshape(1, Nx)))
+            load_backup_model(data, 0)
+            policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
 
         elif (i + 1) % backup_freq_iterations == 0:
-            load_backup_model(model, rel_dir_path, i+1)
-            policies = np.vstack((policies, get_policy(env, model).reshape(1, Nx)))
+            load_backup_model(data, i+1)
+            policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
 
     return policies
 
@@ -310,8 +308,9 @@ def main():
     policies = get_policies(env, data)
     plot_det_policies(env, policies, sol_hjb.u_opt)
     #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
-    policy = get_policy(env, data['model'])
-    #policy = get_policy(env, data['model'], data['rel_dir_path'], it=8)
+
+    policy = get_policy(env, data)
+    #policy = get_policy(env, data, it=8)
     plot_det_policy(env, policy, sol_hjb.u_opt)
 
 

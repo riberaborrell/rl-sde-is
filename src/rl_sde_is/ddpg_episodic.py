@@ -156,8 +156,23 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
         lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                                 a_table, policy_actor, policy_critic,
                                                 value_function_hjb, control_hjb)
+    # save algorithm parameters
+    data = {
+        'gamma' : gamma,
+        'batch_size' : batch_size,
+        'lr_actor' : lr_actor,
+        'lr_critic' : lr_critic,
+        'n_episodes': n_episodes,
+        'seed': seed,
+        'replay_size': replay_size,
+        'update_after': update_after,
+        'actor': actor,
+        'critic': critic,
+        'rel_dir_path': rel_dir_path,
+    }
+    save_data(data, rel_dir_path)
 
-    # save initial parameters
+    # save models initial parameters
     save_model(actor, rel_dir_path, 'actor_n-epi{}'.format(0))
     save_model(critic, rel_dir_path, 'critic_n-epi{}'.format(0))
 
@@ -260,26 +275,13 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
             update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                     a_table, policy_actor, policy_critic, lines)
 
-    data = {
-        'gamma' : gamma,
-        'batch_size' : batch_size,
-        'lr_actor' : lr_actor,
-        'lr_critic' : lr_critic,
-        'n_episodes': n_episodes,
-        'seed': seed,
-        'replay_size': replay_size,
-        'update_after': update_after,
-        'returns': returns,
-        'time_steps': time_steps,
-        'test_batch_size' : test_batch_size,
-        'test_mean_returns': test_mean_returns,
-        'test_var_returns': test_var_returns,
-        'test_mean_lengths': test_mean_lengths,
-        'test_u_l2_errors': test_u_l2_errors,
-        'actor': actor,
-        'critic': critic,
-        'rel_dir_path': rel_dir_path,
-    }
+    data['returns'] = returns
+    data['time_steps'] = time_steps
+    data['test_batch_size'] = test_batch_size
+    data['test_mean_returns'] = test_mean_returns
+    data['test_var_returns'] = test_var_returns
+    data['test_mean_lengths'] = test_mean_lengths
+    data['test_u_l2_errors'] = test_u_l2_errors
     save_data(data, rel_dir_path)
     return data
 
@@ -350,7 +352,7 @@ def main():
     critic = data['critic']
 
     # get backup models
-    load_backup_models(actor, critic, data['rel_dir_path'], ep=0)
+    #load_backup_models(actor, critic, data['rel_dir_path'], ep=10)
 
     # compute tables following q-value model
     q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
