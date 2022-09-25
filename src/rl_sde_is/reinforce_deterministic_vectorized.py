@@ -155,6 +155,19 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
     policy_l2_errors = np.empty(n_iterations)
     cts = np.empty(n_iterations)
 
+    # save algorithm parameters
+    data = {
+        'gamma': gamma,
+        'batch_size': batch_size,
+        'lr': lr,
+        'n_iterations': n_iterations,
+        'seed': seed,
+        'backup_freq_iterations': backup_freq_iterations,
+        'model': model,
+        'rel_dir_path': rel_dir_path,
+    }
+    save_data(data, rel_dir_path)
+
     # save initial parameters
     save_model(model, rel_dir_path, 'model_n-it{}'.format(0))
 
@@ -201,26 +214,26 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
         if backup_freq_iterations is not None and (i+1) % backup_freq_iterations == 0:
             save_model(model, rel_dir_path, 'model_n-it{}'.format(i+1))
 
-    data = {
-        'gamma': gamma,
-        'batch_size': batch_size,
-        'lr': lr,
-        'n_iterations': n_iterations,
-        'seed': seed,
-        'backup_freq_iterations': backup_freq_iterations,
-        'losses': losses,
-        'exp_returns': exp_returns,
-        'var_returns': var_returns,
-        'exp_time_steps': exp_time_steps,
-        'policy_l2_errors': policy_l2_errors,
-        'cts': cts,
-        'model': model,
-        'rel_dir_path': rel_dir_path,
-    }
+    # add results
+    data['losses'] = losses
+    data['exp_returns'] = exp_returns
+    data['var_returns'] = var_returns
+    data['exp_time_steps'] = exp_time_steps
+    data['policy_l2_errors'] = policy_l2_errors
+    data['cts'] = cts
     save_data(data, rel_dir_path)
     return data
 
-def get_policy(env, model):
+def load_backup_model(model, rel_dir_path, it=0):
+    try:
+        load_model(model, rel_dir_path, file_name='model_n-it{}'.format(it))
+    except FileNotFoundError as e:
+        print('there is no backup for iteration {:d}'.format(it))
+
+def get_policy(env, model, rel_dir_path=None, it=None):
+    if it is not None and rel_dir_path is not None:
+        load_backup_model(model, rel_dir_path, it)
+
     state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
     with torch.no_grad():
         policy = model.forward(state_space_h).numpy().squeeze()
@@ -238,11 +251,11 @@ def get_policies(env, data):
 
     for i in range(data['n_iterations']):
         if i == 0:
-            load_model(model, rel_dir_path, file_name='model_n-it{}'.format(0))
+            load_backup_model(model, rel_dir_path, 0)
             policies = np.vstack((policies, get_policy(env, model).reshape(1, Nx)))
 
         elif (i + 1) % backup_freq_iterations == 0:
-            load_model(model, rel_dir_path, file_name='model_n-it{}'.format(i+1))
+            load_backup_model(model, rel_dir_path, i+1)
             policies = np.vstack((policies, get_policy(env, model).reshape(1, Nx)))
 
     return policies
@@ -298,13 +311,9 @@ def main():
     plot_det_policies(env, policies, sol_hjb.u_opt)
     #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
     policy = get_policy(env, data['model'])
+    #policy = get_policy(env, data['model'], data['rel_dir_path'], it=8)
     plot_det_policy(env, policy, sol_hjb.u_opt)
 
-    return
-
-
-    losses = data['losses']
-    plot_losses(losses)
 
 if __name__ == "__main__":
     main()
