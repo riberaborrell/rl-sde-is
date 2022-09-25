@@ -140,17 +140,16 @@ def get_dynamic_programming_dir_path(env, **kwargs):
 
 
     # set dir path
-    dir_path = os.path.join(
-        get_data_dir(),
+    rel_dir_path = os.path.join(
         env.name,
         kwargs['agent'],
         param_str,
     )
 
     # create dir path if not exists
-    make_dir_path(dir_path)
+    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
 
-    return dir_path
+    return rel_dir_path
 
 def get_sarsa_lambda_dir_path(env, **kwargs):
     '''
