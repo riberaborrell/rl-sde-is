@@ -120,6 +120,37 @@ def compute_det_policy_actions(env, model):
     with torch.no_grad():
         return model.forward(state_space_h).numpy()
 
+def compute_tables_critic(env, critic):
+
+    # discretized states and actions
+    state_space_h = torch.FloatTensor(env.state_space_h)
+    action_space_h = torch.FloatTensor(env.action_space_h)
+    grid_states, grid_actions = torch.meshgrid(state_space_h, action_space_h, indexing='ij')
+
+    #inputs = torch.empty((env.n_states, env.n_actions, 2))
+    #inputs[:, :, 0] = grid_states
+    #inputs[:, :, 1] = grid_actions
+    #inputs = inputs.reshape(env.n_states * env.n_actions, 2)
+    grid_states = grid_states.reshape(env.n_states * env.n_actions, 1)
+    grid_actions = grid_actions.reshape(env.n_states * env.n_actions, 1)
+
+    # compute q table
+    with torch.no_grad():
+        q_table = critic.forward(grid_states, grid_actions).numpy().reshape(env.n_states, env.n_actions)
+        #q_table = critic.forward(grid_states, grid_actions).numpy()
+
+    # compute value function
+    v_table = np.max(q_table, axis=1)
+
+    # compute advantage table
+    a_table = q_table - np.expand_dims(v_table, axis=1)
+
+    # compute greedy actions
+    idx_actions = np.argmax(q_table, axis=1)
+    greedy_actions = env.action_space_h[idx_actions]
+
+    return q_table, v_table, a_table, greedy_actions
+
 
 def compute_tables_actor_critic(env, actor, critic):
 
@@ -128,7 +159,8 @@ def compute_tables_actor_critic(env, actor, critic):
 
     with torch.no_grad():
         actions = actor.forward(state_space_h)
-        v_table = critic.forward(torch.hstack((state_space_h, actions)))
+        v_table = critic.forward(state_space_h, actions)
+        #v_table = critic.forward(torch.hstack((state_space_h, actions)))
 
     return v_table, actions
 

@@ -8,13 +8,23 @@ import torch.nn as nn
 
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.models import FeedForwardNN, DenseNN
+from rl_sde_is.models import mlp
 from rl_sde_is.plots import *
 from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     return parser
+
+class DeterministicPolicy(nn.Module):
+
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
+        super().__init__()
+        sizes = [state_dim] + list(hidden_sizes) + [action_dim]
+        self.policy = mlp(sizes=sizes, activation=activation, output_activation=nn.Identity)
+
+    def forward(self, state):
+        return self.policy.forward(state)
 
 def sample_loss_vectorized(env, model, K, control_hjb=None):
 
@@ -110,8 +120,8 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
     return eff_loss, return_fht.detach().numpy(), np.mean(time_steps), \
            policy_l2_error_fht.mean(), ct_final - ct_initial
 
-def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
-              batch_size=10, lr=0.01, n_iterations=100, backup_freq_iterations=None, seed=None,
+def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
+              batch_size=1000, lr=1e-3, n_iterations=100, backup_freq_iterations=None, seed=None,
               control_hjb=None, load=False, plot=False):
 
     # get dir path
@@ -138,8 +148,8 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
     # initialize nn model 
-    model = FeedForwardNN(d_in=env.state_space_dim, hidden_sizes=d_hidden_layers,
-                          d_out=env.action_space_dim, activation=nn.Tanh())
+    model = DeterministicPolicy(state_dim=env.state_space_dim, action_dim=env.action_space_dim,
+                                hidden_sizes=d_hidden_layers, activation=nn.Tanh)
 
     # define optimizer
     optimizer = optim.Adam(
@@ -170,6 +180,13 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
 
     # save model initial parameters
     save_model(model, rel_dir_path, 'model_n-it{}'.format(0))
+
+    # initialize animated figures
+    if plot:
+        state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
+        with torch.no_grad():
+            initial_policy = model.forward(state_space_h).numpy().squeeze()
+        policy_line = initialize_det_policy_figure(env, initial_policy, control_hjb)
 
     for i in np.arange(n_iterations):
 
@@ -206,9 +223,11 @@ def reinforce(env, gamma=1.0, n_layers=3, d_hidden_layer=30, is_dense=False,
         print(msg)
 
         # update figure
-        if plot:
-            pass
-            #update_det_policy_figure(env, controls[i], control_line)
+        if plot and i % 1 == 0:
+            state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
+            with torch.no_grad():
+                policy = model.forward(state_space_h).numpy().squeeze()
+            update_det_policy_figure(env, policy, policy_line)
 
         # save model
         if backup_freq_iterations is not None and (i+1) % backup_freq_iterations == 0:
@@ -259,19 +278,22 @@ def get_policies(env, data):
     return policies
 
 
-
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
-    env = DoubleWellStoppingTime1D()
+    # initialize environment
+    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
 
     # set explorable starts flag
     if args.explorable_starts:
         env.is_state_init_sampled = True
 
+    # set action space bounds
+    env.action_space_low = 0
+    env.action_space_high = 5
+
     # discretized state space (for plot purposes only)
-    env.discretize_state_space(h_state=0.01)
+    env.discretize_state_space(h_state=0.05)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
@@ -310,7 +332,7 @@ def main():
     #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
 
     policy = get_policy(env, data)
-    #policy = get_policy(env, data, it=8)
+    #policy = get_policy(env, data, it=0)
     plot_det_policy(env, policy, sol_hjb.u_opt)
 
 

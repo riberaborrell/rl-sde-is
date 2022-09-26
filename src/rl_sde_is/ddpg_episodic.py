@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -7,7 +9,7 @@ import torch.optim as optim
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.models import FeedForwardNN
+from rl_sde_is.models import mlp
 from rl_sde_is.plots import *
 from rl_sde_is.replay_buffers import ContinuousReplayBuffer as ReplayBuffer
 from rl_sde_is.utils_path import *
@@ -16,6 +18,39 @@ def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
+
+class DeterministicPolicy(nn.Module):
+
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation, action_limit):
+        super().__init__()
+        sizes = [state_dim] + list(hidden_sizes) + [action_dim]
+        self.policy = mlp(sizes, activation, nn.Tanh)
+        self.action_limit = action_limit
+
+    def forward(self, state):
+        return self.action_limit * self.policy.forward(state)
+
+class QValueFunction(nn.Module):
+
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
+        super().__init__()
+        self.q = mlp(sizes=[state_dim + action_dim]+list(hidden_sizes)+[1], activation=activation)
+
+    def forward(self, state, action):
+        q = self.q(torch.cat([state, action], dim=-1))
+        return torch.squeeze(q, -1) # Critical to ensure q has right shape.
+
+def get_action(env, actor, state, noise_scale=0):
+
+    # forward pass
+    action = actor.forward(torch.FloatTensor(state)).detach().numpy()
+
+    # add noise
+    action += noise_scale * np.random.randn(env.action_space_dim)
+
+    # clipp such that it lies in the valid action range
+    action = np.clip(action, env.action_space_low, env.action_space_high)
+    return action
 
 def update_parameters(actor, actor_target, actor_optimizer, critic, critic_target,
                       critic_optimizer, batch, gamma, rho):
@@ -36,13 +71,13 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
     critic_optimizer.zero_grad()
 
     # q value for the given pairs of states and actions (forward pass of the critic network)
-    q_vals = critic.forward(torch.hstack((states, actions))).squeeze()
+    q_vals = critic.forward(states, actions)
 
     with torch.no_grad():
 
         # q value for the corresponding next pair of states and actions (using target networks)
         next_actions = actor_target.forward(next_states).detach()
-        q_vals_next = critic_target.forward(torch.hstack((next_states, next_actions))).squeeze()
+        q_vals_next = critic_target.forward(next_states, next_actions)
 
         # compute target (using target networks)
         d = torch.where(done, 1., 0.)
@@ -65,8 +100,7 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
             param.requires_grad = False
 
     # actor loss
-    inputs = torch.hstack((states, actor.forward(states)))
-    actor_loss = - critic.forward(inputs).mean()
+    actor_loss = - critic.forward(states, actor.forward(states)).mean()
 
     # update actor network
     actor_loss.backward()
@@ -87,10 +121,10 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
     return actor_loss.detach().item(), critic_loss.detach().item()
 
 
-def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
-         n_episodes=100, n_steps_episode_lim=1000,
-         start_steps=0, update_after=1000, update_freq=100, test_freq_episodes=100, backup_freq_episodes=None,
-         replay_size=10000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=100,
+def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
+         n_episodes=100, n_steps_episode_lim=10000,
+         start_steps=0, update_after=5000, test_freq_episodes=100, backup_freq_episodes=None,
+         replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
          rho=0.95, seed=None,
          value_function_hjb=None, control_hjb=None, load=False, plot=False):
 
@@ -120,26 +154,17 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
     d_action_space = env.action_space_dim
 
     # initialize actor representations
-    d_in = d_state_space
-    d_out = d_action_space
     actor_hidden_sizes = [hidden_size for i in range(n_layers -1)]
-    actor = FeedForwardNN(d_in, actor_hidden_sizes, d_out)
-    actor_target = FeedForwardNN(d_in, actor_hidden_sizes, d_out)
+    actor = DeterministicPolicy(state_dim=d_state_space, action_dim=d_action_space,
+                                hidden_sizes=actor_hidden_sizes, activation=nn.Tanh,
+                                action_limit=env.action_space_high)
+    actor_target = deepcopy(actor)
 
     # initialize critic representations
-    d_in = d_state_space + d_action_space
-    d_out = 1
     critic_hidden_sizes = [hidden_size for i in range(n_layers -1)]
-    critic = FeedForwardNN(d_in, critic_hidden_sizes, d_out)
-    critic_target = FeedForwardNN(d_in, critic_hidden_sizes, d_out)
-
-    # set same parameters actor
-    for target_param, param in zip(actor_target.parameters(), actor.parameters()):
-        target_param.data.copy_(param.data)
-
-    # set same parameters critic
-    for target_param, param in zip(critic_target.parameters(), critic.parameters()):
-        target_param.data.copy_(param.data)
+    critic = QValueFunction(state_dim=d_state_space, action_dim=d_action_space,
+                            hidden_sizes=critic_hidden_sizes, activation=nn.Tanh)
+    critic_target = deepcopy(critic)
 
     # set optimizers
     actor_optimizer = optim.Adam(actor.parameters(), lr=lr_actor)
@@ -151,7 +176,7 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
 
     # initialize figures
     if plot:
-        q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
+        q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
         v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
         lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                                 a_table, policy_actor, policy_critic,
@@ -209,7 +234,7 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
                 break
 
             # get action following the actor
-            action = actor.forward(torch.FloatTensor(state)).detach().numpy()
+            action = get_action(env, actor, state)
 
             # env step
             next_state, r, complete = env.step(state, action)
@@ -271,7 +296,7 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
 
         # update plots
         if plot and (ep + 1) % 1 == 0:
-            q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
+            q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
             v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
             update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                     a_table, policy_actor, policy_critic, lines)
@@ -286,24 +311,34 @@ def ddpg(env, gamma=0.99, hidden_size=32, n_layers=3,
     save_data(data, rel_dir_path)
     return data
 
-def load_backup_models(actor, critic, rel_dir_path, ep=0):
-    load_model(actor, rel_dir_path, file_name='actor_n-epi{}'.format(ep))
-    load_model(critic, rel_dir_path, file_name='critic_n-epi{}'.format(ep))
+def load_backup_models(data, ep=0):
+    actor = data['actor']
+    critic = data['critic']
+    rel_dir_path = data['rel_dir_path']
+    try:
+        load_model(actor, rel_dir_path, file_name='actor_n-epi{}'.format(ep))
+        load_model(critic, rel_dir_path, file_name='critic_n-epi{}'.format(ep))
+    except FileNotFoundError as e:
+        print('there is no backup after episode {:d}'.format(ep))
 
 
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
-    env = DoubleWellStoppingTime1D()
+    # initialize environment
+    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
+
+    # set action space bounds
+    env.action_space_low = 0
+    env.action_space_high = 5
 
     # set explorable starts flag
     if args.explorable_starts:
         env.is_state_init_sampled = True
 
     # discretize state and action space (plot purposes only)
-    env.discretize_state_space(h_state=0.01)
-    env.discretize_action_space(h_action=0.01)
+    env.discretize_state_space(h_state=0.05)
+    env.discretize_action_space(h_action=0.05)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
@@ -317,10 +352,6 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        replay_size=100000,
-        n_steps_episode_lim=10000,
-        test_freq_episodes=1000,
-        test_batch_size=1000,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
@@ -354,10 +385,10 @@ def main():
     critic = data['critic']
 
     # get backup models
-    #load_backup_models(actor, critic, data['rel_dir_path'], ep=10)
+    load_backup_models(data, ep=1000)
 
     # compute tables following q-value model
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
 
     # compute value function and actions following the policy model
     v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
