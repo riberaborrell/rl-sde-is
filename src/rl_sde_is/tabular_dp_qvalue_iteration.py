@@ -74,7 +74,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
             print(msg)
 
         # update live figures
-        if i % 10 == 0:
+        if plot and i % 10 == 0:
             v_table, a_table, policy = compute_tables(env, q_table)
             update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
 
