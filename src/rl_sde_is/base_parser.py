@@ -262,6 +262,20 @@ def get_base_parser():
         help='Do plots. Default: False',
     )
     parser.add_argument(
+        '--plot-episode',
+        dest='plot_episode',
+        type=int,
+        default=0,
+        help='Episode that we want to plot. Default: 0',
+    )
+    parser.add_argument(
+        '--plot-iteration',
+        dest='plot_iteration',
+        type=int,
+        default=0,
+        help='Iteration that we want to plot. Default: 0',
+    )
+    parser.add_argument(
         '--save-traj',
         dest='save_traj',
         action='store_true',

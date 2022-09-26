@@ -21,14 +21,13 @@ def get_parser():
 
 class DeterministicPolicy(nn.Module):
 
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation, action_limit):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
         super().__init__()
         sizes = [state_dim] + list(hidden_sizes) + [action_dim]
-        self.policy = mlp(sizes, activation, nn.Tanh)
-        self.action_limit = action_limit
+        self.policy = mlp(sizes, activation)
 
     def forward(self, state):
-        return self.action_limit * self.policy.forward(state)
+        return self.policy.forward(state)
 
 class QValueFunction(nn.Module):
 
@@ -122,7 +121,7 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
 
 
 def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
-         n_episodes=100, n_steps_episode_lim=10000,
+         n_episodes=100, n_steps_episode_lim=1000,
          start_steps=0, update_after=5000, test_freq_episodes=100, backup_freq_episodes=None,
          replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
          rho=0.95, seed=None,
@@ -156,8 +155,7 @@ def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
     # initialize actor representations
     actor_hidden_sizes = [hidden_size for i in range(n_layers -1)]
     actor = DeterministicPolicy(state_dim=d_state_space, action_dim=d_action_space,
-                                hidden_sizes=actor_hidden_sizes, activation=nn.Tanh,
-                                action_limit=env.action_space_high)
+                                hidden_sizes=actor_hidden_sizes, activation=nn.Tanh)
     actor_target = deepcopy(actor)
 
     # initialize critic representations
@@ -296,6 +294,7 @@ def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
 
         # update plots
         if plot and (ep + 1) % 1 == 0:
+            print(ep)
             q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
             v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
             update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
@@ -329,7 +328,7 @@ def main():
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
 
     # set action space bounds
-    env.action_space_low = 0
+    env.action_space_low = -5
     env.action_space_high = 5
 
     # set explorable starts flag
@@ -352,6 +351,11 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
+        replay_size=50000,
+        update_after=5000,
+        n_steps_episode_lim=1000,
+        test_freq_episodes=100,
+        test_batch_size=1000,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
@@ -362,6 +366,24 @@ def main():
     # plots
     if not args.plot:
         return
+
+    # get models
+    actor = data['actor']
+    critic = data['critic']
+
+    # get backup models
+    load_backup_models(data, ep=args.plot_episode)
+
+    # compute tables following q-value model
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
+
+    # compute value function and actions following the policy model
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
+
+    plot_q_value_function(env, q_table)
+    plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)
+    plot_advantage_function(env, a_table)
+    plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
 
     # plot moving averages for each episode
     returns = data['returns']
@@ -380,23 +402,6 @@ def main():
     plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns)
     plot_det_policy_l2_error_epochs(test_u_l2_errors)
 
-    # get models
-    actor = data['actor']
-    critic = data['critic']
-
-    # get backup models
-    load_backup_models(data, ep=1000)
-
-    # compute tables following q-value model
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
-
-    # compute value function and actions following the policy model
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
-
-    plot_q_value_function(env, q_table)
-    plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)
-    plot_advantage_function(env, a_table)
-    plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
 
 
 if __name__ == '__main__':
