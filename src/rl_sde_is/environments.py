@@ -42,10 +42,10 @@ class DoubleWellStoppingTime1D():
         self.action_space_high = 3.
 
     def potential(self, state):
-        return (state**2 - 1) ** 2
+        return self.alpha * (state**2 - 1) ** 2
 
     def gradient(self, state):
-        return 4 * state * (state**2 - 1)
+        return 4 * self.alpha * state * (state**2 - 1)
 
     def f(self, state):
         return 1
@@ -307,15 +307,15 @@ class DoubleWellStoppingTime1D():
         greedy_actions[self.idx_lb:] = 0.
         return greedy_actions
 
-    def get_hjb_solver(self, h_hjb=0.01):
+    def get_hjb_solver(self, h_hjb=0.001):
 
         # initialize Langevin sde
         sde = LangevinSDE(
             problem_name='langevin_stop-t',
             potential_name='nd_2well',
             d=1,
-            alpha=np.ones(1),
-            beta=1.,
+            alpha=self.alpha * np.ones(1),
+            beta=self.beta,
             domain=np.full((1, 2), [-2, 2]),
         )
 

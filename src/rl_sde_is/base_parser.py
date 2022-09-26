@@ -21,7 +21,7 @@ def get_base_parser():
         dest='dt',
         type=float,
         default=0.005,
-        help='Set Euler-Marujama time discretization step. Default: 0.01',
+        help='Set Euler-Marujama time discretization step. Default: 0.005',
     )
     parser.add_argument(
         '--seed',
