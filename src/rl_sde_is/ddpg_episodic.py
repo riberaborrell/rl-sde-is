@@ -39,6 +39,90 @@ class QValueFunction(nn.Module):
         q = self.q(torch.cat([state, action], dim=-1))
         return torch.squeeze(q, -1) # Critical to ensure q has right shape.
 
+def pre_train_critic(env, critic):
+
+    # optimizer
+    optimizer = optim.Adam(critic.parameters(), lr=1e-4)
+
+    # batch size
+    batch_size = 10**3
+
+    # number of iterations
+    n_iterations = 10**4
+
+    def sample_data_points():
+        #states = torch.normal(mean=0, std=1, size=(batch_size, 1))
+        #actions = torch.normal(mean=0, std=5, size=(batch_size, 1))
+        states = torch.distributions.uniform.Uniform(-2, 2).sample([batch_size, 1])
+        actions = torch.distributions.uniform.Uniform(-10, 10).sample([batch_size, 1])
+
+        idx_ts = torch.where(states > 1)[0]
+        idx_not_ts = torch.where(states < 1)[0]
+
+        # targets
+        q_values_target = torch.empty((batch_size, 1))
+        q_values_target[idx_ts] = 0.
+        q_values_target[idx_not_ts] = -1.
+
+        return states, actions, q_values_target
+
+
+    # train
+    for i in range(n_iterations):
+
+        # sample data
+        states, actions, q_values_target = sample_data_points()
+
+        # compute q values
+        q_values = critic.forward(states, actions)
+
+        # compute mse loss
+        loss = ((q_values - q_values_target)**2).mean()
+
+        # compute gradient
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+    print('Critic pre-trained to have null in the target set and negative values elsewhere')
+
+def pre_train_actor(env, actor):
+
+    optimizer = optim.Adam(actor.parameters(), lr=0.001)
+
+    # batch size
+    batch_size = 10**2
+
+    # number of iterations
+    n_iterations = 10**2
+
+    def sample_data_points():
+        states = (env.state_space_low - env.state_space_high) * torch.rand(batch_size, 1) + env.state_space_high
+        return states
+
+    # targets
+    actions_target = torch.zeros((batch_size, 1))
+
+    # train
+    for i in range(n_iterations):
+
+        if i % 10 == 0:
+
+            # sample points
+            states = sample_data_points()
+
+        # compute actions
+        actions = actor.forward(states)
+
+        # compute mse loss
+        loss = ((actions - actions_target)**2).mean()
+
+        # compute gradient
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    print('Actor pre-trained to have null actions')
+
 def get_action(env, actor, state, noise_scale=0):
 
     # forward pass
@@ -120,7 +204,7 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
     return actor_loss.detach().item(), critic_loss.detach().item()
 
 
-def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
+def ddpg(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
          n_episodes=100, n_steps_episode_lim=1000,
          start_steps=0, update_after=5000, test_freq_episodes=100, backup_freq_episodes=None,
          replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
@@ -131,6 +215,7 @@ def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
     rel_dir_path = get_ddpg_dir_path(
         env,
         agent='ddpg-episodic',
+        d_hidden_layer=d_hidden_layer,
         batch_size=batch_size,
         lr_actor=lr_actor,
         lr_critic=lr_critic,
@@ -153,13 +238,13 @@ def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
     d_action_space = env.action_space_dim
 
     # initialize actor representations
-    actor_hidden_sizes = [hidden_size for i in range(n_layers -1)]
+    actor_hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
     actor = DeterministicPolicy(state_dim=d_state_space, action_dim=d_action_space,
                                 hidden_sizes=actor_hidden_sizes, activation=nn.Tanh)
     actor_target = deepcopy(actor)
 
     # initialize critic representations
-    critic_hidden_sizes = [hidden_size for i in range(n_layers -1)]
+    critic_hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
     critic = QValueFunction(state_dim=d_state_space, action_dim=d_action_space,
                             hidden_sizes=critic_hidden_sizes, activation=nn.Tanh)
     critic_target = deepcopy(critic)
@@ -167,6 +252,10 @@ def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
     # set optimizers
     actor_optimizer = optim.Adam(actor.parameters(), lr=lr_actor)
     critic_optimizer = optim.Adam(critic.parameters(), lr=lr_critic)
+
+    # pre-train actor and critic
+    #pre_train_critic(env, critic)
+    pre_train_actor(env, actor)
 
     # initialize replay buffer
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
@@ -287,10 +376,22 @@ def ddpg(env, gamma=0.99, hidden_size=256, n_layers=3,
             )
             print(msg)
 
-        # save actor and critic models
+        # backup models and results
         if backup_freq_episodes is not None and (ep + 1) % backup_freq_episodes == 0:
+
+            # save actor and critic models
             save_model(actor, rel_dir_path, 'actor_n-epi{}'.format(ep + 1))
             save_model(critic, rel_dir_path, 'critic_n-epi{}'.format(ep + 1))
+
+            # save test results
+            data['returns'] = returns
+            data['time_steps'] = time_steps
+            data['test_batch_size'] = test_batch_size
+            data['test_mean_returns'] = test_mean_returns
+            data['test_var_returns'] = test_var_returns
+            data['test_mean_lengths'] = test_mean_lengths
+            data['test_u_l2_errors'] = test_u_l2_errors
+            save_data(data, rel_dir_path)
 
         # update plots
         if plot and (ep + 1) % 1 == 0:
@@ -346,6 +447,7 @@ def main():
     data = ddpg(
         env=env,
         gamma=args.gamma,
+        d_hidden_layer=args.d_hidden_layer,
         batch_size=args.batch_size,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
