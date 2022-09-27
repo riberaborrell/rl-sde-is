@@ -233,8 +233,8 @@ def get_base_parser():
         '--d-hidden-layer',
         dest='d_hidden_layer',
         type=int,
-        default=30,
-        help='Set dimension of the hidden layers. Default: 30',
+        default=32,
+        help='Set dimension of the hidden layers. Default: 32',
     )
     parser.add_argument(
         '--dense',

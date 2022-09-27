@@ -128,6 +128,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     rel_dir_path = get_reinforce_det_dir_path(
         env,
         agent='reinforce-deterministic',
+        d_hidden_layer=d_hidden_layer,
         batch_size=batch_size,
         lr=lr,
         n_iterations=n_iterations,
@@ -168,6 +169,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     # save algorithm parameters
     data = {
         'gamma': gamma,
+        'd_hidden_layer': d_hidden_layer,
         'batch_size': batch_size,
         'lr': lr,
         'n_iterations': n_iterations,
@@ -259,7 +261,18 @@ def get_policy(env, data, it=None):
         policy = model.forward(state_space_h).numpy().squeeze()
     return policy
 
-def get_policies(env, data):
+def get_policies(env, data, iterations):
+
+    Nx = env.n_states
+    policies = np.empty((0, Nx), dtype=np.float32)
+
+    for it in iterations:
+        load_backup_model(data, it)
+        policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
+
+    return policies
+
+def get_backup_policies(env, data):
     n_iterations = data['n_iterations']
     backup_freq_iterations = data['backup_freq_iterations']
 
@@ -271,7 +284,8 @@ def get_policies(env, data):
             load_backup_model(data, 0)
             policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
 
-        elif (i + 1) % backup_freq_iterations == 0:
+        #elif (i + 1) % backup_freq_iterations == 0:
+        elif (i + 1) % 100 == 0:
             load_backup_model(data, i+1)
             policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
 
@@ -302,6 +316,7 @@ def main():
     data = reinforce(
         env,
         gamma=args.gamma,
+        d_hidden_layer=args.d_hidden_layer,
         batch_size=args.batch_size,
         lr=args.lr,
         n_iterations=args.n_iterations,
@@ -316,6 +331,17 @@ def main():
     if not args.plot:
         return
 
+    # plot policy
+    #policy = get_policy(env, data)
+    policy = get_policy(env, data, it=args.plot_iteration)
+    plot_det_policy(env, policy, sol_hjb.u_opt)
+
+    #iterations = np.linspace(0, 4000, 6, dtype=np.int32)
+    #policies = get_policies(env, data, iterations)
+    policies = get_backup_policies(env, data)
+    plot_det_policies(env, policies, sol_hjb.u_opt)
+    #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
+
     # plot expected values for each epoch
     plot_expected_returns_with_error_epochs(data['exp_returns'], data['var_returns'])
     plot_time_steps_epochs(data['exp_time_steps'])
@@ -325,15 +351,6 @@ def main():
 
     # plot loss function
     plot_loss_epochs(data['losses'])
-
-    # plot policy
-    policies = get_policies(env, data)
-    plot_det_policies(env, policies, sol_hjb.u_opt)
-    #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
-
-    policy = get_policy(env, data)
-    #policy = get_policy(env, data, it=0)
-    plot_det_policy(env, policy, sol_hjb.u_opt)
 
 
 if __name__ == "__main__":
