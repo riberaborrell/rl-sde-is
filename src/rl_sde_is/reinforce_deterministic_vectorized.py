@@ -165,6 +165,12 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     exp_time_steps = np.empty(n_iterations)
     policy_l2_errors = np.empty(n_iterations)
     cts = np.empty(n_iterations)
+    losses.fill(np.nan)
+    exp_returns.fill(np.nan)
+    var_returns.fill(np.nan)
+    exp_time_steps.fill(np.nan)
+    policy_l2_errors.fill(np.nan)
+    cts.fill(np.nan)
 
     # save algorithm parameters
     data = {
@@ -224,16 +230,27 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
               )
         print(msg)
 
+        # backupa models and results
+        if backup_freq_iterations is not None and (i + 1) % backup_freq_iterations == 0:
+
+            # save model
+            save_model(model, rel_dir_path, 'model_n-it{}'.format(i + 1))
+
+            # add results
+            data['losses'] = losses
+            data['exp_returns'] = exp_returns
+            data['var_returns'] = var_returns
+            data['exp_time_steps'] = exp_time_steps
+            data['policy_l2_errors'] = policy_l2_errors
+            data['cts'] = cts
+            save_data(data, rel_dir_path)
+
         # update figure
         if plot and i % 1 == 0:
             state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
             with torch.no_grad():
                 policy = model.forward(state_space_h).numpy().squeeze()
             update_det_policy_figure(env, policy, policy_line)
-
-        # save model
-        if backup_freq_iterations is not None and (i+1) % backup_freq_iterations == 0:
-            save_model(model, rel_dir_path, 'model_n-it{}'.format(i+1))
 
     # add results
     data['losses'] = losses
@@ -332,7 +349,6 @@ def main():
         return
 
     # plot policy
-    #policy = get_policy(env, data)
     policy = get_policy(env, data, it=args.plot_iteration)
     plot_det_policy(env, policy, sol_hjb.u_opt)
 
