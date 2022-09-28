@@ -41,8 +41,8 @@ class QValueFunction(nn.Module):
 
 def update_parameters(actor, actor_target, actor_optimizer,
                       critic1, critic_target1, critic2, critic_target2, critic_optimizer,
-                      batch, gamma, timer,
-                      rho=0.95, noise_clip=0.5, act_limit=5, target_noise=0.2, policy_delay=60):
+                      batch, gamma, policy_delay, timer,
+                      rho=0.95, noise_clip=0.5, act_limit=5, target_noise=0.2):
 
     # unpack tuples in batch
     states = torch.tensor(batch['state'])
@@ -134,11 +134,12 @@ def update_parameters(actor, actor_target, actor_optimizer,
 
 
 def td3(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
-         n_episodes=100, n_steps_episode_lim=1000,
-         start_steps=0, update_after=5000, update_freq=100, test_freq_episodes=100, backup_freq_episodes=None,
-         replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
-         rho=0.95, seed=None,
-         value_function_hjb=None, control_hjb=None, load=False, plot=False):
+        n_episodes=100, n_steps_episode_lim=1000,
+        start_steps=0, update_after=5000, update_every=100, policy_delay=50,
+        test_freq_episodes=100, backup_freq_episodes=None,
+        replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
+        rho=0.95, seed=None,
+        value_function_hjb=None, control_hjb=None, load=False, plot=False):
 
     # get dir path
     rel_dir_path = get_ddpg_dir_path(
@@ -190,7 +191,7 @@ def td3(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
                                  size=replay_size)
 
-    # initialize figures
+    # initialize figures if plot:
     if plot:
         q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
         v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
@@ -262,19 +263,18 @@ def td3(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             replay_buffer.store(state, action, r, next_state, complete)
 
             # if buffer is full enough
-            if replay_buffer.size > update_after and k % update_freq == 0:
+            if replay_buffer.size > update_after and k % update_every == 0:
 
-                for l in range(update_freq):
+                for l in range(update_every):
 
                     # sample minibatch of transition uniformlly from the replay buffer
                     batch = replay_buffer.sample_batch(batch_size)
 
                     # update actor and critic parameters
                     update_parameters(
-                    #actor_loss, critic_loss = update_parameters(
                         actor, actor_target, actor_optimizer,
                         critic1, critic_target1, critic2, critic_target2, critic_optimizer,
-                        batch, gamma, l,
+                        batch, gamma, policy_delay, l,
                     )
 
             # save action and reward
@@ -315,8 +315,8 @@ def td3(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
             # save actor and critic models
             save_model(actor, rel_dir_path, 'actor_n-epi{}'.format(ep + 1))
-            save_model(critic1, rel_dir_path, 'critic_n-epi{}'.format(ep + 1))
-            save_model(critic2, rel_dir_path, 'critic_n-epi{}'.format(ep + 1))
+            save_model(critic1, rel_dir_path, 'critic1_n-epi{}'.format(ep + 1))
+            save_model(critic2, rel_dir_path, 'critic2_n-epi{}'.format(ep + 1))
 
             # save test results
             data['returns'] = returns
@@ -347,11 +347,13 @@ def td3(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
 def load_backup_models(data, ep=0):
     actor = data['actor']
-    critic = data['critic']
+    critic1 = data['critic1']
+    critic2 = data['critic2']
     rel_dir_path = data['rel_dir_path']
     try:
         load_model(actor, rel_dir_path, file_name='actor_n-epi{}'.format(ep))
-        load_model(critic, rel_dir_path, file_name='critic_n-epi{}'.format(ep))
+        load_model(critic1, rel_dir_path, file_name='critic1_n-epi{}'.format(ep))
+        load_model(critic2, rel_dir_path, file_name='critic2_n-epi{}'.format(ep))
     except FileNotFoundError as e:
         print('there is no backup after episode {:d}'.format(ep))
 
@@ -391,7 +393,9 @@ def main():
         n_steps_episode_lim=1000,
         test_freq_episodes=100,
         test_batch_size=1000,
-        update_freq=60,
+        update_every=100,
+        policy_delay=50,
+        backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
         load=args.load,
@@ -404,16 +408,17 @@ def main():
 
     # get models
     actor = data['actor']
-    critic = data['critic']
+    critic1 = data['critic1']
+    critic2 = data['critic2']
 
     # get backup models
     load_backup_models(data, ep=args.plot_episode)
 
     # compute tables following q-value model
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_continuous_actions(env, critic)
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
 
     # compute value function and actions following the policy model
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
 
     plot_q_value_function(env, q_table)
     plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)

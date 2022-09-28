@@ -37,7 +37,7 @@ class QValueFunction(nn.Module):
 
     def forward(self, state, action):
         q = self.q(torch.cat([state, action], dim=-1))
-        return torch.squeeze(q, -1) # Critical to ensure q has right shape.
+        return torch.squeeze(q, -1)
 
 def pre_train_critic(env, critic):
 
@@ -136,7 +136,7 @@ def get_action(env, actor, state, noise_scale=0):
     return action
 
 def update_parameters(actor, actor_target, actor_optimizer, critic, critic_target,
-                      critic_optimizer, batch, gamma, rho):
+                      critic_optimizer, batch, gamma, rho=0.95):
 
     # unpack tuples in batch
     states = torch.tensor(batch['state'])
@@ -206,10 +206,10 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
 
 def ddpg(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
          n_episodes=100, n_steps_episode_lim=1000,
-         start_steps=0, update_after=5000, test_freq_episodes=100, backup_freq_episodes=None,
-         replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
-         rho=0.95, seed=None,
-         value_function_hjb=None, control_hjb=None, load=False, plot=False):
+         start_steps=0, update_after=5000, update_every=100,
+         replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4,
+         test_freq_episodes=100, test_batch_size=1000, backup_freq_episodes=None,
+         seed=None, value_function_hjb=None, control_hjb=None, load=False, plot=False):
 
     # get dir path
     rel_dir_path = get_ddpg_dir_path(
@@ -255,7 +255,7 @@ def ddpg(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
 
     # pre-train actor and critic
     #pre_train_critic(env, critic)
-    pre_train_actor(env, actor)
+    #pre_train_actor(env, actor)
 
     # initialize replay buffer
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
@@ -331,17 +331,18 @@ def ddpg(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
             replay_buffer.store(state, action, r, next_state, complete)
 
             # if buffer is full enough
-            if replay_buffer.size > update_after:
+            if replay_buffer.size > update_after and k % update_every == 0:
+                for _ in range(update_every):
 
-                # sample minibatch of transition uniformlly from the replay buffer
-                batch = replay_buffer.sample_batch(batch_size)
+                    # sample minibatch of transition uniformlly from the replay buffer
+                    batch = replay_buffer.sample_batch(batch_size)
 
-                # update actor and critic parameters
-                actor_loss, critic_loss = update_parameters(
-                    actor, actor_target, actor_optimizer,
-                    critic, critic_target, critic_optimizer,
-                    batch, gamma, rho,
-                )
+                    # update actor and critic parameters
+                    actor_loss, critic_loss = update_parameters(
+                        actor, actor_target, actor_optimizer,
+                        critic, critic_target, critic_optimizer,
+                        batch, gamma,
+                    )
 
             # save action and reward
             ep_return += (gamma**k) * r
@@ -395,7 +396,6 @@ def ddpg(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
 
         # update plots
         if plot and (ep + 1) % 1 == 0:
-            print(ep)
             q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
             v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
             update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
@@ -455,6 +455,7 @@ def main():
         seed=args.seed,
         replay_size=50000,
         update_after=5000,
+        update_every=100,
         n_steps_episode_lim=1000,
         test_freq_episodes=100,
         test_batch_size=1000,
