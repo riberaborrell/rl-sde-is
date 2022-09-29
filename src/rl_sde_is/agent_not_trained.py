@@ -11,14 +11,14 @@ def get_parser():
     parser.description = ''
     return parser
 
-def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_lim=1000, seed=1,
+def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_lim=100000, seed=1,
                    sol_hjb=None, load=False, plot=False, save_traj=False):
 
     if not agent in ['random', 'not-controlled', 'hjb']:
         raise ValueError
 
     # get dir path
-    dir_path = get_agent_dir_path(
+    rel_dir_path = get_agent_dir_path(
         env,
         agent=agent,
         n_episodes=n_episodes,
@@ -27,7 +27,7 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
 
     # load results
     if load:
-        data = load_data(dir_path)
+        data = load_data(rel_dir_path)
         return data
 
     # set seed
@@ -70,7 +70,8 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
             elif agent == 'not-controlled':
                 action = np.zeros(1)
             elif agent == 'hjb':
-                action = sol_hjb.get_u_opt_at_x(state)
+                idx = env.get_state_idx(state)
+                action = sol_hjb.u_opt[idx]
 
             # step dynamics forward
             new_state, r, complete = env.step(state, action)
@@ -102,7 +103,7 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
         'ep_actions': ep_actions,
         'ep_rewards': ep_rewards,
     }
-    save_data(dir_path, data)
+    save_data(data, rel_dir_path)
     return data
 
 
@@ -110,7 +111,11 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environments
-    env = DoubleWellStoppingTime1D(dt=args.dt)
+    env = DoubleWellStoppingTime1D(
+        alpha=args.alpha,
+        beta=args.beta,
+        dt=args.dt,
+    )
 
     # set explorable starts flag
     if args.explorable_starts:
@@ -125,7 +130,7 @@ def main():
     # run agent with random actions
     data = agent_episodic(
         env,
-        agent='hjb',
+        agent='not-controlled',
         batch_size=args.batch_size,
         n_episodes=args.n_episodes,
         save_traj=args.save_traj,
@@ -133,21 +138,25 @@ def main():
         load=args.load,
         plot=args.plot,
     )
-    returns = data['returns']
-    time_steps = data['time_steps']
+
+    # plots
+    if not args.plot:
+        return
+
+    # plot trajectory
     ep_states = data['ep_states']
+    if ep_states.shape[0] != 0:
+        plot_episode_states(env, ep_states)
+    return
 
     # smoothed arrays
+    returns = data['returns']
+    time_steps = data['time_steps']
     run_mean_returns = compute_running_mean(returns, args.batch_size)
     run_var_returns = compute_running_variance(returns, args.batch_size)
     run_mean_time_steps = compute_running_mean(time_steps, args.batch_size)
-
-    if args.plot:
-
-        plot_episode_states(env, ep_states)
-        plot_returns_episodes(returns, run_mean_returns)
-        plot_var_returns_episodes(run_var_returns)
-        plot_time_steps_episodes(time_steps, run_mean_time_steps)
+    plot_returns_episodes(returns, run_mean_returns)
+    plot_time_steps_episodes(time_steps, run_mean_time_steps)
 
 if __name__ == '__main__':
     main()

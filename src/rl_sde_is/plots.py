@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from shapely.geometry import Polygon
 
+from rl_sde_is.utils_figures import TITLES_FIG, COLORS_FIG
+
 def plot_episode_states(env, ep_states):
 
     # compute potential at each state
@@ -21,14 +23,15 @@ def plot_episode_states(env, ep_states):
     potential = env.potential(env.state_space_h)
 
     fig, ax = plt.subplots()
-    ax.set_title(r'States trajectory')
-    ax.set_xlabel(r'$s$')
+    ax.set_title(r'Trajectory')
+    ax.set_xlabel(r'States')
     ax.set_xlim(-2, 2)
     ax.set_ylim(0, 4)
-    ax.text(1.2, 2., r'target set', size=15, rotation=0.)
-    ax.plot(env.state_space_h, potential)
+    ax.text(1.12, 2.2, r'Target set', size=13, rotation=0.)
     ax.fill(target_set_x, target_set_y, alpha=0.4, fc='tab:orange', ec='none')
-    ax.scatter(ep_states[::1], ep_pot[::1], alpha=.5, color='black', marker='o')
+    ax.plot(env.state_space_h, potential, label=r'Potential $V_\alpha$')
+    ax.scatter(ep_states[::1], ep_pot[::1], alpha=.1, color='black', marker='o', s=100)
+    plt.legend(loc='upper right')
     plt.show()
 
 def plot_returns_episodes(returns, run_mean_returns):
@@ -152,7 +155,7 @@ def plot_time_steps_epochs(time_steps):
 
 def plot_det_policy_l2_error_epochs(l2_errors):
     fig, ax = plt.subplots()
-    ax.set_title('Estimated L^2 det policy error')
+    ax.set_title('Estimation of $L^2(\mu)$')
     ax.set_xlabel('Epochs')
     plt.semilogy(l2_errors)
     #plt.legend()
@@ -190,7 +193,7 @@ def plot_frequency(env, n_table):
 def plot_q_value_function(env, q_table):
 
     fig, ax = plt.subplots()
-    ax.set_title('Q-value function')
+    ax.set_title(r'Q-value function $Q(s, a; \omega)$')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
@@ -211,7 +214,7 @@ def plot_q_value_function(env, q_table):
 def plot_advantage_function(env, a_table):
 
     fig, ax = plt.subplots()
-    ax.set_title('Advantage function')
+    ax.set_title(r'Advantage function $A(s, a; \omega)$')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
@@ -238,8 +241,7 @@ def plot_value_function(env, value_function, value_function_hjb):
     ax.set_xlabel('States')
 
     plt.plot(env.state_space_h, value_function)
-    plt.plot(env.state_space_h, -value_function_hjb, label=r'hjb solution')
-    plt.plot(env.state_space_h, -value_function_hjb, label=r'hjb solution')
+    plt.plot(env.state_space_h, -value_function_hjb, label=r'hjb', linestyle=':')
     plt.legend()
     plt.show()
 
@@ -249,9 +251,9 @@ def plot_value_function_actor_critic(env, value_function_actor_critic, value_fun
     ax.set_title('Value function')
     ax.set_xlabel('States')
 
-    plt.plot(env.state_space_h, value_function_actor_critic, label=r'actor-critic: $ V(s) = Q(s, \mu(s; \theta); w)$')
-    plt.plot(env.state_space_h, value_function_critic, label=r'critic: $V(s) = max_a Q(s, a; w)$')
-    plt.plot(env.state_space_h, -value_function_hjb, label=r'hjb solution')
+    plt.plot(env.state_space_h, value_function_actor_critic, label=r'actor-critic: $ V(s) = Q(s, \mu(s; \theta); \omega)$')
+    plt.plot(env.state_space_h, value_function_critic, label=r'critic: $V(s) = max_a Q(s, a; \omega)$')
+    plt.plot(env.state_space_h, -value_function_hjb, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
     plt.legend()
     plt.show()
 
@@ -316,12 +318,12 @@ def plot_mu_and_simga_gaussian_stoch_policy(env, mu, sigma_sq):
 def plot_det_policy(env, policy, control_hjb):
 
     fig, ax = plt.subplots()
-    ax.set_title('Deterministic Policy')
+    ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
     plt.plot(env.state_space_h, policy)
-    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
+    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb', color=COLORS_FIG['hjb'], linestyles=':')
     plt.legend()
     plt.show()
 
@@ -329,9 +331,13 @@ def plot_det_policies(env, policies, control_hjb):
     n_policies = policies.shape[0]
 
     fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['policy'])
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+
     for i in range(n_policies):
         ax.plot(env.state_space_h, policies[i])
-    ax.plot(env.state_space_h, control_hjb, color='cyan')
+    ax.plot(env.state_space_h, control_hjb, color='black', linestyles=':')
     #ax.set_ylim(-3, 3)
     plt.show()
 
@@ -349,13 +355,14 @@ def plot_det_policies_black_and_white(env, policies, control_hjb):
 
 def plot_det_policy_actor_critic(env, policy_actor, policy_critic, control_hjb):
     fig, ax = plt.subplots()
-    ax.set_title('Deterministic Policy')
+    ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
+    ax.set_ylim(-0.25, 5)
 
     plt.plot(env.state_space_h, policy_actor, label=r'actor: $\mu(s; \theta)$')
-    plt.plot(env.state_space_h, policy_critic, label=r'critic: $\mu(s) = argmax_a Q(s, a; w)$')
-    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
+    plt.plot(env.state_space_h, policy_critic, label=r'critic: $\mu(s) = argmax_a Q(s, a; \omega)$')
+    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb', color='black', linestyle=':')
     plt.legend()
     plt.show()
 
@@ -369,7 +376,7 @@ def initialize_det_policy_figure(env, policy, control_hjb):
     #ax.set_ylim(env.action_space_low, env.action_space_high)
 
     det_policy_line = ax.plot(env.state_space_h, policy)[0]
-    ax.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
+    ax.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb', color=COLORS_FIG['hjb'])
 
     plt.ion()
     plt.legend()
