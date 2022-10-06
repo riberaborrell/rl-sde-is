@@ -235,6 +235,7 @@ def td3(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
     # sample trajectories
     for ep in range(n_episodes):
+        print(ep)
 
         # initialization
         state = env.reset()
@@ -256,7 +257,7 @@ def td3(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             action = actor.forward(torch.FloatTensor(state)).detach().numpy()
 
             # env step
-            next_state, r, complete = env.step(state, action)
+            next_state, r, complete, _ = env.step(state, action)
             #print(k, state, action, r, next_state)
 
             # store tuple

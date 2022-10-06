@@ -105,6 +105,6 @@ def compute_tables(env, q_table):
 
     # compute greedy actions
     greedy_policy = env.get_greedy_actions(q_table)
-    greedy_policy[env.idx_lb:] = env.idx_null_action
+    greedy_policy[env.idx_ts] = env.idx_null_action
 
     return v_table, a_table, greedy_policy

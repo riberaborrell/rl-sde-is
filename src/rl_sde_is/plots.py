@@ -323,7 +323,7 @@ def plot_det_policy(env, policy, control_hjb):
     ax.set_ylabel('Actions')
 
     plt.plot(env.state_space_h, policy)
-    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb', color=COLORS_FIG['hjb'], linestyles=':')
+    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
     plt.legend()
     plt.show()
 

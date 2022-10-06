@@ -219,7 +219,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
     done = np.full((batch_size, 1), False)
 
     # initialize episodes
-    states = env.reset_vectorized(batch_size=batch_size)
+    states = env.reset(batch_size=batch_size)
 
     # sample episodes
     for k in np.arange(k_max):
@@ -229,13 +229,13 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
             actions = model.forward(torch.FloatTensor(states)).numpy()
 
         # step dynamics forward
-        next_states, rewards, done = env.step_vectorized(states, actions)
+        next_states, rewards, done, dbt = env.step(states, actions)
 
         # update total rewards for all trajectories
         total_rewards += np.squeeze(rewards)
 
         # hjb control
-        idx_states = env.get_states_idx_vectorized(states)
+        idx_states = env.get_state_idx(states)
         actions_hjb = control_hjb[idx_states]
 
         # computer running u l2 error

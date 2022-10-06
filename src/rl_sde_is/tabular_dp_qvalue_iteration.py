@@ -37,7 +37,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
     q_table = - np.random.rand(env.n_states, env.n_actions)
 
     # set values for the target set and null action
-    q_table[env.idx_lb:env.idx_rb+1] = 0
+    q_table[env.idx_ts] = 0
 
     # get index x_init
     idx_state_init = env.get_state_idx(env.state_init)
@@ -55,7 +55,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
         q_table_i = q_table.copy()
 
         # loop over states not in the target set 
-        for idx_state in range(env.n_states):
+        for idx_state in env.idx_not_ts:
 
             # loop over all actions
             for idx_action in range(env.n_actions):

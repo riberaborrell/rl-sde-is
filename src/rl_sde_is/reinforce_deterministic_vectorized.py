@@ -36,7 +36,7 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
     ct_initial = time.time()
 
     # initialize trajectories
-    states = torch.FloatTensor(env.reset_vectorized(batch_size=K))
+    states = torch.FloatTensor(env.reset(batch_size=K))
 
     # initialize running integral
     return_t = torch.zeros(K)
@@ -54,8 +54,8 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
         policy_l2_error_t = np.zeros(K)
 
     # are episode finish?
-    already_done = torch.full((K, 1), False)
-    done = torch.full((K, 1), False)
+    already_done = torch.full((K,), False)
+    done = torch.full((K,), False)
 
     for k in np.arange(1, k_max + 1):
 
@@ -63,7 +63,7 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
         actions = model.forward(states)
 
         # step dynamics forward
-        next_states, rewards, done, dbt = env.step_vectorized_torch(states, actions)
+        next_states, rewards, done, dbt = env.step_torch(states, actions)
 
         # update work with running cost
         return_t = return_t + rewards.squeeze()
@@ -78,7 +78,7 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
         if control_hjb is not None:
 
             # hjb control
-            idx_states = env.get_states_idx_vectorized(states.detach().numpy())
+            idx_states = env.get_state_idx(states.detach().numpy())
             actions_hjb = control_hjb[idx_states]
 
             # update running u l2 error
@@ -117,7 +117,7 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
     # end timer
     ct_final = time.time()
 
-    return eff_loss, return_fht.detach().numpy(), np.mean(time_steps), \
+    return eff_loss, return_fht.detach().numpy(), time_steps, \
            policy_l2_error_fht.mean(), ct_final - ct_initial
 
 def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
@@ -144,6 +144,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     if seed is not None:
         np.random.seed(seed)
         torch.manual_seed(seed)
+
 
     # get dimensions of each layer
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
@@ -172,6 +173,11 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     policy_l2_errors.fill(np.nan)
     cts.fill(np.nan)
 
+    # preallocate list of returns and time steps
+    returns = np.empty(0, dtype=np.float32)
+    time_steps = np.empty(0, dtype=np.int32)
+
+
     # save algorithm parameters
     data = {
         'gamma': gamma,
@@ -191,10 +197,18 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
 
     # initialize animated figures
     if plot:
+
+        # hjb control
+        if control_hjb is None:
+            control_hjb_plot = np.empty_like(env.state_space_h)
+            control_hjb_plot.fill(np.nan)
+        else:
+            control_hjb_plot = control_hjb
+
         state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
         with torch.no_grad():
             initial_policy = model.forward(state_space_h).numpy().squeeze()
-        policy_line = initialize_det_policy_figure(env, initial_policy, control_hjb)
+        policy_line = initialize_det_policy_figure(env, initial_policy, control_hjb_plot)
 
     for i in np.arange(n_iterations):
 
@@ -202,7 +216,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
         optimizer.zero_grad()
 
         # compute effective loss
-        eff_loss, return_fht, avg_len, policy_l2_error, ct \
+        eff_loss, batch_returns, batch_time_steps, policy_l2_error, ct \
                 = sample_loss_vectorized(env, model, batch_size, control_hjb)
         eff_loss.backward()
 
@@ -210,10 +224,12 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
         optimizer.step()
 
         # save statistics
+        returns = np.append(returns, batch_returns)
+        time_steps = np.append(time_steps, batch_time_steps)
         losses[i] = eff_loss.detach().numpy()
-        exp_returns[i] = np.mean(return_fht)
-        var_returns[i] = np.var(return_fht)
-        exp_time_steps[i] = avg_len
+        exp_returns[i] = np.mean(batch_returns)
+        var_returns[i] = np.var(batch_returns)
+        exp_time_steps[i] = np.mean(batch_time_steps)
         policy_l2_errors[i] = policy_l2_error
         cts[i] = ct
 
@@ -224,7 +240,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
                   losses[i],
                   exp_returns[i],
                   var_returns[i],
-                  avg_len,
+                  exp_time_steps[i],
                   policy_l2_error,
                   ct,
               )
@@ -237,6 +253,8 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
             save_model(model, rel_dir_path, 'model_n-it{}'.format(i + 1))
 
             # add results
+            data['returns'] = returns
+            data['time_steps'] = time_steps
             data['losses'] = losses
             data['exp_returns'] = exp_returns
             data['var_returns'] = var_returns
@@ -253,6 +271,8 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
             update_det_policy_figure(env, policy, policy_line)
 
     # add results
+    data['returns'] = returns
+    data['time_steps'] = time_steps
     data['losses'] = losses
     data['exp_returns'] = exp_returns
     data['var_returns'] = var_returns
@@ -339,7 +359,8 @@ def main():
         n_iterations=args.n_iterations,
         backup_freq_iterations=args.backup_freq_iterations,
         seed=args.seed,
-        control_hjb=sol_hjb.u_opt,
+        #control_hjb=sol_hjb.u_opt[0, :],
+        control_hjb=None,
         load=args.load,
         plot=args.plot,
     )
