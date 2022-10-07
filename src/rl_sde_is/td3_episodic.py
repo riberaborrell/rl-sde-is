@@ -413,7 +413,8 @@ def main():
     critic2 = data['critic2']
 
     # get backup models
-    load_backup_models(data, ep=args.plot_episode)
+    if args.plot_episode is not None:
+        load_backup_models(data, ep=args.plot_episode)
 
     # compute tables following q-value model
     q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
