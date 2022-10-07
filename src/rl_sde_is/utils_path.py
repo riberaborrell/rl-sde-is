@@ -66,7 +66,7 @@ def load_model(model, rel_dir_path, file_name):
 
 def get_initial_point_str(env):
     if not env.is_state_init_sampled:
-        initial_point_str = 'init-state{:2.1f}_'.format(env.state_init.item())
+        initial_point_str = 'init-state{:2.1f}_'.format(env.state_init[0, 0].item())
     else:
         initial_point_str = 'explorable-starts_'
 

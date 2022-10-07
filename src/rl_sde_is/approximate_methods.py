@@ -112,13 +112,9 @@ def compute_tables_continuous_actions(env, model):
 
     return q_table, v_table, a_table, greedy_actions
 
-def compute_det_policy_actions(env, model):
-
-    # discretized states
-    state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-
+def compute_det_policy_actions(env, model, states):
     with torch.no_grad():
-        return model.forward(state_space_h).numpy()
+        return model.forward(states).numpy()
 
 def compute_tables_critic(env, critic):
 
@@ -211,8 +207,8 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
 
     # preallocate u l2 error array
     if control_hjb is not None:
-        ep_u_l2_error_fht = np.empty(batch_size)
-        ep_u_l2_error_t = np.zeros(batch_size)
+        ep_policy_l2_error_fht = np.empty(batch_size)
+        ep_policy_l2_error_t = np.zeros(batch_size)
 
     # set been in target set and done arrays
     been_in_target_set = np.full((batch_size, 1), False)
@@ -240,7 +236,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
 
         # computer running u l2 error
         if control_hjb is not None:
-            ep_u_l2_error_t += (np.linalg.norm(actions - actions_hjb, axis=1) ** 2) * env.dt
+            ep_policy_l2_error_t += (np.linalg.norm(actions - actions_hjb, axis=1) ** 2) * env.dt
 
         # get indices of episodes which are new to the target set
         idx = env.get_idx_new_in_ts(done, been_in_target_set)
@@ -256,7 +252,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
 
             # fix l2 error
             if control_hjb is not None:
-                ep_u_l2_error_fht[idx] = ep_u_l2_error_t[idx]
+                ep_policy_l2_error_fht[idx] = ep_policy_l2_error_t[idx]
 
         # stop if xt_traj in target set
         if been_in_target_set.all() == True:
@@ -266,6 +262,6 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
         states = next_states
 
     if control_hjb is not None:
-        return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens), np.mean(ep_u_l2_error_fht)
+        return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens), np.mean(ep_policy_l2_error_fht)
     else:
         return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)

@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+from matplotlib import colors, cm, rc, rcParams
 from shapely.geometry import Polygon
 
 from rl_sde_is.utils_figures import TITLES_FIG, COLORS_FIG
@@ -168,6 +168,27 @@ def get_extent(env):
     extent = env.state_space_h[0], env.state_space_h[-1], \
              env.action_space_h[0], env.action_space_h[-1]
     return extent
+
+def plot_reward_table(env, r_table):
+
+    fig, ax = plt.subplots()
+    ax.set_title('Reward Table')
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+
+    im = ax.imshow(
+        r_table.T,
+        origin='lower',
+        extent=get_extent(env),
+        cmap=cm.coolwarm,
+    )
+
+    # add space for colour bar
+    fig.subplots_adjust(right=0.85)
+    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+
+    plt.show()
 
 def plot_frequency(env, n_table):
 
@@ -372,17 +393,89 @@ def initialize_det_policy_figure(env, policy, control_hjb):
     ax.set_title('Deterministic Policy')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
-    #ax.set_xlim(env.state_space_low, env.state_space_high)
-    #ax.set_ylim(env.action_space_low, env.action_space_high)
+    ax.set_xlim(env.state_space_low, env.state_space_high)
+    ax.set_ylim(env.action_space_low, env.action_space_high)
 
     det_policy_line = ax.plot(env.state_space_h, policy)[0]
-    ax.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb', color=COLORS_FIG['hjb'])
+    ax.plot(env.state_space_h, control_hjb, label=r'hjb', color=COLORS_FIG['hjb'])
 
     plt.ion()
     plt.legend()
     plt.show()
 
     return det_policy_line
+
+def update_det_policy_figure(env, policy, line):
+    line.set_data(env.state_space_h, policy)
+    plt.pause(0.1)
+
+def coarse_quiver_arrows(U, V, X=None, Y=None, l=25):
+    kx = U.shape[0] // 25
+    ky = U.shape[1] // 25
+    if X is not None:
+        X = X[::kx, ::ky]
+    if Y is not None:
+        Y = Y[::kx, ::ky]
+    U = U[::kx, ::ky]
+    V = V[::kx, ::ky]
+    return X, Y, U, V
+
+def initialize_det_policy_2d_figure(env, policy):
+    X = env.state_space_h[:, :, 0]
+    Y = env.state_space_h[:, :, 1]
+    U = policy[:, :, 0]
+    V = policy[:, :, 1]
+    X, Y, U, V = coarse_quiver_arrows(U, V, X, Y, l=25)
+
+    fig, ax = plt.subplots()
+    ax.set_title('Deterministic Policy')
+    ax.set_xlabel(r'$s_1$')
+    ax.set_ylabel(r'$s_2$')
+    ax.set_xlim(env.state_space_low, env.state_space_high)
+    ax.set_ylim(env.state_space_low, env.state_space_high)
+
+    # initialize norm object and make rgba array
+    C = np.sqrt(U**2 + V**2)
+    norm = colors.Normalize(vmin=np.min(C), vmax=np.max(C))
+    sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+
+    im_policy = ax.quiver(
+        X,
+        Y,
+        U,
+        V,
+        C,
+        cmap=cm.viridis,
+        angles='xy',
+        scale_units='xy',
+        #scale=scale,
+        width=0.005,
+    )
+
+    # add space for colour bar
+    fig.subplots_adjust(right=0.85)
+    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    fig.colorbar(im_policy, cax=cbar_ax)
+
+    # colorbar
+    #self.colorbar(sm)
+    plt.ion()
+    plt.show()
+    breakpoint()
+
+    return im_policy
+
+def update_det_policy_2d_figure(env, policy, im_policy):
+
+    U = policy[:, :, 0]
+    V = policy[:, :, 1]
+    _, _, U, V = coarse_quiver_arrows(U, V, l=25)
+
+    # update plots
+    im_policy.set_UVC(U, V)
+
+    # update figure frequency
+    plt.pause(0.01)
 
 def update_det_policy_figure(env, policy, line):
     line.set_data(env.state_space_h, policy)

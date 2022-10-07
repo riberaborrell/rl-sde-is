@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
 from rl_sde_is.models import mlp
 from rl_sde_is.plots import *
 from rl_sde_is.utils_path import *
@@ -198,17 +198,9 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
 
     # initialize animated figures
     if plot:
-
-        # hjb control
-        if control_hjb is None:
-            control_hjb_plot = np.empty_like(env.state_space_h)
-            control_hjb_plot.fill(np.nan)
-        else:
-            control_hjb_plot = control_hjb
-
-        state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-        initial_policy = compute_det_policy_actions(env, model, state_space_h).squeeze()
-        policy_line = initialize_det_policy_figure(env, initial_policy, control_hjb_plot)
+        states = torch.FloatTensor(env.state_space_h)
+        initial_policy = compute_det_policy_actions(env, model, states)
+        policy_im = initialize_det_policy_2d_figure(env, initial_policy)
 
     for i in np.arange(n_iterations):
 
@@ -265,10 +257,9 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
 
         # update figure
         if plot and i % 1 == 0:
-            state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-            with torch.no_grad():
-                policy = model.forward(state_space_h).numpy().squeeze()
-            update_det_policy_figure(env, policy, policy_line)
+            states = torch.FloatTensor(env.state_space_h)
+            policy = compute_det_policy_actions(env, model, states)
+            update_det_policy_2d_figure(env, policy, policy_im)
 
     # add results
     data['returns'] = returns
@@ -333,7 +324,7 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
+    env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta)
 
     # set explorable starts flag
     if args.explorable_starts:
@@ -344,7 +335,7 @@ def main():
     env.action_space_high = 5
 
     # discretized state space (for plot purposes only)
-    env.discretize_state_space(h_state=0.05)
+    env.discretize_state_space(h_state=0.01)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
@@ -359,8 +350,7 @@ def main():
         n_iterations=args.n_iterations,
         backup_freq_iterations=args.backup_freq_iterations,
         seed=args.seed,
-        #control_hjb=sol_hjb.u_opt[0, :],
-        control_hjb=None,
+        control_hjb=sol_hjb.u_opt,
         load=args.load,
         plot=args.plot,
     )
@@ -369,6 +359,7 @@ def main():
     if not args.plot:
         return
 
+    return
     # plot policy
     policy = get_policy(env, data, it=args.plot_iteration)
     plot_det_policy(env, policy, sol_hjb.u_opt)
