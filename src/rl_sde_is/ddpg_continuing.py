@@ -8,7 +8,7 @@ import torch.optim as optim
 
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.ddpg_core import ddpg_episodic
+from rl_sde_is.ddpg_core import ddpg_continuing
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 from rl_sde_is.utils_path import *
@@ -21,40 +21,36 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize environment
+    # initialize environments
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
-
-    # set action space bounds
-    env.action_space_low = -5
-    env.action_space_high = 5
 
     # set explorable starts flag
     if args.explorable_starts:
         env.is_state_init_sampled = True
 
     # discretize state and action space (plot purposes only)
-    env.discretize_state_space(h_state=0.05)
-    env.discretize_action_space(h_action=0.05)
+    env.discretize_state_space(h_state=0.01)
+    env.discretize_action_space(h_action=0.01)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
     # run ddpg 
-    data = ddpg_episodic(
+    data = ddpg_continuing(
         env=env,
         gamma=args.gamma,
         d_hidden_layer=args.d_hidden_layer,
         batch_size=args.batch_size,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
-        n_episodes=args.n_episodes,
+        n_total_steps=args.n_total_steps,
         seed=args.seed,
         start_steps=10000,
         replay_size=50000,
         update_after=5000,
         update_every=100,
-        n_steps_episode_lim=10000,
-        test_freq_episodes=100,
+        n_steps_episode_lim=500,
+        test_freq_steps=10000,
         test_batch_size=1000,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,

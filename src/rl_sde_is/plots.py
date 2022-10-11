@@ -657,6 +657,8 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax1.set_title(TITLES_FIG['q-value-function'])
     ax1.set_xlabel('States')
     ax1.set_ylabel('Actions')
+    ax1.set_xlim(env.state_space_low, env.state_space_high)
+    ax1.set_ylim(env.action_space_low, env.action_space_high)
     im_q_table = ax1.imshow(
         q_table.T,
         origin='lower',
@@ -668,6 +670,8 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     # value function
     ax2.set_title('Value function')
     ax2.set_xlabel('States')
+    ax2.set_xlim(env.state_space_low, env.state_space_high)
+    ax2.set_ylim(env.action_space_low, env.action_space_high)
     line_value_f_actor_critic = ax2.plot(env.state_space_h, v_table_actor_critic)[0]
     line_value_f_critic = ax2.plot(env.state_space_h, v_table_critic)[0]
     ax2.plot(env.state_space_h, -value_function_hjb)
@@ -676,6 +680,8 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax3.set_title(TITLES_FIG['a-value-function'])
     ax3.set_xlabel('States')
     ax3.set_ylabel('Actions')
+    ax3.set_xlim(env.state_space_low, env.state_space_high)
+    ax3.set_ylim(env.action_space_low, env.action_space_high)
     im_a_table = ax3.imshow(
         a_table.T,
         origin='lower',
@@ -688,6 +694,8 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax4.set_title(TITLES_FIG['policy'])
     ax4.set_xlabel('States')
     ax4.set_ylabel('Actions')
+    ax4.set_xlim(env.state_space_low, env.state_space_high)
+    ax4.set_ylim(env.action_space_low, env.action_space_high)
     line_policy_actor = ax4.plot(env.state_space_h, policy_actor)[0]
     line_policy_critic = ax4.plot(env.state_space_h, policy_critic)[0]
     ax4.plot(env.state_space_h, control_hjb)
