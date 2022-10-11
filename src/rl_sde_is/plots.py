@@ -155,7 +155,7 @@ def plot_time_steps_epochs(time_steps):
 
 def plot_det_policy_l2_error_epochs(l2_errors):
     fig, ax = plt.subplots()
-    ax.set_title('Estimation of $L^2(\mu)$')
+    ax.set_title(TITLES_FIG['policy-l2-error'])
     ax.set_xlabel('Epochs')
     plt.semilogy(l2_errors)
     #plt.legend()
@@ -214,7 +214,7 @@ def plot_frequency(env, n_table):
 def plot_q_value_function(env, q_table):
 
     fig, ax = plt.subplots()
-    ax.set_title(r'Q-value function $Q(s, a; \omega)$')
+    ax.set_title(TITLES_FIG['q-value-function'])
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
@@ -235,7 +235,7 @@ def plot_q_value_function(env, q_table):
 def plot_advantage_function(env, a_table):
 
     fig, ax = plt.subplots()
-    ax.set_title(r'Advantage function $A(s, a; \omega)$')
+    ax.set_title(TITLES_FIG['a-value-function'])
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
@@ -358,7 +358,7 @@ def plot_det_policies(env, policies, control_hjb):
 
     for i in range(n_policies):
         ax.plot(env.state_space_h, policies[i])
-    ax.plot(env.state_space_h, control_hjb, color='black', linestyles=':')
+    ax.plot(env.state_space_h, control_hjb, color='black', linestyle=':')
     #ax.set_ylim(-3, 3)
     plt.show()
 
@@ -368,6 +368,8 @@ def plot_det_policies_black_and_white(env, policies, control_hjb):
     colors = cmap(np.linspace(0, 1, n_policies))
 
     fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['policy'])
+
     for i in range(n_policies):
         ax.plot(env.state_space_h, policies[i], c=colors[i])
     ax.plot(env.state_space_h, control_hjb, c='black', ls='-.')
@@ -381,16 +383,58 @@ def plot_det_policy_actor_critic(env, policy_actor, policy_critic, control_hjb):
     ax.set_ylabel('Actions')
     ax.set_ylim(-0.25, 5)
 
-    plt.plot(env.state_space_h, policy_actor, label=r'actor: $\mu(s; \theta)$')
-    plt.plot(env.state_space_h, policy_critic, label=r'critic: $\mu(s) = argmax_a Q(s, a; \omega)$')
+    plt.plot(env.state_space_h, policy_actor, label=r'actor: $\mu_\theta(s)$')
+    plt.plot(env.state_space_h, policy_critic, label=r'critic: $\mu_\omega(s) = argmax_a Q_\omega(s, a)$')
     plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb', color='black', linestyle=':')
     plt.legend()
+    plt.show()
+
+def plot_det_policy_2d(env, policy):
+    X = env.state_space_h[:, :, 0]
+    Y = env.state_space_h[:, :, 1]
+    U = policy[:, :, 0]
+    V = policy[:, :, 1]
+    X, Y, U, V = coarse_quiver_arrows(U, V, X, Y, l=25)
+
+    fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['policy'])
+    ax.set_xlabel(r'$s_1$')
+    ax.set_ylabel(r'$s_2$')
+    ax.set_xlim(env.state_space_low, env.state_space_high)
+    ax.set_ylim(env.state_space_low, env.state_space_high)
+
+    # initialize norm object and make rgba array
+    C = np.sqrt(U**2 + V**2)
+    norm = colors.Normalize(vmin=np.min(C), vmax=np.max(C))
+    sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+
+    im_policy = ax.quiver(
+        X,
+        Y,
+        U,
+        V,
+        C,
+        cmap=cm.viridis,
+        angles='xy',
+        scale_units='xy',
+        #scale=scale,
+        width=0.005,
+    )
+
+    # add space for colour bar
+    fig.subplots_adjust(right=0.85)
+    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    fig.colorbar(im_policy, cax=cbar_ax)
+
+    # colorbar
+    #self.colorbar(sm)
     plt.show()
 
 def initialize_det_policy_figure(env, policy, control_hjb):
 
     fig, ax = plt.subplots()
-    ax.set_title('Deterministic Policy')
+    ax.set_title(TITLES_FIG['policy'])
+    ax.set_xlabel(r'$s_1$')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
     ax.set_xlim(env.state_space_low, env.state_space_high)
@@ -428,7 +472,7 @@ def initialize_det_policy_2d_figure(env, policy):
     X, Y, U, V = coarse_quiver_arrows(U, V, X, Y, l=25)
 
     fig, ax = plt.subplots()
-    ax.set_title('Deterministic Policy')
+    ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel(r'$s_1$')
     ax.set_ylabel(r'$s_2$')
     ax.set_xlim(env.state_space_low, env.state_space_high)
@@ -461,7 +505,6 @@ def initialize_det_policy_2d_figure(env, policy):
     #self.colorbar(sm)
     plt.ion()
     plt.show()
-    breakpoint()
 
     return im_policy
 
@@ -546,7 +589,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_
     plt.ion()
 
     # q table
-    ax1.set_title('Q-value function')
+    ax1.set_title(TITLES_FIG['q-value-function'])
     ax1.set_xlabel('States')
     ax1.set_ylabel('Actions')
     im_q_table = ax1.imshow(
@@ -564,7 +607,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_
     ax2.plot(env.state_space_h, -value_function_hjb)
 
     # a table
-    ax3.set_title('Advantage function')
+    ax3.set_title(TITLES_FIG['a-value-function'])
     ax3.set_xlabel('States')
     ax3.set_ylabel('Actions')
     im_a_table = ax3.imshow(
@@ -576,7 +619,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_
     )
 
     # control
-    ax4.set_title('Value function')
+    ax4.set_title(TITLES_FIG['policy'])
     ax4.set_xlabel('States')
     ax4.set_ylabel('Actions')
     line_control = ax4.plot(env.state_space_h, policy)[0]
@@ -611,7 +654,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     plt.ion()
 
     # q table
-    ax1.set_title('Q-value function')
+    ax1.set_title(TITLES_FIG['q-value-function'])
     ax1.set_xlabel('States')
     ax1.set_ylabel('Actions')
     im_q_table = ax1.imshow(
@@ -630,7 +673,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax2.plot(env.state_space_h, -value_function_hjb)
 
     # a table
-    ax3.set_title('Advantage function')
+    ax3.set_title(TITLES_FIG['a-value-function'])
     ax3.set_xlabel('States')
     ax3.set_ylabel('Actions')
     im_a_table = ax3.imshow(
@@ -642,7 +685,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     )
 
     # control
-    ax4.set_title('Value function')
+    ax4.set_title(TITLES_FIG['policy'])
     ax4.set_xlabel('States')
     ax4.set_ylabel('Actions')
     line_policy_actor = ax4.plot(env.state_space_h, policy_actor)[0]

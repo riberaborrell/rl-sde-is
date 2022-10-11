@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
+from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 from rl_sde_is.reinforce_deterministic_vectorized import *
 from rl_sde_is.utils_path import *
@@ -28,14 +28,47 @@ def get_policy(env, data, it=None):
     if it is not None:
         load_backup_model(data, it)
 
-    states = torch.FloatTensor(env.state_space_h)
-    return compute_det_policy_actions(env, model, states)
+    state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
+    with torch.no_grad():
+        policy = model.forward(state_space_h).numpy().squeeze()
+    return policy
+
+def get_policies(env, data, iterations):
+
+    Nx = env.n_states
+    policies = np.empty((0, Nx), dtype=np.float32)
+
+    for it in iterations:
+        load_backup_model(data, it)
+        policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
+
+    return policies
+
+def get_backup_policies(env, data):
+    n_iterations = data['n_iterations']
+    backup_freq_iterations = data['backup_freq_iterations']
+
+    Nx = env.n_states
+    policies = np.empty((0, Nx), dtype=np.float32)
+
+    for i in range(data['n_iterations']):
+        if i == 0:
+            load_backup_model(data, 0)
+            policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
+
+        #elif (i + 1) % backup_freq_iterations == 0:
+        elif (i + 1) % 100 == 0:
+            load_backup_model(data, i+1)
+            policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
+
+    return policies
+
 
 def main():
     args = get_parser().parse_args()
 
     # initialize environment
-    env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta)
+    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
 
     # set explorable starts flag
     if args.explorable_starts:
@@ -46,7 +79,7 @@ def main():
     env.action_space_high = 5
 
     # discretized state space (for plot purposes only)
-    env.discretize_state_space(h_state=0.01)
+    env.discretize_state_space(h_state=0.05)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
@@ -61,7 +94,8 @@ def main():
         n_iterations=args.n_iterations,
         backup_freq_iterations=args.backup_freq_iterations,
         seed=args.seed,
-        control_hjb=sol_hjb.u_opt,
+        control_hjb=sol_hjb.u_opt[:, 0],
+        #control_hjb=None,
         load=args.load,
         plot=args.plot,
     )
@@ -72,7 +106,13 @@ def main():
 
     # plot policy
     policy = get_policy(env, data, it=args.plot_iteration)
-    plot_det_policy_2d(env, policy)
+    plot_det_policy(env, policy, sol_hjb.u_opt)
+
+    #iterations = np.linspace(0, 4000, 6, dtype=np.int32)
+    #policies = get_policies(env, data, iterations)
+    policies = get_backup_policies(env, data)
+    plot_det_policies(env, policies, sol_hjb.u_opt)
+    #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
 
     # plot expected values for each epoch
     plot_expected_returns_with_error_epochs(data['exp_returns'], data['var_returns'])

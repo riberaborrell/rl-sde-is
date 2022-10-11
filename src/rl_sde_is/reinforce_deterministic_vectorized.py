@@ -13,10 +13,6 @@ from rl_sde_is.models import mlp
 from rl_sde_is.plots import *
 from rl_sde_is.utils_path import *
 
-def get_parser():
-    parser = get_base_parser()
-    return parser
-
 class DeterministicPolicy(nn.Module):
 
     def __init__(self, state_dim, action_dim, hidden_sizes, activation):
@@ -196,19 +192,11 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     # save model initial parameters
     save_model(model, rel_dir_path, 'model_n-it{}'.format(0))
 
-    # initialize animated figures
-    if plot:
-
-        # hjb control
-        if control_hjb is None:
-            control_hjb_plot = np.empty_like(env.state_space_h)
-            control_hjb_plot.fill(np.nan)
-        else:
-            control_hjb_plot = control_hjb
-
-        state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-        initial_policy = compute_det_policy_actions(env, model, state_space_h).squeeze()
-        policy_line = initialize_det_policy_figure(env, initial_policy, control_hjb_plot)
+    # initialize live figures
+    if plot and env.d == 1:
+        policy_line = initialize_1d_figures(env, model, control_hjb)
+    elif plot and env.d == 2:
+        policy_im = initialize_2d_figures(env, model)
 
     for i in np.arange(n_iterations):
 
@@ -265,10 +253,11 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
 
         # update figure
         if plot and i % 1 == 0:
-            state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-            with torch.no_grad():
-                policy = model.forward(state_space_h).numpy().squeeze()
-            update_det_policy_figure(env, policy, policy_line)
+
+            if env.d == 1:
+                update_1d_figures(env, model, policy_line)
+            elif env.d == 2:
+                update_2d_figures(env, model, policy_im)
 
     # add results
     data['returns'] = returns
@@ -282,113 +271,33 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     save_data(data, rel_dir_path)
     return data
 
-def load_backup_model(data, it=0):
-    try:
-        load_model(data['model'], data['rel_dir_path'], file_name='model_n-it{}'.format(it))
-    except FileNotFoundError as e:
-        print('there is no backup for iteration {:d}'.format(it))
+def initialize_1d_figures(env, model, control_hjb):
 
-def get_policy(env, data, it=None):
-    model = data['model']
-    if it is not None:
-        load_backup_model(data, it)
+    # hjb control
+    if control_hjb is None:
+        control_hjb_plot = np.empty_like(env.state_space_h)
+        control_hjb_plot.fill(np.nan)
+    else:
+        control_hjb_plot = control_hjb
 
     state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-    with torch.no_grad():
-        policy = model.forward(state_space_h).numpy().squeeze()
-    return policy
+    initial_policy = compute_det_policy_actions(env, model, state_space_h).squeeze()
+    policy_line = initialize_det_policy_figure(env, initial_policy, control_hjb_plot)
 
-def get_policies(env, data, iterations):
+    return policy_line
 
-    Nx = env.n_states
-    policies = np.empty((0, Nx), dtype=np.float32)
+def update_1d_figures(env, model, policy_line):
+    states = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
+    policy = compute_det_policy_actions(env, model, states)
+    update_det_policy_figure(env, policy, policy_line)
 
-    for it in iterations:
-        load_backup_model(data, it)
-        policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
+def initialize_2d_figures(env, model):
+    states = torch.FloatTensor(env.state_space_h)
+    initial_policy = compute_det_policy_actions(env, model, states)
+    policy_im = initialize_det_policy_2d_figure(env, initial_policy)
+    return policy_im
 
-    return policies
-
-def get_backup_policies(env, data):
-    n_iterations = data['n_iterations']
-    backup_freq_iterations = data['backup_freq_iterations']
-
-    Nx = env.n_states
-    policies = np.empty((0, Nx), dtype=np.float32)
-
-    for i in range(data['n_iterations']):
-        if i == 0:
-            load_backup_model(data, 0)
-            policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
-
-        #elif (i + 1) % backup_freq_iterations == 0:
-        elif (i + 1) % 100 == 0:
-            load_backup_model(data, i+1)
-            policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
-
-    return policies
-
-
-def main():
-    args = get_parser().parse_args()
-
-    # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
-
-    # set explorable starts flag
-    if args.explorable_starts:
-        env.is_state_init_sampled = True
-
-    # set action space bounds
-    env.action_space_low = 0
-    env.action_space_high = 5
-
-    # discretized state space (for plot purposes only)
-    env.discretize_state_space(h_state=0.05)
-
-    # get hjb solver
-    sol_hjb = env.get_hjb_solver()
-
-    # run reinforve algorithm with a deterministic policy
-    data = reinforce(
-        env,
-        gamma=args.gamma,
-        d_hidden_layer=args.d_hidden_layer,
-        batch_size=args.batch_size,
-        lr=args.lr,
-        n_iterations=args.n_iterations,
-        backup_freq_iterations=args.backup_freq_iterations,
-        seed=args.seed,
-        #control_hjb=sol_hjb.u_opt[0, :],
-        control_hjb=None,
-        load=args.load,
-        plot=args.plot,
-    )
-
-    # do plots
-    if not args.plot:
-        return
-
-    # plot policy
-    policy = get_policy(env, data, it=args.plot_iteration)
-    plot_det_policy(env, policy, sol_hjb.u_opt)
-
-    #iterations = np.linspace(0, 4000, 6, dtype=np.int32)
-    #policies = get_policies(env, data, iterations)
-    policies = get_backup_policies(env, data)
-    plot_det_policies(env, policies, sol_hjb.u_opt)
-    #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
-
-    # plot expected values for each epoch
-    plot_expected_returns_with_error_epochs(data['exp_returns'], data['var_returns'])
-    plot_time_steps_epochs(data['exp_time_steps'])
-
-    # plot policy l2 error
-    plot_det_policy_l2_error_epochs(data['policy_l2_errors'])
-
-    # plot loss function
-    plot_loss_epochs(data['losses'])
-
-
-if __name__ == "__main__":
-    main()
+def update_2d_figures(env, model, policy_im):
+    states = torch.FloatTensor(env.state_space_h)
+    policy = compute_det_policy_actions(env, model, states)
+    update_det_policy_2d_figure(env, policy, policy_im)

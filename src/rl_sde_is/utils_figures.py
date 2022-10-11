@@ -11,12 +11,13 @@ COLORS_TAB20c = [plt.cm.tab20c(i) for i in range(20)]
 COLORS_FIG = {
     'hjb': 'black',
 }
-
 TITLES_FIG = {
     'potential': r'Potential $V_\alpha$',
     'policy': r'Deterministic Policy $\mu_\theta$',
     'value-function': r'$V$',
-    'u-l2-error': 'Estimation of $L^2(\mu)$',
+    'q-value-function': r'Q-value function $Q_\omega(s, a)$',
+    'a-value-function': r'Advantage function $A_\omega(s, a)$',
+    'policy-l2-error': r'Estimation of $L^2(\mu_\theta)$',
     'loss': r'$\widehat{J}(\mu_\theta)$',
     'returns': r'Return $G_0(\tau)$',
     'time-steps': r'TS',
