@@ -3,7 +3,6 @@ from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.td3_core import *
 from rl_sde_is.plots import *
-from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()

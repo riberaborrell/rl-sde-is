@@ -74,8 +74,14 @@ class DoubleWellStoppingTime2D():
         if not self.is_state_init_sampled:
             return np.full((batch_size, self.d), self.state_init)
         else:
-            #TODO! generalize
-            return np.random.uniform(self.state_space_low, self.lb, (batch_size, self.d))
+            #return np.random.uniform(self.state_space_low, self.lb, (batch_size, self.d))
+            return np.full((batch_size, self.d), np.random.uniform(self.state_space_low, self.lb, (self.d,)))
+
+    def sample_state(self, batch_size=1):
+            return np.random.uniform(self.state_space_low, self.state_space_high, (batch_size, self.d))
+
+    def sample_action(self, batch_size=1):
+            return np.random.uniform(self.action_space_low, self.action_space_high, (batch_size, self.d))
 
     def state_action_transition_function(self, next_state, state, action, h):
         mu = state + (- self.gradient(state) + self.sigma * action) * self.dt

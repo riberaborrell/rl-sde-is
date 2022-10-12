@@ -37,7 +37,7 @@ class QValueFunction(nn.Module):
 def update_parameters(actor, actor_target, actor_optimizer,
                       critic1, critic_target1, critic2, critic_target2, critic_optimizer,
                       batch, gamma, policy_delay, timer,
-                      rho=0.95, noise_clip=0.5, act_limit=5, target_noise=0.2):
+                      rho=0.95, noise_clip=0.1, act_limit=5, target_noise=.1):
 
     # unpack tuples in batch
     states = torch.tensor(batch['state'])
@@ -126,6 +126,7 @@ def update_parameters(actor, actor_target, actor_optimizer,
                 target_param.data.copy_(target_param.data * rho + param.data * (1. - rho))
 
         #return actor_loss.detach().item(), critic_loss.detach().item()
+
 def get_action(env, actor, state, noise_scale=0):
 
     # forward pass
@@ -244,6 +245,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
     # sample trajectories
     for ep in range(n_episodes):
+        print(ep)
 
         # initialization
         state = env.reset()
@@ -269,7 +271,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, noise_scale=0)
+                action = get_action(env, actor, state, noise_scale=2.)
 
             # env step
             next_state, r, complete, _ = env.step(state, action)
@@ -295,7 +297,6 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
             # save action and reward
             ep_return += (gamma**k) * r
-            #print(ep_return)
 
             # update state
             state = next_state
@@ -353,6 +354,9 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
                 update_1d_figures(env, actor, critic1, lines)
                 update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
 
+            elif env.d == 2:
+                update_2d_figures(env, actor, policy_im)
+
     data['returns'] = returns
     data['time_steps'] = time_steps
     data['test_batch_size'] = test_batch_size
@@ -383,9 +387,9 @@ def initialize_2d_figures(env, actor):
     policy_im = initialize_det_policy_2d_figure(env, initial_policy)
     return policy_im
 
-def update_2d_figures(env, actor):
+def update_2d_figures(env, actor, policy_im):
     states = torch.FloatTensor(env.state_space_h)
-    initial_policy = compute_det_policy_actions(env, actor, states)
+    policy = compute_det_policy_actions(env, actor, states)
     update_det_policy_2d_figure(env, policy, policy_im)
 
 def load_backup_models(data, ep=0):

@@ -50,7 +50,7 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
     if control_hjb is not None:
         policy_l2_error_t = np.zeros(K)
 
-    # are episode finish?
+    # are episodes done
     already_done = torch.full((K,), False)
     done = torch.full((K,), False)
 

@@ -254,14 +254,13 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
                                  size=replay_size)
 
-    # initialize figures
-    if plot:
-        q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
-        v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
-        lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
-                                                a_table, policy_actor, policy_critic,
-                                                value_function_hjb, control_hjb)
+    # initialize figures if plot:
+    if plot and env.d == 1:
+        lines = initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb)
         tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
+    elif plot and env.d == 2:
+        policy_im = initialize_2d_figures(env, actor)
+
     # save algorithm parameters
     data = {
         'gamma' : gamma,
@@ -295,6 +294,9 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
     # get initial state
     state_init = env.state_init.copy()
 
+    # total number of time steps
+    k_total = 0
+
     # sample trajectories
     for ep in range(n_episodes):
         print(ep)
@@ -318,7 +320,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
             # sample action
 
             # sample action randomly
-            if k < start_steps:
+            if k_total < start_steps:
                 action = env.sample_action(batch_size=1)
 
             # get action following the actor
@@ -332,7 +334,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
             replay_buffer.store(state, action, r, next_state, done)
 
             # if buffer is full enough
-            if replay_buffer.size > update_after and (k + 1) % update_every == 0:
+            if k_total >= update_after and (k_total + 1) % update_every == 0:
                 for _ in range(update_every):
 
                     # sample minibatch of transition uniformlly from the replay buffer
@@ -347,10 +349,12 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
 
             # save action and reward
             ep_return += (gamma**k) * r
-            #print(ep_return)
 
             # update state
             state = next_state
+
+            # update total steps counter
+            k_total += 1
 
         # save episode
         returns[ep] = ep_return
@@ -397,11 +401,13 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
 
         # update plots
         if plot and (ep + 1) % 1 == 0:
-            q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
-            v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
-            update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
-                                    a_table, policy_actor, policy_critic, lines)
-            update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
+            if env.d == 1:
+                update_1d_figures(env, actor, critic1, lines)
+                update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
+
+            elif env.d == 2:
+                update_2d_figures(env, actor, policy_im)
+
 
     data['returns'] = returns
     data['time_steps'] = time_steps
@@ -619,6 +625,31 @@ def ddpg_continuing(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     data['test_policy_l2_errors'] = test_policy_l2_errors
     save_data(data, rel_dir_path)
     return data
+
+def initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb):
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
+    lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
+                                            a_table, policy_actor, policy_critic,
+                                            value_function_hjb, control_hjb)
+    return lines
+
+def update_1d_figures(env, actor, critic1, lines):
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
+    update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
+                                a_table, policy_actor, policy_critic, lines)
+
+def initialize_2d_figures(env, actor):
+    states = torch.FloatTensor(env.state_space_h)
+    initial_policy = compute_det_policy_actions(env, actor, states)
+    policy_im = initialize_det_policy_2d_figure(env, initial_policy)
+    return policy_im
+
+def update_2d_figures(env, actor, policy_im):
+    states = torch.FloatTensor(env.state_space_h)
+    policy = compute_det_policy_actions(env, actor, states)
+    update_det_policy_2d_figure(env, policy, policy_im)
 
 def load_backup_models(data, ep=0):
     actor = data['actor']

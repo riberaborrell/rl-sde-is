@@ -1,8 +1,8 @@
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.ddpg_core import *
 from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
 from rl_sde_is.plots import *
-from rl_sde_is.td3_core import *
 
 def get_parser():
     parser = get_base_parser()
@@ -12,7 +12,7 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
+    # initialize environment
     env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta)
 
     # set action space bounds
@@ -29,8 +29,8 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # run td3
-    data = td3_episodic(
+    # run ddpg 
+    data = ddpg_episodic(
         env=env,
         gamma=args.gamma,
         d_hidden_layer=args.d_hidden_layer,
@@ -42,11 +42,10 @@ def main():
         start_steps=10000,
         replay_size=100000,
         update_after=10000,
+        update_every=100,
         n_steps_episode_lim=1000,
         test_freq_episodes=100,
         test_batch_size=1000,
-        update_every=10,
-        policy_delay=5,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
@@ -60,12 +59,12 @@ def main():
 
     # get models
     actor = data['actor']
-    critic1 = data['critic1']
-    critic2 = data['critic2']
+    critic = data['critic']
 
     # get backup models
     if args.plot_episode is not None:
         load_backup_models(data, ep=args.plot_episode)
+
 
     # compute actor policy
     states = torch.FloatTensor(env.state_space_h)
@@ -88,6 +87,7 @@ def main():
     test_policy_l2_errors = data['test_policy_l2_errors']
     plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns)
     plot_det_policy_l2_error_epochs(test_policy_l2_errors)
+
 
 
 if __name__ == '__main__':

@@ -1,17 +1,8 @@
-from copy import deepcopy
-
-import matplotlib.pyplot as plt
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.ddpg_core import ddpg_episodic
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
-from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
@@ -52,8 +43,8 @@ def main():
         start_steps=10000,
         replay_size=100000,
         update_after=10000,
-        update_every=100,
-        n_steps_episode_lim=10000,
+        update_every=10,
+        n_steps_episode_lim=1000,
         test_freq_episodes=100,
         test_batch_size=1000,
         backup_freq_episodes=args.backup_freq_episodes,

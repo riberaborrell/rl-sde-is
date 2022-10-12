@@ -70,7 +70,8 @@ class DoubleWellStoppingTime1D():
         if not self.is_state_init_sampled:
             return np.full((batch_size, self.d), self.state_init)
         else:
-            return np.random.uniform(self.state_space_low, self.lb, (batch_size, self.d))
+            #return np.random.uniform(self.state_space_low, self.lb, (batch_size, self.d))
+            return np.full((batch_size, self.d), np.random.uniform(self.state_space_low, self.lb, (self.d,)))
 
     def sample_state(self, batch_size=1):
             return np.random.uniform(self.state_space_low, self.state_space_high, (batch_size, self.d))
