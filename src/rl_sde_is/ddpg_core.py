@@ -261,6 +261,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
         lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                                 a_table, policy_actor, policy_critic,
                                                 value_function_hjb, control_hjb)
+        tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
     # save algorithm parameters
     data = {
         'gamma' : gamma,
@@ -322,7 +323,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, noise_scale=0)
+                action = get_action(env, actor, state, noise_scale=2.)
 
             # env step
             next_state, r, done, _ = env.step(state, action)
@@ -400,6 +401,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
             v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
             update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                     a_table, policy_actor, policy_critic, lines)
+            update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
 
     data['returns'] = returns
     data['time_steps'] = time_steps
@@ -470,6 +472,8 @@ def ddpg_continuing(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
         lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                                 a_table, policy_actor, policy_critic,
                                                 value_function_hjb, control_hjb)
+        tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
+
     # save algorithm parameters
     data = {
         'gamma' : gamma,
@@ -603,6 +607,7 @@ def ddpg_continuing(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
             update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                         a_table, policy_actor, policy_critic, lines)
+            update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
 
 
     data['returns'] = returns
