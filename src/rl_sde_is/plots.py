@@ -432,18 +432,21 @@ def plot_det_policy_2d(env, policy):
 
 def initialize_det_policy_figure(env, policy, control_hjb):
 
+    # initialize figure
     fig, ax = plt.subplots()
+
+    # turn interactive mode on
+    plt.ion()
+
     ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel(r'$s_1$')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.action_space_low, env.action_space_high)
-
     det_policy_line = ax.plot(env.state_space_h, policy)[0]
     ax.plot(env.state_space_h, control_hjb, label=r'hjb', color=COLORS_FIG['hjb'])
 
-    plt.ion()
     plt.legend()
     plt.show()
 
@@ -471,12 +474,16 @@ def initialize_det_policy_2d_figure(env, policy):
     V = policy[:, :, 1]
     X, Y, U, V = coarse_quiver_arrows(U, V, X, Y, l=25)
 
+    # initialize figure
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel(r'$s_1$')
     ax.set_ylabel(r'$s_2$')
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.state_space_low, env.state_space_high)
+
+    # turn interactive mode on
+    plt.ion()
 
     # initialize norm object and make rgba array
     C = np.sqrt(U**2 + V**2)
@@ -503,7 +510,6 @@ def initialize_det_policy_2d_figure(env, policy):
 
     # colorbar
     #self.colorbar(sm)
-    plt.ion()
     plt.show()
 
     return im_policy
@@ -531,7 +537,7 @@ def initialize_episodes_figures(env, n_episodes):
     fig, axes = plt.subplots(nrows=1, ncols=2)
     ax1, ax2 = axes
 
-    # 
+    # turn interactive mode on
     plt.ion()
 
     # returns
@@ -585,7 +591,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_
     ax1, ax2 = axes[:, 0]
     ax3, ax4 = axes[:, 1]
 
-    # 
+    # turn interactive mode on
     plt.ion()
 
     # q table
@@ -650,7 +656,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax1, ax2 = axes[:, 0]
     ax3, ax4 = axes[:, 1]
 
-    # 
+    # turn interactive mode on
     plt.ion()
 
     # q table
@@ -721,3 +727,57 @@ def update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_crit
 
     # update figure frequency
     plt.pause(0.01)
+
+def initialize_replay_buffer_1d_figure(env, replay_buffer):
+
+    # initialize figure
+    fig, ax = plt.subplots()
+
+    # turn interactive mode on
+    plt.ion()
+
+    # get state and actions in buffer
+    n_points = replay_buffer.size
+    states = replay_buffer.state_buf[:replay_buffer.size, 0]
+    actions = replay_buffer.act_buf[:replay_buffer.size, 0]
+
+    # edges
+    x_edges = env.state_space_h[::5]
+    y_edges = env.action_space_h[::5]
+
+    H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
+
+    # frequency table
+    ax.set_title('Histogram Replay Buffer (State-action)')
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+
+    image = ax.imshow(
+        H.T,
+        vmin=0,
+        vmax=replay_buffer.max_size / 100,
+        interpolation='nearest',
+        origin='lower',
+        extent=get_extent(env),
+    )
+    plt.show()
+
+    return (x_edges, y_edges, image)
+
+def update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig):
+
+    # unpack tuple
+    x_edges, y_edges, image = tuple_fig
+
+    # get state and actions in buffer
+    n_points = replay_buffer.size
+    states = replay_buffer.state_buf[:replay_buffer.size, 0]
+    actions = replay_buffer.act_buf[:replay_buffer.size, 0]
+
+    H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
+
+    # update image
+    image.set_data(H.T)
+
+    # pause interval 
+    plt.pause(0.1)

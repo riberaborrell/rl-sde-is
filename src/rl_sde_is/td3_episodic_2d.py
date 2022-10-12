@@ -1,34 +1,14 @@
-from copy import deepcopy
-
-import matplotlib.pyplot as plt
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
 from rl_sde_is.plots import *
-from rl_sde_is.td3_core import td3_episodic
+from rl_sde_is.td3_core import *
 from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
-
-def load_backup_models(data, ep=0):
-    actor = data['actor']
-    critic1 = data['critic1']
-    critic2 = data['critic2']
-    rel_dir_path = data['rel_dir_path']
-    try:
-        load_model(actor, rel_dir_path, file_name='actor_n-epi{}'.format(ep))
-        load_model(critic1, rel_dir_path, file_name='critic1_n-epi{}'.format(ep))
-        load_model(critic2, rel_dir_path, file_name='critic2_n-epi{}'.format(ep))
-    except FileNotFoundError as e:
-        print('there is no backup after episode {:d}'.format(ep))
 
 def main():
     args = get_parser().parse_args()
@@ -50,7 +30,7 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # run ddpg 
+    # run td3
     data = td3_episodic(
         env=env,
         gamma=args.gamma,
@@ -60,13 +40,14 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        replay_size=50000,
-        update_after=5000,
+        start_steps=10000,
+        replay_size=100000,
+        update_after=10000,
         n_steps_episode_lim=1000,
-        test_freq_episodes=10,
-        test_batch_size=10,
-        update_every=100,
-        policy_delay=50,
+        test_freq_episodes=100,
+        test_batch_size=1000,
+        update_every=10,
+        policy_delay=5,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,
@@ -78,7 +59,6 @@ def main():
     if not args.plot:
         return
 
-    return
     # get models
     actor = data['actor']
     critic1 = data['critic1']
@@ -88,16 +68,10 @@ def main():
     if args.plot_episode is not None:
         load_backup_models(data, ep=args.plot_episode)
 
-    # compute tables following q-value model
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
-
-    # compute value function and actions following the policy model
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
-
-    plot_q_value_function(env, q_table)
-    plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)
-    plot_advantage_function(env, a_table)
-    plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
+    # compute actor policy
+    states = torch.FloatTensor(env.state_space_h)
+    policy = compute_det_policy_actions(env, actor, states)
+    plot_det_policy_2d(env, policy)
 
     # plot moving averages for each episode
     returns = data['returns']
@@ -112,9 +86,9 @@ def main():
     test_mean_returns = data['test_mean_returns']
     test_var_returns = data['test_var_returns']
     test_mean_lengths = data['test_mean_lengths']
-    test_u_l2_errors = data['test_u_l2_errors']
+    test_policy_l2_errors = data['test_policy_l2_errors']
     plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns)
-    plot_det_policy_l2_error_epochs(test_u_l2_errors)
+    plot_det_policy_l2_error_epochs(test_policy_l2_errors)
 
 
 if __name__ == '__main__':

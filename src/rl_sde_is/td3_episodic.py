@@ -1,15 +1,7 @@
-from copy import deepcopy
-
-import matplotlib.pyplot as plt
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.td3_core import td3_episodic
+from rl_sde_is.td3_core import *
 from rl_sde_is.plots import *
 from rl_sde_is.utils_path import *
 
@@ -17,18 +9,6 @@ def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
-
-def load_backup_models(data, ep=0):
-    actor = data['actor']
-    critic1 = data['critic1']
-    critic2 = data['critic2']
-    rel_dir_path = data['rel_dir_path']
-    try:
-        load_model(actor, rel_dir_path, file_name='actor_n-epi{}'.format(ep))
-        load_model(critic1, rel_dir_path, file_name='critic1_n-epi{}'.format(ep))
-        load_model(critic2, rel_dir_path, file_name='critic2_n-epi{}'.format(ep))
-    except FileNotFoundError as e:
-        print('there is no backup after episode {:d}'.format(ep))
 
 def main():
     args = get_parser().parse_args()
@@ -51,7 +31,7 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # run ddpg 
+    # run td3
     data = td3_episodic(
         env=env,
         gamma=args.gamma,
@@ -61,13 +41,14 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        replay_size=50000,
-        update_after=5000,
-        n_steps_episode_lim=10000,
+        start_steps=10000,
+        replay_size=100000,
+        update_after=10000,
+        n_steps_episode_lim=1000,
         test_freq_episodes=100,
         test_batch_size=1000,
-        update_every=100,
-        policy_delay=50,
+        update_every=10,
+        policy_delay=5,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,

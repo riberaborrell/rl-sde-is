@@ -126,6 +126,18 @@ def update_parameters(actor, actor_target, actor_optimizer,
                 target_param.data.copy_(target_param.data * rho + param.data * (1. - rho))
 
         #return actor_loss.detach().item(), critic_loss.detach().item()
+def get_action(env, actor, state, noise_scale=0):
+
+    # forward pass
+    action = actor.forward(torch.FloatTensor(state)).detach().numpy()
+
+    # add noise
+    action += noise_scale * np.random.randn(env.action_space_dim)
+
+    # clipp such that it lies in the valid action range
+    action = np.clip(action, env.action_space_low, env.action_space_high)
+    return action
+
 
 def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
                  n_episodes=100, n_steps_episode_lim=1000,
@@ -188,6 +200,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     # initialize figures if plot:
     if plot and env.d == 1:
         lines = initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb)
+        tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
     elif plot and env.d == 2:
         policy_im = initialize_2d_figures(env, actor)
 
@@ -226,9 +239,11 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     # get initial state
     state_init = env.state_init.copy()
 
+    # total number of time steps
+    k_total = 0
+
     # sample trajectories
     for ep in range(n_episodes):
-        print(ep)
 
         # initialization
         state = env.reset()
@@ -246,8 +261,15 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             if complete:
                 break
 
+            # sample action
+
+            # sample action randomly
+            if k_total < start_steps:
+                action = env.sample_action(batch_size=1)
+
             # get action following the actor
-            action = actor.forward(torch.FloatTensor(state)).detach().numpy()
+            else:
+                action = get_action(env, actor, state, noise_scale=0)
 
             # env step
             next_state, r, complete, _ = env.step(state, action)
@@ -256,8 +278,8 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             # store tuple
             replay_buffer.store(state, action, r, next_state, complete)
 
-            # if buffer is full enough
-            if replay_buffer.size > update_after and k % update_every == 0:
+            # time to update
+            if k_total >= update_after and (k_total + 1) % update_every == 0:
 
                 for l in range(update_every):
 
@@ -277,6 +299,9 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
             # update state
             state = next_state
+
+            # update total steps counter
+            k_total += 1
 
         # save episode
         returns[ep] = ep_return
@@ -326,6 +351,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
         if plot and (ep + 1) % 1 == 0:
             if env.d == 1:
                 update_1d_figures(env, actor, critic1, lines)
+                update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
 
     data['returns'] = returns
     data['time_steps'] = time_steps
@@ -361,3 +387,16 @@ def update_2d_figures(env, actor):
     states = torch.FloatTensor(env.state_space_h)
     initial_policy = compute_det_policy_actions(env, actor, states)
     update_det_policy_2d_figure(env, policy, policy_im)
+
+def load_backup_models(data, ep=0):
+    actor = data['actor']
+    critic1 = data['critic1']
+    critic2 = data['critic2']
+    rel_dir_path = data['rel_dir_path']
+    try:
+        load_model(actor, rel_dir_path, file_name='actor_n-epi{}'.format(ep))
+        load_model(critic1, rel_dir_path, file_name='critic1_n-epi{}'.format(ep))
+        load_model(critic2, rel_dir_path, file_name='critic2_n-epi{}'.format(ep))
+    except FileNotFoundError as e:
+        print('there is no backup after episode {:d}'.format(ep))
+

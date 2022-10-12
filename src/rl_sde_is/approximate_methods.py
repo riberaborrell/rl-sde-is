@@ -210,9 +210,9 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
         ep_policy_l2_error_fht = np.empty(batch_size)
         ep_policy_l2_error_t = np.zeros(batch_size)
 
-    # set been in target set and done arrays
-    been_in_target_set = np.full((batch_size, 1), False)
-    done = np.full((batch_size, 1), False)
+    # are episodes done
+    already_done = np.full((batch_size,), False)
+    done = np.full((batch_size,), False)
 
     # initialize episodes
     states = env.reset(batch_size=batch_size)
@@ -239,7 +239,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
             ep_policy_l2_error_t += (np.linalg.norm(actions - actions_hjb, axis=1) ** 2) * env.dt
 
         # get indices of episodes which are new to the target set
-        idx = env.get_idx_new_in_ts(done, been_in_target_set)
+        idx = env.get_idx_new_in_ts(done, already_done)
 
         # if there are episodes which are done
         if idx.shape[0] != 0:
@@ -255,7 +255,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
                 ep_policy_l2_error_fht[idx] = ep_policy_l2_error_t[idx]
 
         # stop if xt_traj in target set
-        if been_in_target_set.all() == True:
+        if already_done.all() == True:
            break
 
         # update states
