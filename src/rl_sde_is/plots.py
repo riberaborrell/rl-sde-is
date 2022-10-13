@@ -525,12 +525,13 @@ def update_det_policy_2d_figure(env, policy, Q_policy):
     U = policy[:, :, 0]
     V = policy[:, :, 1]
     _, _, U, V = coarse_quiver_arrows(U, V, l=25)
+    C = np.sqrt(U**2 + V**2)
 
     # update plots
-    Q_policy.set_UVC(U, V)
+    Q_policy.set_UVC(U, V, C)
 
     # update figure frequency
-    plt.pause(0.01)
+    plt.pause(0.1)
 
 def update_det_policy_figure(env, policy, line):
     line.set_data(env.state_space_h, policy)
@@ -588,7 +589,7 @@ def update_episodes_figures(env, returns, avg_returns, time_steps, avg_time_step
     line_avg_time_steps.set_data(episodes, avg_time_steps)
 
     # update figure frequency
-    plt.pause(0.01)
+    plt.pause(0.1)
 
 def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_function_hjb, control_hjb):
 
@@ -652,7 +653,7 @@ def update_q_learning_figures(env, q_table, v_table, a_table, policy, tuples):
     line_policy.set_data(env.state_space_h, policy)
 
     # update figure frequency
-    plt.pause(0.01)
+    plt.pause(0.1)
 
 def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
                                     policy_actor, policy_critic, value_function_hjb, control_hjb):
@@ -732,7 +733,7 @@ def update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_crit
     line_policy_critic.set_data(env.state_space_h, policy_critic)
 
     # update figure frequency
-    plt.pause(0.01)
+    plt.pause(0.1)
 
 def initialize_replay_buffer_1d_figure(env, replay_buffer):
 
