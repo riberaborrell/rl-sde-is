@@ -199,7 +199,7 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
 
 def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
          n_episodes=100, n_steps_episode_lim=1000,
-         start_steps=0, update_after=5000, update_every=100,
+         start_steps=0, update_after=5000, update_every=100, noise_scale=0,
          replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4,
          test_freq_episodes=100, test_batch_size=1000, backup_freq_episodes=None,
          seed=None, value_function_hjb=None, control_hjb=None, load=False, plot=False):
@@ -256,7 +256,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
 
     # initialize figures if plot:
     if plot and env.d == 1:
-        lines = initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb)
+        lines = initialize_1d_figures(env, actor, critic, value_function_hjb, control_hjb)
         tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
     elif plot and env.d == 2:
         policy_im = initialize_2d_figures(env, actor)
@@ -325,7 +325,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, noise_scale=2.)
+                action = get_action(env, actor, state, noise_scale)
 
             # env step
             next_state, r, done, _ = env.step(state, action)
@@ -402,7 +402,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
         # update plots
         if plot and (ep + 1) % 1 == 0:
             if env.d == 1:
-                update_1d_figures(env, actor, critic1, lines)
+                update_1d_figures(env, actor, critic, lines)
                 update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
 
             elif env.d == 2:
