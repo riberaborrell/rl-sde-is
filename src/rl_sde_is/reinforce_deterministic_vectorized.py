@@ -196,7 +196,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     if plot and env.d == 1:
         policy_line = initialize_1d_figures(env, model, control_hjb)
     elif plot and env.d == 2:
-        policy_im = initialize_2d_figures(env, model)
+        Q_policy = initialize_2d_figures(env, model, control_hjb)
 
     for i in np.arange(n_iterations):
 
@@ -291,13 +291,13 @@ def update_1d_figures(env, model, policy_line):
     policy = compute_det_policy_actions(env, model, states)
     update_det_policy_figure(env, policy, policy_line)
 
-def initialize_2d_figures(env, model):
+def initialize_2d_figures(env, model, policy_hjb):
     states = torch.FloatTensor(env.state_space_h)
     initial_policy = compute_det_policy_actions(env, model, states)
-    policy_im = initialize_det_policy_2d_figure(env, initial_policy)
-    return policy_im
+    Q_policy = initialize_det_policy_2d_figure(env, initial_policy, policy_hjb)
+    return Q_policy
 
-def update_2d_figures(env, model, policy_im):
+def update_2d_figures(env, model, Q_policy):
     states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, model, states)
-    update_det_policy_2d_figure(env, policy, policy_im)
+    update_det_policy_2d_figure(env, policy, Q_policy)

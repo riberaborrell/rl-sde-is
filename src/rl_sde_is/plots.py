@@ -389,13 +389,18 @@ def plot_det_policy_actor_critic(env, policy_actor, policy_critic, control_hjb):
     plt.legend()
     plt.show()
 
-def plot_det_policy_2d(env, policy):
+def plot_det_policy_2d(env, policy, policy_hjb):
     X = env.state_space_h[:, :, 0]
     Y = env.state_space_h[:, :, 1]
     U = policy[:, :, 0]
     V = policy[:, :, 1]
     X, Y, U, V = coarse_quiver_arrows(U, V, X, Y, l=25)
 
+    U_hjb = policy_hjb[:, :, 0]
+    V_hjb = policy_hjb[:, :, 1]
+    _, _, U_hjb, V_hjb = coarse_quiver_arrows(U_hjb, V_hjb, l=25)
+
+    # initialize figure
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel(r'$s_1$')
@@ -403,31 +408,30 @@ def plot_det_policy_2d(env, policy):
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.state_space_low, env.state_space_high)
 
-    # initialize norm object and make rgba array
+    # initialize norm object
     C = np.sqrt(U**2 + V**2)
-    norm = colors.Normalize(vmin=np.min(C), vmax=np.max(C))
-    sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+    C_hjb = np.sqrt(U_hjb**2 + V_hjb**2)
+    norm = colors.Normalize(vmin=np.min(C_hjb), vmax=np.max(C_hjb))
 
-    im_policy = ax.quiver(
+    # vector field plot
+    Q = ax.quiver(
         X,
         Y,
         U,
         V,
         C,
+        norm=norm,
         cmap=cm.viridis,
         angles='xy',
         scale_units='xy',
-        #scale=scale,
         width=0.005,
     )
 
-    # add space for colour bar
+    # add space for color bar
     fig.subplots_adjust(right=0.85)
     cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
-    fig.colorbar(im_policy, cax=cbar_ax)
+    fig.colorbar(Q, cax=cbar_ax)
 
-    # colorbar
-    #self.colorbar(sm)
     plt.show()
 
 def initialize_det_policy_figure(env, policy, control_hjb):
@@ -467,12 +471,16 @@ def coarse_quiver_arrows(U, V, X=None, Y=None, l=25):
     V = V[::kx, ::ky]
     return X, Y, U, V
 
-def initialize_det_policy_2d_figure(env, policy):
+def initialize_det_policy_2d_figure(env, policy, policy_hjb):
     X = env.state_space_h[:, :, 0]
     Y = env.state_space_h[:, :, 1]
     U = policy[:, :, 0]
     V = policy[:, :, 1]
     X, Y, U, V = coarse_quiver_arrows(U, V, X, Y, l=25)
+
+    U_hjb = policy_hjb[:, :, 0]
+    V_hjb = policy_hjb[:, :, 1]
+    _, _, U_hjb, V_hjb = coarse_quiver_arrows(U_hjb, V_hjb, l=25)
 
     # initialize figure
     fig, ax = plt.subplots()
@@ -487,41 +495,39 @@ def initialize_det_policy_2d_figure(env, policy):
 
     # initialize norm object and make rgba array
     C = np.sqrt(U**2 + V**2)
-    norm = colors.Normalize(vmin=np.min(C), vmax=np.max(C))
-    sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+    C_hjb = np.sqrt(U_hjb**2 + V_hjb**2)
+    norm = colors.Normalize(vmin=np.min(C_hjb), vmax=np.max(C_hjb))
 
-    im_policy = ax.quiver(
+    Q_policy = ax.quiver(
         X,
         Y,
         U,
         V,
         C,
+        norm=norm,
         cmap=cm.viridis,
         angles='xy',
         scale_units='xy',
-        #scale=scale,
         width=0.005,
     )
 
-    # add space for colour bar
+    # add space for color bar
     fig.subplots_adjust(right=0.85)
     cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
-    fig.colorbar(im_policy, cax=cbar_ax)
+    fig.colorbar(Q_policy, cax=cbar_ax)
 
-    # colorbar
-    #self.colorbar(sm)
     plt.show()
 
-    return im_policy
+    return Q_policy
 
-def update_det_policy_2d_figure(env, policy, im_policy):
+def update_det_policy_2d_figure(env, policy, Q_policy):
 
     U = policy[:, :, 0]
     V = policy[:, :, 1]
     _, _, U, V = coarse_quiver_arrows(U, V, l=25)
 
     # update plots
-    im_policy.set_UVC(U, V)
+    Q_policy.set_UVC(U, V)
 
     # update figure frequency
     plt.pause(0.01)

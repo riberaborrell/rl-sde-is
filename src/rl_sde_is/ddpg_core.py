@@ -259,7 +259,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
         lines = initialize_1d_figures(env, actor, critic, value_function_hjb, control_hjb)
         tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
     elif plot and env.d == 2:
-        policy_im = initialize_2d_figures(env, actor)
+        Q_policy = initialize_2d_figures(env, actor, control_hjb)
 
     # save algorithm parameters
     data = {
@@ -406,7 +406,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
                 update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
 
             elif env.d == 2:
-                update_2d_figures(env, actor, policy_im)
+                update_2d_figures(env, actor, Q_policy)
 
 
     data['returns'] = returns
@@ -640,16 +640,16 @@ def update_1d_figures(env, actor, critic1, lines):
     update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                 a_table, policy_actor, policy_critic, lines)
 
-def initialize_2d_figures(env, actor):
+def initialize_2d_figures(env, actor, policy_hjb):
     states = torch.FloatTensor(env.state_space_h)
     initial_policy = compute_det_policy_actions(env, actor, states)
-    policy_im = initialize_det_policy_2d_figure(env, initial_policy)
-    return policy_im
+    Q_policy = initialize_det_policy_2d_figure(env, initial_policy, policy_hjb)
+    return Q_policy
 
-def update_2d_figures(env, actor, policy_im):
+def update_2d_figures(env, actor, Q_policy):
     states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, actor, states)
-    update_det_policy_2d_figure(env, policy, policy_im)
+    update_det_policy_2d_figure(env, policy, Q_policy)
 
 def load_backup_models(data, ep=0):
     actor = data['actor']

@@ -70,7 +70,7 @@ def main():
     # compute actor policy
     states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, actor, states)
-    plot_det_policy_2d(env, policy)
+    plot_det_policy_2d(env, policy, policy_hjb)
 
     # plot moving averages for each episode
     returns = data['returns']

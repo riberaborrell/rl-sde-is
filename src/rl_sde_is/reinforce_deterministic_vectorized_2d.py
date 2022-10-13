@@ -72,7 +72,7 @@ def main():
 
     # plot policy
     policy = get_policy(env, data, it=args.plot_iteration)
-    plot_det_policy_2d(env, policy)
+    plot_det_policy_2d(env, policy, policy_hjb)
 
     # plot expected values for each epoch
     plot_expected_returns_with_error_epochs(data['exp_returns'], data['var_returns'])
