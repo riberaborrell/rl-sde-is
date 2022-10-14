@@ -298,6 +298,7 @@ def get_ddpg_dir_path(env, **kwargs):
     # set parameters string
     param_str = get_initial_point_str(env) \
               + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
+              + 'noise-scale{:.1e}_'.format(kwargs['noise_scale']) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
               + 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) \

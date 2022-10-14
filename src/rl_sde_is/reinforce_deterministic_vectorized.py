@@ -257,7 +257,7 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
             if env.d == 1:
                 update_1d_figures(env, model, policy_line)
             elif env.d == 2:
-                update_2d_figures(env, model, policy_im)
+                update_2d_figures(env, model, Q_policy)
 
     # add results
     data['returns'] = returns

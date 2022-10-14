@@ -28,6 +28,7 @@ def main():
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
+    policy_hjb = sol_hjb.u_opt
 
     # run td3
     data = td3_episodic(
@@ -47,6 +48,7 @@ def main():
         test_batch_size=1000,
         update_every=10,
         policy_delay=5,
+        noise_scale=2.,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=sol_hjb.u_opt,

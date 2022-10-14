@@ -142,7 +142,7 @@ def get_action(env, actor, state, noise_scale=0):
 
 def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
                  n_episodes=100, n_steps_episode_lim=1000,
-                 start_steps=0, update_after=5000, update_every=100, policy_delay=50,
+                 start_steps=0, update_after=5000, update_every=100, policy_delay=50, noise_scale=0,
                  test_freq_episodes=100, backup_freq_episodes=None,
                  replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
                  rho=0.95, seed=None,
@@ -153,6 +153,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
         env,
         agent='td3-episodic',
         d_hidden_layer=d_hidden_layer,
+        noise_scale=noise_scale,
         batch_size=batch_size,
         lr_actor=lr_actor,
         lr_critic=lr_critic,
@@ -271,7 +272,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, noise_scale=2.)
+                action = get_action(env, actor, state, noise_scale)
 
             # env step
             next_state, r, complete, _ = env.step(state, action)

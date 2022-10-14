@@ -1,6 +1,6 @@
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.ddpg_core import ddpg_episodic
+from rl_sde_is.ddpg_core import *
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 
