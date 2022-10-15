@@ -5,6 +5,23 @@ from shapely.geometry import Polygon
 
 from rl_sde_is.utils_figures import TITLES_FIG, COLORS_FIG
 
+def get_state_action_1d_extent(env):
+    ''' set extent bounds for 1d state space in the x-axis and
+        1d action space in the y-axis
+    '''
+
+    extent = env.state_space_h[0], env.state_space_h[-1], \
+             env.action_space_h[0], env.action_space_h[-1]
+    return extent
+
+def get_state_2d_extent(env):
+    ''' set extent bounds for 2d state space
+    '''
+
+    extent = env.state_space_h[0, 0, 0], env.state_space_h[-1, -1, 0], \
+             env.state_space_h[0, 0, 1], env.state_space_h[-1, -1, 1]
+    return extent
+
 def plot_episode_states(env, ep_states):
 
     # compute potential at each state
@@ -161,14 +178,6 @@ def plot_det_policy_l2_error_epochs(l2_errors):
     #plt.legend()
     plt.show()
 
-def get_extent(env):
-    ''' set extent bounds
-    '''
-
-    extent = env.state_space_h[0], env.state_space_h[-1], \
-             env.action_space_h[0], env.action_space_h[-1]
-    return extent
-
 def plot_reward_table(env, r_table):
 
     fig, ax = plt.subplots()
@@ -179,7 +188,7 @@ def plot_reward_table(env, r_table):
     im = ax.imshow(
         r_table.T,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.coolwarm,
     )
 
@@ -200,7 +209,7 @@ def plot_frequency(env, n_table):
     im = ax.imshow(
         n_table.T,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.coolwarm,
     )
 
@@ -221,7 +230,7 @@ def plot_q_value_function(env, q_table):
     im = fig.axes[0].imshow(
         q_table.T,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.viridis,
     )
 
@@ -244,7 +253,7 @@ def plot_advantage_function(env, a_table):
         vmin=-0.10,
         vmax=0,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.plasma,
     )
 
@@ -266,14 +275,38 @@ def plot_value_function(env, value_function, value_function_hjb):
     plt.legend()
     plt.show()
 
+def plot_value_function_2d(env, value_function, value_function_hjb):
+
+    fig, ax = plt.subplots()
+    ax.set_title(r'Value function $V(s) = max_a Q_\omega(s, a)$')
+    ax.set_xlabel(r'$s_1$')
+    ax.set_ylabel(r'$s_2$')
+
+    im = fig.axes[0].imshow(
+        value_function.T,
+        vmin=np.min(value_function_hjb),
+        vmax=np.max(value_function_hjb),
+        origin='lower',
+        extent=get_state_2d_extent(env),
+        cmap=cm.coolwarm,
+    )
+
+    # add space for colour bar
+    fig.subplots_adjust(right=0.85)
+    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    fig.colorbar(im, cax=cbar_ax)
+
+    plt.show()
+
+
 def plot_value_function_actor_critic(env, value_function_actor_critic, value_function_critic,
                                      value_function_hjb):
     fig, ax = plt.subplots()
     ax.set_title('Value function')
     ax.set_xlabel('States')
 
-    plt.plot(env.state_space_h, value_function_actor_critic, label=r'actor-critic: $ V(s) = Q(s, \mu(s; \theta); \omega)$')
-    plt.plot(env.state_space_h, value_function_critic, label=r'critic: $V(s) = max_a Q(s, a; \omega)$')
+    plt.plot(env.state_space_h, value_function_actor_critic, label=r'actor-critic: $ V(s) = Q_\omega(s, \mu_\theta(s))$')
+    plt.plot(env.state_space_h, value_function_critic, label=r'critic: $V(s) = max_a Q_\omega(s, a)$')
     plt.plot(env.state_space_h, -value_function_hjb, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
     plt.legend()
     plt.show()
@@ -288,7 +321,7 @@ def plot_stoch_policy(env, action_prob_dists, policy, control_hjb):
     im = ax.imshow(
         action_prob_dists.T,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.plasma,
     )
 
@@ -608,7 +641,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_
     im_q_table = ax1.imshow(
         q_table.T,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.viridis,
         #aspect='auto',
     )
@@ -626,7 +659,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_
     im_a_table = ax3.imshow(
         a_table.T,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.plasma,
         #aspect='auto',
     )
@@ -675,7 +708,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     im_q_table = ax1.imshow(
         q_table.T,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.viridis,
         #aspect='auto',
     )
@@ -698,7 +731,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     im_a_table = ax3.imshow(
         a_table.T,
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
         cmap=cm.plasma,
         #aspect='auto',
     )
@@ -765,7 +798,7 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
         vmax=replay_buffer.max_size / 100,
         interpolation='nearest',
         origin='lower',
-        extent=get_extent(env),
+        extent=get_state_action_1d_extent(env),
     )
     plt.show()
 

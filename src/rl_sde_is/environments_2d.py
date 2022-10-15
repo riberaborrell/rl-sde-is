@@ -218,6 +218,16 @@ class DoubleWellStoppingTime2D():
 
         return idx
 
+    def get_state_idx(self, state):
+        idx = np.floor(
+            (np.clip(
+                state,
+                self.state_space_low,
+                self.state_space_high - 2 * self.h_state
+            ) + self.state_space_high) / self.h_state).astype(int)
+        idx = tuple([idx[:, i] for i in range(self.d)])
+        return idx
+
     def discretize_state_space(self, h_state):
 
         # slice according to the state space bounds and discretization step
@@ -234,70 +244,54 @@ class DoubleWellStoppingTime2D():
         self.h_state = h_state
 
         # get initial state index 
-        #self.get_idx_state_init()
+        self.get_idx_state_init()
 
-        # get target set indices
-        #self.get_idx_target_set()
+    def get_idx_state_init(self):
+        self.idx_state_init = self.get_state_idx(self.state_init)
 
-    def get_flat_array(self, x):
-        return x.reshape(self.n_states, self.d)
-
-    def get_bumpy_array(self, x):
-        return x.reshape(self.n_states_i1, self.n_states_i2, self.d)
+    def get_action_idx(self, action):
+        idx = np.floor(
+            (np.clip(
+                action,
+                self.action_space_low,
+                self.action_space_high - 2 * self.h_action
+            ) + self.action_space_high) / self.h_action).astype(int)
+        idx = tuple([idx[:, i] for i in range(self.d)])
+        return idx
 
     def discretize_action_space(self, h_action):
 
-        # discretize action space
-        self.action_space_h = np.arange(
-            self.action_space_low,
-            self.action_space_high + h_action,
-            h_action,
-        )
-        self.n_actions = self.action_space_h.shape[0]
+        # slice according to the action space bounds and discretization step
+        slice_i = slice(self.action_space_low, self.action_space_high + h_action, h_action)
+
+        # get state space grid
+        m_grid = np.mgrid[[slice_i, slice_i]]
+        self.action_space_h = np.moveaxis(m_grid, 0, -1)
+
+        # number of states and discretization step
+        self.n_actions_i1 = self.action_space_h.shape[0]
+        self.n_actions_i2 = self.action_space_h.shape[1]
+        self.n_actions = self.action_space_h.shape[0] * self.action_space_h.shape[1]
         self.h_action = h_action
 
         # get null action index
         self.get_idx_null_action()
 
-    def get_state_idx(self, state):
-        idx = np.floor(
-            (np.clip(
-                state,
-                self.state_space_low,
-                self.state_space_high - 2 * self.h_state
-            ) + self.state_space_high) / self.h_state).astype(int)
-        idx = tuple([idx[:, i] for i in range(self.d)])
-        return idx
-
-    def get_state_idx_argmin(self, state):
-        states = self.get_flat_array(self.state_space_h)
-        return np.argmin(np.abs(states - state), axis=1)
-
-    def get_action_idx(self, action):
-        return np.argmin(np.abs(self.action_space_h - action), axis=1)
-
-    def get_idx_state_init(self):
-        #TODO!
-        self.idx_state_init = self.get_state_idx(self.state_init)
-
-    def get_idx_target_set(self):
-        self.idx_lb = self.get_state_idx(np.array([[self.lb]]))[0]
-        self.idx_rb = self.get_state_idx(np.array([[self.rb]]))[0]
-        self.idx_ts = np.where(self.state_space_h >= self.lb)[0]
-        self.idx_not_ts = np.where(self.state_space_h < self.lb)[0]
-
     def get_idx_null_action(self):
-        self.idx_null_action = self.get_action_idx(np.zeros((1, 1)))
+        self.idx_null_action = self.get_action_idx(np.zeros((1, self.d)))
 
-    def get_greedy_actions(self, q_table):
+    def discretize_state_action_space(self, h_state, h_action):
 
-        # compute greedy action by following the q-table
-        idx_actions = np.argmax(q_table, axis=1)
-        greedy_actions = self.action_space_h[idx_actions]
+        # slice according to the action space bounds and discretization step
+        slice_i_state = slice(self.state_space_low, self.state_space_high + h_state, h_state)
+        slice_i_action = slice(self.action_space_low, self.action_space_high + h_action, h_action)
 
-        # set actions in the target set to 0
-        greedy_actions[self.idx_ts] = 0.
-        return greedy_actions
+        # get state space grid
+        m_grid = np.mgrid[[slice_i_state, slice_i_state, slice_i_action, slice_i_action]]
+        self.state_action_space_h = np.moveaxis(m_grid, 0, -1)
+
+        # number of states and discretization step
+        self.n_states_actions = np.prod(self.state_action_space_h.shape[:-1])
 
     def get_hjb_solver(self, h_hjb=0.01):
 

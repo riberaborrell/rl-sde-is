@@ -270,7 +270,7 @@ class DoubleWellStoppingTime1D():
         self.idx_not_ts = np.where(self.state_space_h < self.lb)[0]
 
     def get_idx_null_action(self):
-        self.idx_null_action = self.get_action_idx(np.zeros((1, 1)))
+        self.idx_null_action = self.get_action_idx(np.zeros((1, self.d)))
 
     def get_greedy_actions(self, q_table):
 
