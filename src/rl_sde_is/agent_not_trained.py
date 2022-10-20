@@ -2,6 +2,7 @@ import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
 from rl_sde_is.utils_path import *
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.plots import *
@@ -39,8 +40,8 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
     time_steps = []
 
     # preallocate trajectory
-    ep_states = np.empty((0,))
-    ep_actions = np.empty((0,))
+    ep_states = np.empty((0, env.d))
+    ep_actions = np.empty((0, env.d))
     ep_rewards = np.empty((0,))
 
     # sample trajectories
@@ -50,7 +51,7 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
         state = env.reset()
 
         # terminal state flag
-        complete = False
+        done = False
 
         # initialize episodic return
         ep_return = 0.
@@ -58,7 +59,7 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
         for k in range(n_steps_lim):
 
             # interrupt if we are in a terminal state
-            if complete:
+            if done:
                 break
 
             # copy state
@@ -66,15 +67,15 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
 
             # take a random action
             if agent == 'random':
-                action = np.random.rand(1) * env.action_space_high
+                action = np.random.rand(1, env.d) * env.action_space_high
             elif agent == 'not-controlled':
-                action = np.zeros(1)
+                action = np.zeros((1, env.d))
             elif agent == 'hjb':
                 idx = env.get_state_idx(state)
                 action = sol_hjb.u_opt[idx]
 
             # step dynamics forward
-            new_state, r, complete = env.step(state, action)
+            new_state, r, done, _ = env.step(state, action)
 
             #print('step: {}, state: {:.1f}, action: {:.1f}, reward: {:.3f}'
             #      ''.format(k, state_copy[0], action[0], r))
@@ -84,8 +85,8 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
 
             # save first trajectory
             if save_traj and ep == 0:
-                ep_states = np.append(ep_states, state)
-                ep_actions = np.append(ep_actions, action)
+                ep_states = np.vstack((ep_states, state))
+                ep_actions = np.vstack((ep_actions, action))
                 ep_rewards = np.append(ep_rewards, r)
 
             # update state
@@ -110,12 +111,21 @@ def agent_episodic(env, agent='random', batch_size=10, n_episodes=100, n_steps_l
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
-    env = DoubleWellStoppingTime1D(
-        alpha=args.alpha,
-        beta=args.beta,
-        dt=args.dt,
-    )
+    # initialize environment
+    if args.d == 1:
+        env = DoubleWellStoppingTime1D(
+            alpha=args.alpha,
+            beta=args.beta,
+            dt=args.dt,
+        )
+    elif args.d == 2:
+        env = DoubleWellStoppingTime2D(
+            alpha=args.alpha,
+            beta=args.beta,
+            dt=args.dt,
+        )
+    else:
+        raise ValueError('just case 1d and 2d covered')
 
     # set explorable starts flag
     if args.explorable_starts:
@@ -130,7 +140,7 @@ def main():
     # run agent with random actions
     data = agent_episodic(
         env,
-        agent='not-controlled',
+        agent='hjb',
         batch_size=args.batch_size,
         n_episodes=args.n_episodes,
         save_traj=args.save_traj,
@@ -145,9 +155,10 @@ def main():
 
     # plot trajectory
     ep_states = data['ep_states']
-    if ep_states.shape[0] != 0:
-        plot_episode_states(env, ep_states)
-    return
+    if args.d == 1 and ep_states.shape[0] != 0:
+        plot_episode_states_1d(env, ep_states)
+    elif args.d == 2 and ep_states.shape[0] != 0:
+        plot_episode_states_2d(env, ep_states)
 
     # smoothed arrays
     returns = data['returns']

@@ -3,6 +3,13 @@ import argparse
 def get_base_parser():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument(
+        '--d',
+        dest='d',
+        type=int,
+        default=1,
+        help='Dimension of the environment. Default: 1',
+    )
+    parser.add_argument(
         '--alpha',
         dest='alpha',
         type=float,

@@ -22,7 +22,7 @@ def get_state_2d_extent(env):
              env.state_space_h[0, 0, 1], env.state_space_h[-1, -1, 1]
     return extent
 
-def plot_episode_states(env, ep_states):
+def plot_episode_states_1d(env, ep_states):
 
     # compute potential at each state
     ep_pot = env.potential(ep_states)
@@ -50,6 +50,39 @@ def plot_episode_states(env, ep_states):
     ax.scatter(ep_states[::1], ep_pot[::1], alpha=.1, color='black', marker='o', s=100)
     plt.legend(loc='upper right')
     plt.show()
+
+def plot_episode_states_2d(env, ep_states):
+
+    # draw target set
+    target_set = Polygon([
+       (1, 1),
+       (1, 2),
+       (2, 2),
+       (2, 1),
+    ])
+    target_set_x, target_set_y = target_set.exterior.xy
+
+    # compute potential on the grid
+    flat_state_space_h = env.state_space_h.reshape(env.n_states, env.d)
+    potential = env.potential(flat_state_space_h).reshape(env.state_space_h.shape[:-1])
+
+    fig, ax = plt.subplots()
+    ax.set_title(r'Trajectory')
+    ax.set_xlabel(r'$s_1$')
+    ax.set_xlabel(r'$s_2$')
+    ax.set_xlim(-2, 2)
+    ax.set_ylim(-2, 2)
+    #ax.text(1.12, 2.2, r'Target set', size=13, rotation=0.)
+    ax.fill(target_set_x, target_set_y, alpha=0.4, fc='tab:orange', ec='none')
+    ax.imshow(
+        potential,
+        origin='lower',
+        extent=get_state_2d_extent(env),
+        cmap=cm.coolwarm,
+    )
+    ax.scatter(ep_states[:, 0], ep_states[:, 1], alpha=.1, color='black', marker='o', s=100)
+    plt.show()
+
 
 def plot_returns_episodes(returns, run_mean_returns):
     fig, ax = plt.subplots()
@@ -95,6 +128,7 @@ def plot_time_steps_episodes(time_steps, avg_time_steps):
     plt.plot(avg_time_steps, label='running mean of last time steps')
     plt.legend()
     plt.show()
+
 
 def plot_expected_returns_epochs(test_mean_returns):
     fig, ax = plt.subplots()
@@ -475,10 +509,9 @@ def initialize_det_policy_figure(env, policy, control_hjb):
     # turn interactive mode on
     plt.ion()
 
-    ax.set_title(TITLES_FIG['policy'])
-    ax.set_xlabel(r'$s_1$')
-    ax.set_xlabel('States')
-    ax.set_ylabel('Actions')
+    ax.set_title(TITLES_FIG['policy'], fontsize=10)
+    ax.set_xlabel('States', fontsize=8)
+    ax.set_ylabel('Actions', fontsize=8)
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.action_space_low, env.action_space_high)
     det_policy_line = ax.plot(env.state_space_h, policy)[0]
@@ -517,9 +550,9 @@ def initialize_det_policy_2d_figure(env, policy, policy_hjb):
 
     # initialize figure
     fig, ax = plt.subplots()
-    ax.set_title(TITLES_FIG['policy'])
-    ax.set_xlabel(r'$s_1$')
-    ax.set_ylabel(r'$s_2$')
+    ax.set_title(TITLES_FIG['policy'], fontsize=10)
+    ax.set_xlabel(r'$s_1$', fontsize=8)
+    ax.set_ylabel(r'$s_2$', fontsize=8)
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.state_space_low, env.state_space_high)
 
@@ -571,25 +604,26 @@ def update_det_policy_figure(env, policy, line):
     plt.pause(0.1)
 
 
-def initialize_episodes_figures(env, n_episodes):
+def initialize_return_and_time_steps_figures(env, n_episodes):
 
     # initialize figure with multiple subplots
-    fig, axes = plt.subplots(nrows=1, ncols=2)
+    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(5, 4))
     ax1, ax2 = axes
+    fig.tight_layout(pad=2.5)
 
     # turn interactive mode on
     plt.ion()
 
     # returns
-    ax1.set_title('Return')
-    ax1.set_xlabel('Episodes')
+    ax1.set_title('Return', fontsize=10)
+    ax1.set_xlabel('Episodes', fontsize=8)
     ax1.set_xlim(0, n_episodes)
-    ax1.set_ylim(-10, 1)
+    ax1.set_ylim(-20, 1)
 
-    ax2.set_title('Time steps')
-    ax2.set_xlabel('Episodes')
+    ax2.set_title('Time steps', fontsize=10)
+    ax2.set_xlabel('Episodes', fontsize=8)
     ax2.set_xlim(0, n_episodes)
-    ax2.set_ylim(0, 1000)
+    ax2.set_ylim(0, 5000)
 
     # episodes and array with nan values
     episodes = np.arange(n_episodes)
@@ -606,10 +640,10 @@ def initialize_episodes_figures(env, n_episodes):
 
     return (line_returns, line_avg_returns, line_time_steps, line_avg_time_steps)
 
-def update_episodes_figures(env, returns, avg_returns, time_steps, avg_time_steps, tuples):
+def update_return_and_time_steps_figures(env, returns, time_steps, lines):
 
     # unpack lines and images
-    line_returns, line_avg_returns, line_time_steps, line_avg_time_steps = tuples
+    line_returns, line_avg_returns, line_time_steps, line_avg_time_steps = lines
 
     # episodes
     n_episodes = returns.shape[0]
@@ -617,9 +651,9 @@ def update_episodes_figures(env, returns, avg_returns, time_steps, avg_time_step
 
     # update plots
     line_returns.set_data(episodes, returns)
-    line_avg_returns.set_data(episodes, avg_returns)
+    #line_avg_returns.set_data(episodes, avg_returns)
     line_time_steps.set_data(episodes, time_steps)
-    line_avg_time_steps.set_data(episodes, avg_time_steps)
+    #line_avg_time_steps.set_data(episodes, avg_time_steps)
 
     # update figure frequency
     plt.pause(0.1)
@@ -692,17 +726,18 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
                                     policy_actor, policy_critic, value_function_hjb, control_hjb):
 
     # initialize figure with multiple subplots
-    fig, axes = plt.subplots(nrows=2, ncols=2)
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(5, 4))
     ax1, ax2 = axes[:, 0]
     ax3, ax4 = axes[:, 1]
+    fig.tight_layout(pad=2.5)
 
     # turn interactive mode on
     plt.ion()
 
     # q table
-    ax1.set_title(TITLES_FIG['q-value-function'])
-    ax1.set_xlabel('States')
-    ax1.set_ylabel('Actions')
+    ax1.set_title(TITLES_FIG['q-value-function'], fontsize=10)
+    ax1.set_xlabel('States', fontsize=8)
+    ax1.set_ylabel('Actions', fontsize=8)
     ax1.set_xlim(env.state_space_low, env.state_space_high)
     ax1.set_ylim(env.action_space_low, env.action_space_high)
     im_q_table = ax1.imshow(
@@ -710,22 +745,21 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
         origin='lower',
         extent=get_state_action_1d_extent(env),
         cmap=cm.viridis,
-        #aspect='auto',
+        aspect='auto',
     )
 
     # value function
-    ax2.set_title('Value function')
-    ax2.set_xlabel('States')
+    ax2.set_title('Value function', fontsize=10)
+    ax2.set_xlabel('States', fontsize=8)
     ax2.set_xlim(env.state_space_low, env.state_space_high)
-    ax2.set_ylim(env.action_space_low, env.action_space_high)
     line_value_f_actor_critic = ax2.plot(env.state_space_h, v_table_actor_critic)[0]
     line_value_f_critic = ax2.plot(env.state_space_h, v_table_critic)[0]
     ax2.plot(env.state_space_h, -value_function_hjb)
 
     # a table
-    ax3.set_title(TITLES_FIG['a-value-function'])
-    ax3.set_xlabel('States')
-    ax3.set_ylabel('Actions')
+    ax3.set_title(TITLES_FIG['a-value-function'], fontsize=10)
+    ax3.set_xlabel('States', fontsize=8)
+    ax3.set_ylabel('Actions', fontsize=8)
     ax3.set_xlim(env.state_space_low, env.state_space_high)
     ax3.set_ylim(env.action_space_low, env.action_space_high)
     im_a_table = ax3.imshow(
@@ -733,13 +767,13 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
         origin='lower',
         extent=get_state_action_1d_extent(env),
         cmap=cm.plasma,
-        #aspect='auto',
+        aspect='auto',
     )
 
     # control
-    ax4.set_title(TITLES_FIG['policy'])
-    ax4.set_xlabel('States')
-    ax4.set_ylabel('Actions')
+    ax4.set_title(TITLES_FIG['policy'], fontsize=10)
+    ax4.set_xlabel('States', fontsize=8)
+    ax4.set_ylabel('Actions', fontsize=8)
     ax4.set_xlim(env.state_space_low, env.state_space_high)
     ax4.set_ylim(env.action_space_low, env.action_space_high)
     line_policy_actor = ax4.plot(env.state_space_h, policy_actor)[0]
@@ -768,10 +802,120 @@ def update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_crit
     # update figure frequency
     plt.pause(0.1)
 
-def initialize_replay_buffer_1d_figure(env, replay_buffer):
+def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_hjb, control_hjb):
+    from rl_sde_is.td3_core import load_backup_models
+    from rl_sde_is.approximate_methods import compute_tables_critic, compute_tables_actor_critic
+
+    # get models
+    actor = data['actor']
+    critic = data['critic1']
+
+    # initialize figure with multiple subplots
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(8, 6))
+    ax1, ax2 = axes[:, 0]
+    ax3, ax4 = axes[:, 1]
+    plt.show()
+    fig.canvas.draw()
+    fig.tight_layout(pad=4.0)
+
+    # q table
+    ax1.set_title(TITLES_FIG['q-value-function'])
+    ax1.set_xlabel('States')
+    ax1.set_ylabel('Actions')
+    ax1.set_xlim(env.state_space_low, env.state_space_high)
+    ax1.set_ylim(env.action_space_low, env.action_space_high)
+
+    # a table
+    ax3.set_title(TITLES_FIG['a-value-function'])
+    ax3.set_xlabel('States')
+    ax3.set_ylabel('Actions')
+    ax3.set_xlim(env.state_space_low, env.state_space_high)
+    ax3.set_ylim(env.action_space_low, env.action_space_high)
+
+    # looop to update figures
+    for ep in backup_episodes:
+
+        # load models
+        load_backup_models(data, ep)
+        q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
+        v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
+
+        # update title
+        fig.suptitle('episode: {:d}'.format(ep), fontsize='x-large')
+
+        # q table
+        ax1.imshow(
+            q_table.T,
+            origin='lower',
+            extent=get_state_action_1d_extent(env),
+            cmap=cm.viridis,
+            aspect='auto',
+        )
+
+        # value function
+        ax2.cla()
+        ax2.set_title('Value function')
+        ax2.set_xlabel('States')
+        ax2.set_xlim(env.state_space_low, env.state_space_high)
+        ax2.set_ylim(env.action_space_low, env.action_space_high)
+        ax2.plot(env.state_space_h, v_table_actor_critic)
+        ax2.plot(env.state_space_h, v_table_critic)
+        ax2.plot(env.state_space_h, -value_function_hjb)
+
+        # a table
+        ax3.imshow(
+            a_table.T,
+            origin='lower',
+            extent=get_state_action_1d_extent(env),
+            cmap=cm.plasma,
+            aspect='auto',
+        )
+
+        ax4.cla()
+        ax4.set_title(TITLES_FIG['policy'])
+        ax4.set_xlabel('States')
+        ax4.set_ylabel('Actions')
+        ax4.set_ylim(-0.5, 3)
+        ax4.plot(env.state_space_h, policy_actor)
+        ax4.plot(env.state_space_h, policy_critic)
+        ax4.plot(env.state_space_h, control_hjb[:, 0], color='black', linestyle=':')
+
+        # pause
+        plt.pause(0.01)
+
+        # draw
+        fig.canvas.draw()
+
+def plot_replay_buffer_1d(env, buf_states, buf_actions, buf_max_size):
+    # get state and actions in buffer
+    n_points = buf_states.shape[0]
+
+    # edges
+    x_edges = env.state_space_h[::5]
+    y_edges = env.action_space_h[::5]
+
+    H, _, _ = np.histogram2d(buf_states, buf_actions, bins=(x_edges, y_edges))
 
     # initialize figure
     fig, ax = plt.subplots()
+    ax.set_title('Histogram Replay Buffer (State-action)')
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+
+    image = ax.imshow(
+        H.T,
+        vmin=0,
+        vmax=buf_max_size / 100,
+        interpolation='nearest',
+        origin='lower',
+        extent=get_state_action_1d_extent(env),
+    )
+    plt.show()
+
+def initialize_replay_buffer_1d_figure(env, replay_buffer):
+
+    # initialize figure
+    fig, ax = plt.subplots(figsize=(5, 4))
 
     # turn interactive mode on
     plt.ion()
@@ -788,9 +932,9 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
     H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
 
     # frequency table
-    ax.set_title('Histogram Replay Buffer (State-action)')
-    ax.set_xlabel('States')
-    ax.set_ylabel('Actions')
+    ax.set_title('Histogram Replay Buffer (State-action)', fontsize=10)
+    ax.set_xlabel('States', fontsize=8)
+    ax.set_ylabel('Actions', fontsize=8)
 
     image = ax.imshow(
         H.T,
@@ -799,6 +943,7 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
         interpolation='nearest',
         origin='lower',
         extent=get_state_action_1d_extent(env),
+        aspect='auto',
     )
     plt.show()
 

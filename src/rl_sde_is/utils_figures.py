@@ -11,9 +11,10 @@ COLORS_TAB20c = [plt.cm.tab20c(i) for i in range(20)]
 COLORS_FIG = {
     'hjb': 'black',
 }
+
 TITLES_FIG = {
-    'potential': r'Potential $V_\alpha$',
-    'policy': r'Deterministic Policy $\mu_\theta$',
+    'potential': r'Potential $V_\alpha(s)$',
+    'policy': r'Deterministic policy $\mu_\theta(s)$',
     'value-function': r'$V$',
     'q-value-function': r'Q-value function $Q_\omega(s, a)$',
     'a-value-function': r'Advantage function $A_\omega(s, a)$',
