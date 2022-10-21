@@ -94,8 +94,7 @@ def main():
         n_iterations=args.n_iterations,
         backup_freq_iterations=args.backup_freq_iterations,
         seed=args.seed,
-        control_hjb=sol_hjb.u_opt[:, 0],
-        #control_hjb=None,
+        control_hjb=sol_hjb.u_opt,
         load=args.load,
         plot=args.plot,
     )

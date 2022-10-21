@@ -504,7 +504,7 @@ def plot_det_policy_2d(env, policy, policy_hjb):
 def initialize_det_policy_figure(env, policy, control_hjb):
 
     # initialize figure
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(5, 4))
 
     # turn interactive mode on
     plt.ion()
@@ -549,7 +549,7 @@ def initialize_det_policy_2d_figure(env, policy, policy_hjb):
     _, _, U_hjb, V_hjb = coarse_quiver_arrows(U_hjb, V_hjb, l=25)
 
     # initialize figure
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(5, 4))
     ax.set_title(TITLES_FIG['policy'], fontsize=10)
     ax.set_xlabel(r'$s_1$', fontsize=8)
     ax.set_ylabel(r'$s_2$', fontsize=8)

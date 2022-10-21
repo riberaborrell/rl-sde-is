@@ -201,10 +201,12 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
     # initialize figures if plot:
     if plot and env.d == 1:
-        lines = initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb)
+        lines_actor_critic = initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb)
         tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
+        lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
     elif plot and env.d == 2:
         Q_policy = initialize_2d_figures(env, actor, control_hjb)
+        lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
 
     # save algorithm parameters
     data = {
@@ -230,7 +232,9 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
     # define list to store results
     returns = np.empty(n_episodes)
+    returns.fill(np.nan)
     time_steps = np.empty(n_episodes, dtype=np.int32)
+    time_steps.fill(np.nan)
 
     # preallocate lists to store test results
     test_mean_returns = np.empty((0), dtype=np.float32)
@@ -347,16 +351,19 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             data['test_var_returns'] = test_var_returns
             data['test_mean_lengths'] = test_mean_lengths
             data['test_policy_l2_errors'] = test_policy_l2_errors
+
             save_data(data, rel_dir_path)
 
         # update plots
         if plot and (ep + 1) % 1 == 0:
             if env.d == 1:
-                update_1d_figures(env, actor, critic1, lines)
+                update_1d_figures(env, actor, critic1, lines_actor_critic)
                 update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
+                update_return_and_time_steps_figures(env, returns[:ep], time_steps[:ep], lines_returns)
 
             elif env.d == 2:
                 update_2d_figures(env, actor, Q_policy)
+                update_return_and_time_steps_figures(env, returns[:ep], time_steps[:ep], lines_returns)
 
     data['returns'] = returns
     data['time_steps'] = time_steps

@@ -80,6 +80,8 @@ def main():
     plot_advantage_function(env, a_table)
     plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
 
+    # plot replay buffer
+
     # plot moving averages for each episode
     returns = data['returns']
     run_mean_returns = compute_running_mean(returns, 10)

@@ -248,14 +248,18 @@ class DoubleWellStoppingTime1D():
         # get null action index
         self.get_idx_null_action()
 
-
     def get_state_idx(self, state):
-        return np.argmin(np.abs(self.state_space_h - state), axis=1)
+        idx = np.floor(
+            (np.clip(
+                state,
+                self.state_space_low,
+                self.state_space_high - 2 * self.h_state
+            ) + self.state_space_high) / self.h_state).astype(int)
+        idx = idx[:, 0]
+        return idx
 
-    def get_state_idx_clip(self, state):
-        return np.floor((
-            np.clip(state, self.state_space_low, self.state_space_high - 2 * self.h_state) + self.state_space_high
-        ) / self.h_state).astype(int)
+    def get_state_idx_min(self, state):
+        return np.argmin(np.abs(self.state_space_h - state), axis=1)
 
     def get_action_idx(self, action):
         return np.argmin(np.abs(self.action_space_h - action), axis=1)
