@@ -28,7 +28,7 @@ def main():
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
-    policy_hjb = sol_hjb.u_opt
+    control_hjb = sol_hjb.u_opt
 
     # run td3
     data = td3_episodic(
@@ -48,10 +48,11 @@ def main():
         test_batch_size=1000,
         update_every=10,
         policy_delay=5,
-        noise_scale=2.,
+        noise_scale_init=2.,
+        noise_decay=0.99,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
-        control_hjb=sol_hjb.u_opt,
+        control_hjb=control_hjb,
         load=args.load,
         plot=args.plot,
     )
@@ -72,7 +73,7 @@ def main():
     # compute actor policy
     states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, actor, states)
-    plot_det_policy_2d(env, policy, policy_hjb)
+    plot_det_policy_2d(env, policy, control_hjb)
 
     # plot moving averages for each episode
     returns = data['returns']

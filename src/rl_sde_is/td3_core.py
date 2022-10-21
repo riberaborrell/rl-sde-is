@@ -1,4 +1,5 @@
 from copy import deepcopy
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -142,7 +143,8 @@ def get_action(env, actor, state, noise_scale=0):
 
 def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
                  n_episodes=100, n_steps_episode_lim=1000,
-                 start_steps=0, update_after=5000, update_every=100, policy_delay=50, noise_scale=0,
+                 start_steps=0, update_after=5000, update_every=100, policy_delay=50,
+                 noise_scale_init=0, noise_decay=1.,
                  test_freq_episodes=100, backup_freq_episodes=None,
                  replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
                  rho=0.95, seed=None,
@@ -153,7 +155,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
         env,
         agent='td3-episodic',
         d_hidden_layer=d_hidden_layer,
-        noise_scale=noise_scale,
+        noise_scale=noise_scale_init,
         batch_size=batch_size,
         lr_actor=lr_actor,
         lr_critic=lr_critic,
@@ -218,6 +220,8 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
         'seed': seed,
         'replay_size': replay_size,
         'update_after': update_after,
+        'test_freq_episodes': test_freq_episodes,
+        'test_batch_size': test_batch_size,
         'actor': actor,
         'critic1': critic1,
         'critic2': critic2,
@@ -230,17 +234,38 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     save_model(critic1, rel_dir_path, 'critic1_n-epi{}'.format(0))
     save_model(critic2, rel_dir_path, 'critic2_n-epi{}'.format(0))
 
-    # define list to store results
-    returns = np.empty(n_episodes)
+    # preallocate arrays to store returns, time steps and ct per episode
+    returns = np.empty(n_episodes, dtype=np.float32)
     returns.fill(np.nan)
     time_steps = np.empty(n_episodes, dtype=np.int32)
     time_steps.fill(np.nan)
+    cts = np.empty(n_episodes, dtype=np.float32)
+    cts.fill(np.nan)
 
-    # preallocate lists to store test results
+    # preallocate arrays to store test results
     test_mean_returns = np.empty((0), dtype=np.float32)
     test_var_returns = np.empty((0), dtype=np.float32)
     test_mean_lengths = np.empty((0), dtype=np.float32)
     test_policy_l2_errors = np.empty((0), dtype=np.float32)
+
+    # test initial actor model
+    test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
+            = test_policy_vectorized(env, actor, batch_size=test_batch_size,
+                                     control_hjb=control_hjb)
+    test_mean_returns = np.append(test_mean_returns, test_mean_ret)
+    test_var_returns = np.append(test_var_returns, test_var_ret)
+    test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
+    test_policy_l2_errors = np.append(test_policy_l2_errors, test_policy_l2_error)
+
+    msg = 'ep: {:3d}, test mean return: {:2.2f}, test var return: {:.2e}, ' \
+          'test mean time steps: {:2.2f}, test policy l2 error: {:.2e}'.format(
+              0,
+              test_mean_ret,
+              test_var_ret,
+              test_mean_len,
+              test_policy_l2_error,
+          )
+    print(msg)
 
     # get initial state
     state_init = env.state_init.copy()
@@ -248,9 +273,18 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     # total number of time steps
     k_total = 0
 
+    # set noise scale parameters
+    noise_scales = np.array([
+        noise_scale_init * (noise_decay ** ep)
+        for ep in np.arange(n_episodes)
+    ])
+
     # sample trajectories
     for ep in range(n_episodes):
         print(ep)
+
+        # start timer
+        ct_initial = time.time()
 
         # initialization
         state = env.reset()
@@ -276,7 +310,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, noise_scale)
+                action = get_action(env, actor, state, noise_scales[ep])
 
             # env step
             next_state, r, complete, _ = env.step(state, action)
@@ -309,14 +343,18 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             # update total steps counter
             k_total += 1
 
+        # end timer
+        ct_final = time.time()
+
         # save episode
         returns[ep] = ep_return
         time_steps[ep] = k
+        cts[ep] = ct_final - ct_initial
 
         # logs
         if (ep + 1) % test_freq_episodes == 0:
 
-            # test model
+            # test actor model
             test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
                     = test_policy_vectorized(env, actor, batch_size=test_batch_size,
                                              control_hjb=control_hjb)
@@ -346,6 +384,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             # save test results
             data['returns'] = returns
             data['time_steps'] = time_steps
+            data['cts'] = cts
             data['test_batch_size'] = test_batch_size
             data['test_mean_returns'] = test_mean_returns
             data['test_var_returns'] = test_var_returns
@@ -367,6 +406,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
 
     data['returns'] = returns
     data['time_steps'] = time_steps
+    data['cts'] = cts
     data['test_batch_size'] = test_batch_size
     data['test_mean_returns'] = test_mean_returns
     data['test_var_returns'] = test_var_returns
