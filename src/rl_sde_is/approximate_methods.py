@@ -215,7 +215,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
     done = np.full((batch_size,), False)
 
     # initialize episodes
-    states = env.reset(batch_size=batch_size)
+    states = np.full((batch_size, env.d), env.state_init)
 
     # sample episodes
     for k in np.arange(k_max):

@@ -326,7 +326,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             test_policy_l2_errors = np.append(test_policy_l2_errors, test_policy_l2_error)
 
             msg = 'ep: {:3d}, test mean return: {:2.2f}, test var return: {:.2e}, ' \
-                  'test mean time steps: {:2.2f}, test u l2 error: {:.2e}'.format(
+                  'test mean time steps: {:2.2f}, test policy l2 error: {:.2e}'.format(
                 ep + 1,
                 test_mean_ret,
                 test_var_ret,
