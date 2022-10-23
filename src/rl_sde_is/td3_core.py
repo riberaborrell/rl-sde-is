@@ -17,19 +17,36 @@ from rl_sde_is.utils_path import *
 
 class DeterministicPolicy(nn.Module):
 
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation, action_limit):
         super().__init__()
-        sizes = [state_dim] + list(hidden_sizes) + [action_dim]
-        self.policy = mlp(sizes, activation)
+        self.sizes = [state_dim] + list(hidden_sizes) + [action_dim]
+        self.policy = mlp(self.sizes, activation)
+        self.action_limit = action_limit
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            if module.out_features == self.sizes[-1]:
+                nn.init.uniform_(module.weight, -3e-3, 3e-3)
+                nn.init.uniform_(module.bias, -3e-3, 3e-3)
 
     def forward(self, state):
-        return self.policy.forward(state)
+        action = self.policy.forward(state)
+        return self.action_limit * torch.tanh(action)
 
 class QValueFunction(nn.Module):
 
     def __init__(self, state_dim, action_dim, hidden_sizes, activation):
         super().__init__()
-        self.q = mlp(sizes=[state_dim + action_dim]+list(hidden_sizes)+[1], activation=activation)
+        self.sizes = [state_dim + action_dim] + list(hidden_sizes) + [1]
+        self.q = mlp(self.sizes, activation)
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            if module.out_features == self.sizes[-1]:
+                nn.init.uniform_(module.weight, -3e-4, 3e-4)
+                nn.init.uniform_(module.bias, -3e-4, 3e-4)
 
     def forward(self, state, action):
         q = self.q(torch.cat([state, action], dim=-1))
@@ -38,7 +55,7 @@ class QValueFunction(nn.Module):
 def update_parameters(actor, actor_target, actor_optimizer,
                       critic1, critic_target1, critic2, critic_target2, critic_optimizer,
                       batch, gamma, policy_delay, timer,
-                      rho=0.95, noise_clip=0.1, act_limit=5, target_noise=.1):
+                      rho=0.995, noise_clip=0.1, act_limit=5, target_noise=.1):
 
     # unpack tuples in batch
     states = torch.tensor(batch['state'])
@@ -180,7 +197,8 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     # initialize actor representations
     actor_hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
     actor = DeterministicPolicy(state_dim=d_state_space, action_dim=d_action_space,
-                                hidden_sizes=actor_hidden_sizes, activation=nn.Tanh)
+                                hidden_sizes=actor_hidden_sizes, activation=nn.Tanh,
+                                action_limit=5)
     actor_target = deepcopy(actor)
 
     # initialize critic representations
@@ -196,6 +214,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     actor_optimizer = optim.Adam(actor.parameters(), lr=lr_actor)
     critic_params = list(critic1.parameters()) + list(critic2.parameters())
     critic_optimizer = optim.Adam(critic_params, lr=lr_critic)
+    #critic_optimizer = optim.Adam(critic_params, lr=lr_critic, weight_decay=1e-2)
 
     # initialize replay buffer
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
@@ -219,6 +238,8 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
         'n_episodes': n_episodes,
         'seed': seed,
         'replay_size': replay_size,
+        'replay_states': replay_buffer.state_buf[:replay_buffer.size],
+        'replay_actions': replay_buffer.act_buf[:replay_buffer.size],
         'update_after': update_after,
         'test_freq_episodes': test_freq_episodes,
         'test_batch_size': test_batch_size,
@@ -390,6 +411,8 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
             data['test_var_returns'] = test_var_returns
             data['test_mean_lengths'] = test_mean_lengths
             data['test_policy_l2_errors'] = test_policy_l2_errors
+            data['replay_states'] = replay_buffer.state_buf[:replay_buffer.size]
+            data['replay_actions'] = replay_buffer.act_buf[:replay_buffer.size]
 
             save_data(data, rel_dir_path)
 
@@ -412,6 +435,8 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     data['test_var_returns'] = test_var_returns
     data['test_mean_lengths'] = test_mean_lengths
     data['test_policy_l2_errors'] = test_policy_l2_errors
+    data['replay_states'] = replay_buffer.state_buf[:replay_buffer.size]
+    data['replay_actions'] = replay_buffer.act_buf[:replay_buffer.size]
     save_data(data, rel_dir_path)
     return data
 

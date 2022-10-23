@@ -1,8 +1,8 @@
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.td3_core import *
 from rl_sde_is.plots import *
+from rl_sde_is.td3_core import *
 
 def get_parser():
     parser = get_base_parser()
@@ -41,15 +41,15 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        start_steps=10000,
-        replay_size=100000,
-        update_after=10000,
+        start_steps=int(1e4),
+        replay_size=int(1e6),
+        update_after=int(1e4),
         n_steps_episode_lim=1000,
         test_freq_episodes=100,
         test_batch_size=1000,
-        update_every=10,
-        policy_delay=5,
-        noise_scale_init=2.,
+        update_every=100,
+        policy_delay=2,
+        noise_scale_init=0.,
         noise_decay=0.99,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
@@ -83,6 +83,7 @@ def main():
     plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
 
     # plot replay buffer
+    plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0], data['replay_size'])
 
     # plot moving averages for each episode
     returns = data['returns']
