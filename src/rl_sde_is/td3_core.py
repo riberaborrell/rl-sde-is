@@ -197,18 +197,30 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
 
     # initialize actor representations
     actor_hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-    actor = DeterministicPolicy(state_dim=d_state_space, action_dim=d_action_space,
-                                hidden_sizes=actor_hidden_sizes, activation=nn.Tanh(),
-                                action_limit=action_limit)
+    actor = DeterministicPolicy(
+        state_dim=d_state_space,
+        action_dim=d_action_space,
+        hidden_sizes=actor_hidden_sizes,
+        activation=nn.Tanh(),
+        action_limit=action_limit,
+    )
     actor_target = deepcopy(actor)
 
     # initialize critic representations
     critic_hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-    critic1 = QValueFunction(state_dim=d_state_space, action_dim=d_action_space,
-                            hidden_sizes=critic_hidden_sizes, activation=nn.Tanh())
+    critic1 = QValueFunction(
+        state_dim=d_state_space,
+        action_dim=d_action_space,
+        hidden_sizes=critic_hidden_sizes,
+        activation=nn.Tanh()
+    )
     critic_target1 = deepcopy(critic1)
-    critic2 = QValueFunction(state_dim=d_state_space, action_dim=d_action_space,
-                            hidden_sizes=critic_hidden_sizes, activation=nn.Tanh())
+    critic2 = QValueFunction(
+        state_dim=d_state_space,
+        action_dim=d_action_space,
+        hidden_sizes=critic_hidden_sizes,
+        activation=nn.Tanh()
+    )
     critic_target2 = deepcopy(critic2)
 
     # set optimizers
@@ -220,15 +232,6 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     # initialize replay buffer
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
                                  size=replay_size)
-
-    # initialize figures if plot:
-    if plot and env.d == 1:
-        lines_actor_critic = initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb)
-        tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
-        lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
-    elif plot and env.d == 2:
-        Q_policy = initialize_2d_figures(env, actor, control_hjb)
-        lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
 
     # save algorithm parameters
     data = {
@@ -256,7 +259,9 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     save_model(critic1, rel_dir_path, 'critic1_n-epi{}'.format(0))
     save_model(critic2, rel_dir_path, 'critic2_n-epi{}'.format(0))
 
-    # preallocate arrays to store returns, time steps and ct per episode
+    # preallocate arrays
+
+    # returns, time steps and ct per episode
     returns = np.empty(n_episodes, dtype=np.float32)
     returns.fill(np.nan)
     time_steps = np.empty(n_episodes, dtype=np.int32)
@@ -264,7 +269,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     cts = np.empty(n_episodes, dtype=np.float32)
     cts.fill(np.nan)
 
-    # preallocate arrays to store test results
+    # test mean, variance and mean length of the returns and l2 error after each epoch
     test_mean_returns = np.empty((0), dtype=np.float32)
     test_var_returns = np.empty((0), dtype=np.float32)
     test_mean_lengths = np.empty((0), dtype=np.float32)
@@ -300,6 +305,16 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
         noise_scale_init * (noise_decay ** ep)
         for ep in np.arange(n_episodes)
     ])
+
+    # initialize figures if plot:
+    if plot and env.d == 1:
+        lines_actor_critic = initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb)
+        tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
+        lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
+    elif plot and env.d == 2:
+        Q_policy = initialize_2d_figures(env, actor, control_hjb)
+        lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
+
 
     # sample trajectories
     for ep in range(n_episodes):
@@ -373,10 +388,9 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
         time_steps[ep] = k
         cts[ep] = ct_final - ct_initial
 
-        # logs
+        # test actor model
         if (ep + 1) % test_freq_episodes == 0:
 
-            # test actor model
             test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
                     = test_policy_vectorized(env, actor, batch_size=test_batch_size,
                                              control_hjb=control_hjb)
@@ -407,7 +421,6 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
             data['returns'] = returns
             data['time_steps'] = time_steps
             data['cts'] = cts
-            data['test_batch_size'] = test_batch_size
             data['test_mean_returns'] = test_mean_returns
             data['test_var_returns'] = test_var_returns
             data['test_mean_lengths'] = test_mean_lengths
@@ -431,7 +444,6 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     data['returns'] = returns
     data['time_steps'] = time_steps
     data['cts'] = cts
-    data['test_batch_size'] = test_batch_size
     data['test_mean_returns'] = test_mean_returns
     data['test_var_returns'] = test_var_returns
     data['test_mean_lengths'] = test_mean_lengths

@@ -29,7 +29,7 @@ class DeterministicPolicy(nn.Module):
         action = self.policy.forward(state)
         return self.action_limit * torch.tanh(action)
 
-def sample_loss_vectorized(env, model, K, control_hjb=None):
+def sample_loss_vectorized(env, model, K):
 
     # max time steps
     dt = env.dt_tensor
@@ -49,12 +49,6 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
 
     # preallocate time steps
     time_steps = np.empty(K)
-
-    # preallocate hjb policy l2 error
-    policy_l2_error_fht = np.empty(K)
-    policy_l2_error_fht.fill(np.nan)
-    if control_hjb is not None:
-        policy_l2_error_t = np.zeros(K)
 
     # are episodes done
     already_done = torch.full((K,), False)
@@ -77,18 +71,6 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
             dbt[:, :, np.newaxis],
         ).squeeze()
 
-        # computer running u l2 error
-        if control_hjb is not None:
-
-            # hjb control
-            idx_states = env.get_state_idx(states.detach().numpy())
-            actions_hjb = control_hjb[idx_states]
-
-            # update running u l2 error
-            policy_l2_error_t += (
-                np.linalg.norm(actions.detach().numpy() - actions_hjb, axis=1) ** 2
-            ) * env.dt
-
         # get indices of trajectories which are new to the target set
         idx = env.get_idx_new_in_ts_torch(done, already_done)
 
@@ -103,10 +85,6 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
             # time steps
             time_steps[idx] = k
 
-            # fix policy l2 error
-            if control_hjb is not None:
-                policy_l2_error_fht[idx] = policy_l2_error_t[idx]
-
         # stop if xt_traj in target set
         if already_done.all() == True:
            break
@@ -120,8 +98,7 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
     # end timer
     ct_final = time.time()
 
-    return eff_loss, return_fht.detach().numpy(), time_steps, \
-           policy_l2_error_fht.mean(), ct_final - ct_initial
+    return eff_loss, return_fht.detach().numpy(), time_steps, ct_final - ct_initial
 
 def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
               batch_size=1000, lr=1e-3, n_iterations=100, test_batch_size=1000,
@@ -150,38 +127,23 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
         np.random.seed(seed)
         torch.manual_seed(seed)
 
-
     # get dimensions of each layer
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
     # initialize nn model 
-    model = DeterministicPolicy(state_dim=env.state_space_dim, action_dim=env.action_space_dim,
-                                hidden_sizes=d_hidden_layers, activation=nn.Tanh(),
-                                action_limit=action_limit)
+    model = DeterministicPolicy(
+        state_dim=env.state_space_dim,
+        action_dim=env.action_space_dim,
+        hidden_sizes=d_hidden_layers,
+        activation=nn.Tanh(),
+        action_limit=action_limit,
+    )
 
     # define optimizer
     optimizer = optim.Adam(
         model.parameters(),
         lr=lr,
     )
-
-    # preallocate arrays
-    losses = np.empty(n_iterations)
-    exp_returns = np.empty(n_iterations)
-    var_returns = np.empty(n_iterations)
-    exp_time_steps = np.empty(n_iterations)
-    policy_l2_errors = np.empty(n_iterations)
-    cts = np.empty(n_iterations)
-    losses.fill(np.nan)
-    exp_returns.fill(np.nan)
-    var_returns.fill(np.nan)
-    exp_time_steps.fill(np.nan)
-    policy_l2_errors.fill(np.nan)
-    cts.fill(np.nan)
-
-    # preallocate list of returns and time steps
-    returns = np.empty(0, dtype=np.float32)
-    time_steps = np.empty(0, dtype=np.int32)
 
     # save algorithm parameters
     data = {
@@ -192,6 +154,8 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
         'n_iterations': n_iterations,
         'seed': seed,
         'backup_freq_iterations': backup_freq_iterations,
+        'test_freq_iterations': test_freq_iterations,
+        'test_batch_size': test_batch_size,
         'model': model,
         'rel_dir_path': rel_dir_path,
     }
@@ -199,6 +163,48 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
 
     # save model initial parameters
     save_model(model, rel_dir_path, 'model_n-it{}'.format(0))
+
+
+    # preallocate arrays
+
+    # returns and time steps for each episode
+    returns = np.empty(0, dtype=np.float32)
+    time_steps = np.empty(0, dtype=np.int32)
+
+    # losses, expected returns, variances of returns and ct for each gradient step
+    losses = np.empty(n_iterations)
+    exp_returns = np.empty(n_iterations)
+    var_returns = np.empty(n_iterations)
+    cts = np.empty(n_iterations)
+    losses.fill(np.nan)
+    exp_returns.fill(np.nan)
+    var_returns.fill(np.nan)
+    cts.fill(np.nan)
+
+    # test mean, variance and mean length of the returns and l2 error after each epoch
+    test_mean_returns = np.empty((0), dtype=np.float32)
+    test_var_returns = np.empty((0), dtype=np.float32)
+    test_mean_lengths = np.empty((0), dtype=np.float32)
+    test_policy_l2_errors = np.empty((0), dtype=np.float32)
+
+    # test initial model
+    test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
+            = test_policy_vectorized(env, model, batch_size=test_batch_size,
+                                     control_hjb=control_hjb)
+    test_mean_returns = np.append(test_mean_returns, test_mean_ret)
+    test_var_returns = np.append(test_var_returns, test_var_ret)
+    test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
+    test_policy_l2_errors = np.append(test_policy_l2_errors, test_policy_l2_error)
+
+    msg = 'it.: {:3d}, test mean return: {:2.2f}, test var return: {:.2e}, ' \
+          'test mean time steps: {:2.2f}, test policy l2 error: {:.2e}'.format(
+              0,
+              test_mean_ret,
+              test_var_ret,
+              test_mean_len,
+              test_policy_l2_error,
+          )
+    print(msg)
 
     # initialize live figures
     if plot and env.d == 1:
@@ -212,8 +218,8 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
         optimizer.zero_grad()
 
         # compute effective loss
-        eff_loss, batch_returns, batch_time_steps, policy_l2_error, ct \
-                = sample_loss_vectorized(env, model, batch_size, control_hjb)
+        eff_loss, batch_returns, batch_time_steps, ct \
+                = sample_loss_vectorized(env, model, batch_size)
         eff_loss.backward()
 
         # update parameters
@@ -225,22 +231,40 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
         losses[i] = eff_loss.detach().numpy()
         exp_returns[i] = np.mean(batch_returns)
         var_returns[i] = np.var(batch_returns)
-        exp_time_steps[i] = np.mean(batch_time_steps)
-        policy_l2_errors[i] = policy_l2_error
         cts[i] = ct
 
         msg = 'it.: {:2d}, loss: {:.3e}, exp return: {:.3e}, var return: {:.1e}, ' \
-              'avg ts: {:.3e}, policy l2-error: {:.2e}, ct: {:.3f}' \
+              'ct: {:.3f}' \
               ''.format(
                   i,
                   losses[i],
                   exp_returns[i],
                   var_returns[i],
-                  exp_time_steps[i],
-                  policy_l2_error,
                   ct,
               )
         print(msg)
+
+        # test model
+        if (i + 1) % test_freq_iterations == 0:
+
+            test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
+                    = test_policy_vectorized(env, model, batch_size=test_batch_size,
+                                             control_hjb=control_hjb)
+            test_mean_returns = np.append(test_mean_returns, test_mean_ret)
+            test_var_returns = np.append(test_var_returns, test_var_ret)
+            test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
+            test_policy_l2_errors = np.append(test_policy_l2_errors, test_policy_l2_error)
+
+            msg = 'it.: {:3d}, test mean return: {:2.2f}, test var return: {:.2e}, ' \
+                  'test mean time steps: {:2.2f}, test policy l2 error: {:.2e}'.format(
+                i + 1,
+                test_mean_ret,
+                test_var_ret,
+                test_mean_len,
+                test_policy_l2_error,
+            )
+            print(msg)
+
 
         # backupa models and results
         if backup_freq_iterations is not None and (i + 1) % backup_freq_iterations == 0:
@@ -254,9 +278,11 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
             data['losses'] = losses
             data['exp_returns'] = exp_returns
             data['var_returns'] = var_returns
-            data['exp_time_steps'] = exp_time_steps
-            data['policy_l2_errors'] = policy_l2_errors
             data['cts'] = cts
+            data['test_mean_returns'] = test_mean_returns
+            data['test_var_returns'] = test_var_returns
+            data['test_mean_lengths'] = test_mean_lengths
+            data['test_policy_l2_errors'] = test_policy_l2_errors
             save_data(data, rel_dir_path)
 
         # update figure
@@ -273,9 +299,11 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
     data['losses'] = losses
     data['exp_returns'] = exp_returns
     data['var_returns'] = var_returns
-    data['exp_time_steps'] = exp_time_steps
-    data['policy_l2_errors'] = policy_l2_errors
     data['cts'] = cts
+    data['test_mean_returns'] = test_mean_returns
+    data['test_var_returns'] = test_var_returns
+    data['test_mean_lengths'] = test_mean_lengths
+    data['test_policy_l2_errors'] = test_policy_l2_errors
     save_data(data, rel_dir_path)
     return data
 

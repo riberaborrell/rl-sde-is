@@ -155,6 +155,13 @@ def get_base_parser():
         help='Set number last episodes to averaged the statistics. Default: 100',
     )
     parser.add_argument(
+        '--test-freq-episodes',
+        dest='test_freq_episodes',
+        type=int,
+        default=10,
+        help='Set frequency of model tests in terms of number of episodes. Default: 10',
+    )
+    parser.add_argument(
         '--backup-freq-episodes',
         dest='backup_freq_episodes',
         type=int,
@@ -173,6 +180,13 @@ def get_base_parser():
         type=int,
         default=10,
         help='Set number last iterations to averaged the statistics. Default: 10',
+    )
+    parser.add_argument(
+        '--test-freq-iterations',
+        dest='test_freq_iterations',
+        type=int,
+        default=10,
+        help='Set frequency of model tests in terms of number of iterations. Default: 10',
     )
     parser.add_argument(
         '--backup-freq-iterations',

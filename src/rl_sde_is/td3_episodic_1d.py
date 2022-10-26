@@ -45,7 +45,7 @@ def main():
         replay_size=int(1e6),
         update_after=int(1e5),
         n_steps_episode_lim=1000,
-        test_freq_episodes=100,
+        test_freq_episodes=args.test_freq_episodes,
         test_batch_size=1000,
         update_every=100,
         policy_delay=5,
