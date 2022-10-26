@@ -1,27 +1,33 @@
 import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
 
 from rl_sde_is.approximate_methods import *
-from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.models import mlp
 from rl_sde_is.plots import *
 from rl_sde_is.utils_path import *
 
 class DeterministicPolicy(nn.Module):
 
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation, action_limit):
         super().__init__()
-        sizes = [state_dim] + list(hidden_sizes) + [action_dim]
-        self.policy = mlp(sizes=sizes, activation=activation, output_activation=nn.Identity)
+        self.sizes = [state_dim] + list(hidden_sizes) + [action_dim]
+        self.policy = mlp(sizes=self.sizes, activation=activation)
+        self.action_limit = action_limit
+        self.apply(self.init_last_layer_weights)
+
+    def init_last_layer_weights(self, module):
+        if isinstance(module, nn.Linear):
+            if module.out_features == self.sizes[-1]:
+                nn.init.uniform_(module.weight, -3e-3, 3e-3)
+                nn.init.uniform_(module.bias, -3e-3, 3e-3)
 
     def forward(self, state):
-        return self.policy.forward(state)
+        action = self.policy.forward(state)
+        return self.action_limit * torch.tanh(action)
 
 def sample_loss_vectorized(env, model, K, control_hjb=None):
 
@@ -117,14 +123,16 @@ def sample_loss_vectorized(env, model, K, control_hjb=None):
     return eff_loss, return_fht.detach().numpy(), time_steps, \
            policy_l2_error_fht.mean(), ct_final - ct_initial
 
-def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
-              batch_size=1000, lr=1e-3, n_iterations=100, backup_freq_iterations=None, seed=None,
+def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
+              batch_size=1000, lr=1e-3, n_iterations=100, test_batch_size=1000,
+              test_freq_iterations=100, backup_freq_iterations=None, seed=None,
               control_hjb=None, load=False, plot=False):
 
     # get dir path
     rel_dir_path = get_reinforce_det_dir_path(
         env,
         agent='reinforce-deterministic',
+        gamma=gamma,
         d_hidden_layer=d_hidden_layer,
         batch_size=batch_size,
         lr=lr,
@@ -148,7 +156,8 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
 
     # initialize nn model 
     model = DeterministicPolicy(state_dim=env.state_space_dim, action_dim=env.action_space_dim,
-                                hidden_sizes=d_hidden_layers, activation=nn.Tanh)
+                                hidden_sizes=d_hidden_layers, activation=nn.Tanh(),
+                                action_limit=action_limit)
 
     # define optimizer
     optimizer = optim.Adam(
@@ -173,7 +182,6 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=256,
     # preallocate list of returns and time steps
     returns = np.empty(0, dtype=np.float32)
     time_steps = np.empty(0, dtype=np.int32)
-
 
     # save algorithm parameters
     data = {

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-def mlp(sizes, activation, output_activation=nn.Identity):
+def mlp(sizes, activation, output_activation=nn.Identity()):
 
     # preallocate layers list
     layers = []
@@ -12,7 +12,7 @@ def mlp(sizes, activation, output_activation=nn.Identity):
         act = activation if j < len(sizes)-2 else output_activation
 
         # linear layer
-        layers += [nn.Linear(sizes[j], sizes[j+1]), act()]
+        layers += [nn.Linear(sizes[j], sizes[j+1]), act]
 
     # Sequential model with given layers
     return nn.Sequential(*layers)

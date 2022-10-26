@@ -22,9 +22,9 @@ class DeterministicPolicy(nn.Module):
         self.sizes = [state_dim] + list(hidden_sizes) + [action_dim]
         self.policy = mlp(self.sizes, activation)
         self.action_limit = action_limit
-        self.apply(self._init_weights)
+        self.apply(self.init_last_layer_weights)
 
-    def _init_weights(self, module):
+    def init_last_layer_weights(self, module):
         if isinstance(module, nn.Linear):
             if module.out_features == self.sizes[-1]:
                 nn.init.uniform_(module.weight, -3e-3, 3e-3)
@@ -40,9 +40,9 @@ class QValueFunction(nn.Module):
         super().__init__()
         self.sizes = [state_dim + action_dim] + list(hidden_sizes) + [1]
         self.q = mlp(self.sizes, activation)
-        self.apply(self._init_weights)
+        self.apply(self.init_last_layer_weights)
 
-    def _init_weights(self, module):
+    def init_last_layer_weights(self, module):
         if isinstance(module, nn.Linear):
             if module.out_features == self.sizes[-1]:
                 nn.init.uniform_(module.weight, -3e-4, 3e-4)
@@ -55,7 +55,7 @@ class QValueFunction(nn.Module):
 def update_parameters(actor, actor_target, actor_optimizer,
                       critic1, critic_target1, critic2, critic_target2, critic_optimizer,
                       batch, gamma, policy_delay, timer,
-                      rho=0.995, noise_clip=0.1, act_limit=5, target_noise=.1):
+                      rho=0.995, noise_clip=0.5, act_limit=5, target_noise=0.2):
 
     # unpack tuples in batch
     states = torch.tensor(batch['state'])
@@ -158,7 +158,7 @@ def get_action(env, actor, state, noise_scale=0):
     return action
 
 
-def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
+def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
                  n_episodes=100, n_steps_episode_lim=1000,
                  start_steps=0, update_after=5000, update_every=100, policy_delay=50,
                  noise_scale_init=0, noise_decay=1.,
@@ -168,9 +168,10 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
                  value_function_hjb=None, control_hjb=None, load=False, plot=False):
 
     # get dir path
-    rel_dir_path = get_ddpg_dir_path(
+    rel_dir_path = get_td3_dir_path(
         env,
         agent='td3-episodic',
+        gamma=gamma,
         d_hidden_layer=d_hidden_layer,
         noise_scale=noise_scale_init,
         batch_size=batch_size,
@@ -197,17 +198,17 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3,
     # initialize actor representations
     actor_hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
     actor = DeterministicPolicy(state_dim=d_state_space, action_dim=d_action_space,
-                                hidden_sizes=actor_hidden_sizes, activation=nn.Tanh,
-                                action_limit=5)
+                                hidden_sizes=actor_hidden_sizes, activation=nn.Tanh(),
+                                action_limit=action_limit)
     actor_target = deepcopy(actor)
 
     # initialize critic representations
     critic_hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
     critic1 = QValueFunction(state_dim=d_state_space, action_dim=d_action_space,
-                            hidden_sizes=critic_hidden_sizes, activation=nn.Tanh)
+                            hidden_sizes=critic_hidden_sizes, activation=nn.Tanh())
     critic_target1 = deepcopy(critic1)
     critic2 = QValueFunction(state_dim=d_state_space, action_dim=d_action_space,
-                            hidden_sizes=critic_hidden_sizes, activation=nn.Tanh)
+                            hidden_sizes=critic_hidden_sizes, activation=nn.Tanh())
     critic_target2 = deepcopy(critic2)
 
     # set optimizers
