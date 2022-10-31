@@ -326,7 +326,10 @@ def get_td3_dir_path(env, **kwargs):
     param_str = get_initial_point_str(env) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
-              + 'noise-scale{:.1e}_'.format(kwargs['noise_scale']) \
+              + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
+              + 'policy-delay{:d}_'.format(kwargs['policy_delay']) \
+              + 'target-noise{:.1f}_'.format(kwargs['target_noise']) \
+              + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
               + 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) \

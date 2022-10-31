@@ -27,12 +27,13 @@ class DeterministicPolicy(nn.Module):
     def init_last_layer_weights(self, module):
         if isinstance(module, nn.Linear):
             if module.out_features == self.sizes[-1]:
-                nn.init.uniform_(module.weight, -3e-3, 3e-3)
-                nn.init.uniform_(module.bias, -3e-3, 3e-3)
+                nn.init.uniform_(module.weight, -5e-3, 5e-3)
+                nn.init.uniform_(module.bias, -5e-3, 5e-3)
 
     def forward(self, state):
-        action = self.policy.forward(state)
-        return self.action_limit * torch.tanh(action)
+        return self.policy.forward(state)
+        #action = self.policy.forward(state)
+        #return self.action_limit * torch.tanh(action)
 
 class QValueFunction(nn.Module):
 
@@ -45,8 +46,8 @@ class QValueFunction(nn.Module):
     def init_last_layer_weights(self, module):
         if isinstance(module, nn.Linear):
             if module.out_features == self.sizes[-1]:
-                nn.init.uniform_(module.weight, -3e-4, 3e-4)
-                nn.init.uniform_(module.bias, -3e-4, 3e-4)
+                nn.init.uniform_(module.weight, -5e-4, 5e-4)
+                nn.init.uniform_(module.bias, -5e-4, 5e-4)
 
     def forward(self, state, action):
         q = self.q(torch.cat([state, action], dim=-1))
@@ -55,7 +56,7 @@ class QValueFunction(nn.Module):
 def update_parameters(actor, actor_target, actor_optimizer,
                       critic1, critic_target1, critic2, critic_target2, critic_optimizer,
                       batch, gamma, policy_delay, timer,
-                      rho=0.995, noise_clip=0.5, act_limit=5, target_noise=0.2):
+                      noise_clip=0., action_limit=5, target_noise=0., polyak=0.995):
 
     # unpack tuples in batch
     states = torch.tensor(batch['state'])
@@ -83,9 +84,9 @@ def update_parameters(actor, actor_target, actor_optimizer,
 
         # target policy smoothing
         epsilon = torch.randn_like(next_actions) * target_noise
-        epsilon = torch.clamp(epsilon, -noise_clip, noise_clip)
+        #epsilon = torch.clamp(epsilon, -noise_clip, noise_clip)
         next_actions_smoothed = next_actions + epsilon
-        next_actions_smoothed = torch.clamp(next_actions_smoothed, -act_limit, act_limit)
+        next_actions_smoothed = torch.clamp(next_actions_smoothed, -action_limit, action_limit)
 
         # q value for the corresponding next pair of states and actions (using target networks)
         q_vals_next1 = critic_target1.forward(next_states, next_actions_smoothed)
@@ -135,13 +136,13 @@ def update_parameters(actor, actor_target, actor_optimizer,
         # update actor and critic target networks "softly”
         with torch.no_grad():
             for param, target_param in zip(actor.parameters(), actor_target.parameters()):
-                target_param.data.copy_(target_param.data * rho + param.data * (1. - rho))
+                target_param.data.copy_(target_param.data * polyak + param.data * (1. - polyak))
 
             for param, target_param in zip(critic1.parameters(), critic_target1.parameters()):
-                target_param.data.copy_(target_param.data * rho + param.data * (1. - rho))
+                target_param.data.copy_(target_param.data * polyak + param.data * (1. - polyak))
 
             for param, target_param in zip(critic2.parameters(), critic_target2.parameters()):
-                target_param.data.copy_(target_param.data * rho + param.data * (1. - rho))
+                target_param.data.copy_(target_param.data * polyak + param.data * (1. - polyak))
 
         #return actor_loss.detach().item(), critic_loss.detach().item()
 
@@ -160,11 +161,10 @@ def get_action(env, actor, state, noise_scale=0):
 
 def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
                  n_episodes=100, n_steps_episode_lim=1000,
-                 start_steps=0, update_after=5000, update_every=100, policy_delay=50,
-                 noise_scale_init=0, noise_decay=1.,
-                 test_freq_episodes=100, backup_freq_episodes=None,
-                 replay_size=50000, batch_size=512, lr_actor=1e-4, lr_critic=1e-4, test_batch_size=1000,
-                 rho=0.95, seed=None,
+                 start_steps=0, expl_noise_init=0.1, expl_noise_decay=1., replay_size=50000,
+                 batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
+                 update_after=5000, update_every=100, policy_delay=50, target_noise=0.2, polyak=0.95,
+                 test_freq_episodes=100, test_batch_size=1000, backup_freq_episodes=None,
                  value_function_hjb=None, control_hjb=None, load=False, plot=False):
 
     # get dir path
@@ -173,7 +173,10 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
         agent='td3-episodic',
         gamma=gamma,
         d_hidden_layer=d_hidden_layer,
-        noise_scale=noise_scale_init,
+        expl_noise_init=expl_noise_init,
+        target_noise=target_noise,
+        policy_delay=policy_delay,
+        polyak=polyak,
         batch_size=batch_size,
         lr_actor=lr_actor,
         lr_critic=lr_critic,
@@ -236,15 +239,26 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     # save algorithm parameters
     data = {
         'gamma' : gamma,
-        'batch_size' : batch_size,
-        'lr_actor' : lr_actor,
-        'lr_critic' : lr_critic,
+        'd_hidden_layer': d_hidden_layer,
+        'n_layers': n_layers,
+        'action_limit': action_limit,
         'n_episodes': n_episodes,
-        'seed': seed,
+        'n_steps_episode_lim': n_steps_episode_lim,
+        'start_steps': start_steps,
+        'expl_noise_init': expl_noise_init,
+        'expl_noise_decay': expl_noise_decay,
         'replay_size': replay_size,
         'replay_states': replay_buffer.state_buf[:replay_buffer.size],
         'replay_actions': replay_buffer.act_buf[:replay_buffer.size],
+        'batch_size' : batch_size,
+        'lr_actor' : lr_actor,
+        'lr_critic' : lr_critic,
+        'seed': seed,
         'update_after': update_after,
+        'update_every': update_every,
+        'policy_delay': policy_delay,
+        'target_noise': target_noise,
+        'polyak': polyak,
         'test_freq_episodes': test_freq_episodes,
         'test_batch_size': test_batch_size,
         'actor': actor,
@@ -301,8 +315,8 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     k_total = 0
 
     # set noise scale parameters
-    noise_scales = np.array([
-        noise_scale_init * (noise_decay ** ep)
+    expl_noises = np.array([
+        expl_noise_init * (expl_noise_decay ** ep)
         for ep in np.arange(n_episodes)
     ])
 
@@ -347,7 +361,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, noise_scales[ep])
+                action = get_action(env, actor, state, expl_noises[ep])
 
             # env step
             next_state, r, complete, _ = env.step(state, action)
@@ -368,7 +382,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
                     update_parameters(
                         actor, actor_target, actor_optimizer,
                         critic1, critic_target1, critic2, critic_target2, critic_optimizer,
-                        batch, gamma, policy_delay, l,
+                        batch, gamma, policy_delay, l, target_noise=target_noise, polyak=polyak,
                     )
 
             # save action and reward

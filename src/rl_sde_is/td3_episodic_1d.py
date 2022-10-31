@@ -41,16 +41,18 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        start_steps=int(1e5),
+        start_steps=int(1e4),
         replay_size=int(1e6),
-        update_after=int(1e5),
+        update_after=int(1e4),
         n_steps_episode_lim=1000,
+        update_every=100,
+        expl_noise_init=args.expl_noise_init,
+        expl_noise_decay=1.,
+        policy_delay=args.policy_delay,
+        target_noise=args.target_noise,
+        polyak=args.polyak,
         test_freq_episodes=args.test_freq_episodes,
         test_batch_size=1000,
-        update_every=100,
-        policy_delay=5,
-        noise_scale_init=2.,
-        noise_decay=0.99,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=control_hjb,
@@ -77,10 +79,18 @@ def main():
     # compute value function and actions following the policy model
     v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
 
-    plot_q_value_function(env, q_table)
-    plot_value_function_actor_critic(env, v_table_actor_critic, v_table_critic, sol_hjb.value_function)
-    plot_advantage_function(env, a_table)
-    plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
+    # load initial models
+    load_backup_models(data, ep=0)
+
+    # get initial policy
+    _, policy_actor_init = compute_tables_actor_critic(env, actor, critic1)
+
+    plot_q_value_function_1d(env, q_table)
+    plot_value_function_1d_actor_critic(env, v_table_actor_critic,
+                                        v_table_critic, sol_hjb.value_function)
+    plot_advantage_function_1d(env, a_table)
+    plot_det_policy_1d_actor_critic(env, policy_actor_init, policy_actor,
+                                    policy_critic, sol_hjb.u_opt)
 
     # plot replay buffer
     plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0], data['replay_size'])

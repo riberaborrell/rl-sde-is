@@ -22,12 +22,13 @@ class DeterministicPolicy(nn.Module):
     def init_last_layer_weights(self, module):
         if isinstance(module, nn.Linear):
             if module.out_features == self.sizes[-1]:
-                nn.init.uniform_(module.weight, -3e-3, 3e-3)
-                nn.init.uniform_(module.bias, -3e-3, 3e-3)
+                nn.init.uniform_(module.weight, -5e-3, 5e-3)
+                nn.init.uniform_(module.bias, -5e-3, 5e-3)
 
     def forward(self, state):
-        action = self.policy.forward(state)
-        return self.action_limit * torch.tanh(action)
+        return self.policy.forward(state)
+        #action = self.policy.forward(state)
+        #return self.action_limit * torch.tanh(action)
 
 def sample_loss_vectorized(env, model, K):
 

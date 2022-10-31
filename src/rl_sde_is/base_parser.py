@@ -258,6 +258,34 @@ def get_base_parser():
         help='Set dimension of the hidden layers. Default: 32',
     )
     parser.add_argument(
+        '--expl-noise-init',
+        dest='expl_noise_init',
+        type=float,
+        default=0.1,
+        help='Set initial exploration noise. Default: 0.1',
+    )
+    parser.add_argument(
+        '--policy-delay',
+        dest='policy_delay',
+        type=int,
+        default=2,
+        help='Set actor update frequency with respect to the critic update. Default: 2',
+    )
+    parser.add_argument(
+        '--target-noise',
+        dest='target_noise',
+        type=float,
+        default=0.2,
+        help='Set target noise for smoothing. Default: 0.2',
+    )
+    parser.add_argument(
+        '--polyak',
+        dest='polyak',
+        type=float,
+        default=0.995,
+        help='Set polyak parameter for soft target updates. Default: 0.995',
+    )
+    parser.add_argument(
         '--dense',
         dest='is_dense',
         action='store_true',
