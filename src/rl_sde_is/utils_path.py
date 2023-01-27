@@ -48,6 +48,7 @@ def load_data(rel_dir_path):
         for file_name in data.keys():
             if data[file_name].ndim == 0:
                 data[file_name] = data[file_name].item()
+        data['rel_dir_path'] = rel_dir_path
         return data
     except FileNotFoundError as e:
         print(e)
