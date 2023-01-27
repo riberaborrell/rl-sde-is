@@ -16,7 +16,7 @@ def test_q(test_env, q_table, batch_size=100):
     time_steps = np.zeros(batch_size)
 
     # reset environment
-    states = test_env.reset_vectorized(batch_size)
+    states = test_env.reset(batch_size)
 
     # terminal state flag
     done = np.full((batch_size, 1), False)

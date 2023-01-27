@@ -129,7 +129,7 @@ def q_learning(env, gamma=1., lr=0.01, n_episodes=1000, n_avg_episodes=10, n_ste
         time_steps[ep] = k
         avg_time_steps[ep] = np.mean(time_steps[idx_last_episodes])
 
-        # update plots
+        # update figures
         update_episodes_figures(env, returns, avg_returns, time_steps, avg_time_steps, tuples_episodes)
         v_table, a_table, policy = compute_tables(env, q_table)
         update_q_learning_figures(env, q_table, v_table, a_table, policy, tuples_q_learning)

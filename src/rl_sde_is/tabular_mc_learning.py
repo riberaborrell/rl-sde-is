@@ -40,7 +40,7 @@ def mc_learning(env, gamma=1., epsilons=None, constant_alpha=False, alpha=0.01,
         rewards = np.empty(0)
 
         # terminal state flag
-        complete = False
+        done = False
 
         # get epsilon
         epsilon = epsilons[ep]
@@ -49,7 +49,7 @@ def mc_learning(env, gamma=1., epsilons=None, constant_alpha=False, alpha=0.01,
         for k in np.arange(n_steps_lim):
 
             # interrupt if we are in a terminal state
-            if complete:
+            if done:
                 break
 
             # save state
@@ -62,7 +62,7 @@ def mc_learning(env, gamma=1., epsilons=None, constant_alpha=False, alpha=0.01,
             idx_action, action = get_epsilon_greedy_action(env, q_table, idx_state, epsilon)
 
             # step dynamics forward
-            new_state, r, complete = env.step(state, action)
+            new_state, r, done, _ = env.step(state, action)
 
             # save action and reward
             rewards = np.append(rewards, r)

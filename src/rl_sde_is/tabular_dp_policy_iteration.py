@@ -35,8 +35,8 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10, load
     policy = np.random.randint(env.n_actions, size=env.n_states)
 
     # set values for the target set
-    v_table[env.idx_lb:env.idx_rb+1] = 0
-    policy[env.idx_lb:] = env.idx_null_action
+    v_table[env.idx_ts] = 0
+    policy[env.idx_ts] = env.idx_null_action
 
     # get index initial state
     idx_state_init = env.get_state_idx(env.state_init)

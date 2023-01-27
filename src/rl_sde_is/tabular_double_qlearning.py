@@ -75,13 +75,13 @@ def double_q_learning(env, gamma=1., lr=0.01,  n_episodes=1000, n_avg_episodes=1
         rewards = np.empty(0)
 
         # terminal state flag
-        complete = False
+        done = False
 
         # sample episode
         for k in np.arange(n_steps_lim):
 
             # interrupt if we are in a terminal state
-            if complete:
+            if done:
                 break
 
             # get index of the state
@@ -97,7 +97,7 @@ def double_q_learning(env, gamma=1., lr=0.01,  n_episodes=1000, n_avg_episodes=1
             idx = (idx_state, idx_action,)
 
             # step dynamics forward
-            new_state, r, complete = env.step(state, action)
+            new_state, r, done, _ = env.step(state, action)
             idx_new_state = env.get_state_idx(new_state)
 
             # update q values
