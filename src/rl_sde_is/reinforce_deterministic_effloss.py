@@ -48,7 +48,7 @@ def sample_loss_vectorized(env, model, K):
         actions = model.forward(states)
 
         # step dynamics forward
-        next_states, rewards, done, dbt = env.step_vectorized_torch(states, actions)
+        next_states, rewards, done, dbt = env.step_torch(states, actions)
 
         # update work with running cost
         work_t = work_t + env.f(states) * dt

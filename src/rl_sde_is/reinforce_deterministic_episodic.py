@@ -47,7 +47,7 @@ def reinforce(env, return_estimator='total-rewards', gamma=0.99, n_layers=3, d_h
         raise ValueError
 
     # get dir path
-    dir_path = get_reinforce_det_dir_path(
+    dir_path = get_reinforce_det_dir_path_old(
         env,
         agent='reinforce-det-episodic_' + return_estimator,
         batch_size=batch_size,

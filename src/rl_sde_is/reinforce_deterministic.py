@@ -63,6 +63,77 @@ def get_reward_following_action(ep_rewards):
 def get_reward_following_action_with_baseline(ep_rewards, ep_states, value_function):
     pass
 
+def sample_trajectories_vectorized(env, model, K):
+
+    # max time steps
+    dt = env.dt_tensor
+    k_max = 10**6
+
+    # initialize trajectories
+    states = torch.FloatTensor(env.reset_vectorized(batch_size=K))
+
+    # initialize work and running integral
+    batch_states = torch.empty((0,), dtype=torch.float32)
+    batch_states = torch.zeros(K)
+    batch_actions = torch.empty(K)
+    batch_rewards = torch.zeros(K)
+    batch_brownian_increments = torch.empty(K)
+
+    # preallocate time steps
+    time_steps = np.empty(K)
+
+    been_in_target_set = torch.full((K, 1), False)
+    done = torch.full((K, 1), False)
+
+    for k in np.arange(1, k_max + 1):
+
+        # actions
+        actions = model.forward(states)
+
+        # step dynamics forward
+        next_states, rewards, done, dbt = env.step_vectorized_torch(states, actions)
+
+        # update work with running cost
+        work_t = work_t + env.f(states) * dt
+
+        # update deterministic integral
+        det_int_t = det_int_t + (torch.linalg.norm(actions, axis=1) ** 2) * dt
+
+        # update stochastic integral
+        stoch_int_t = stoch_int_t + torch.matmul(
+            actions[:, np.newaxis, :],
+            dbt[:, :, np.newaxis],
+        ).squeeze()
+
+        # get indices of trajectories which are new to the target set
+        idx = env.get_idx_new_in_ts_torch(done, been_in_target_set)
+
+        if idx.shape[0] != 0:
+
+            # update work with final cost
+            work_t = work_t + env.g(states)
+
+            # fix work running integral
+            work_fht[idx] = work_t.index_select(0, idx)
+
+            # fix running integrals
+            det_int_fht[idx] = det_int_t.index_select(0, idx)
+            stoch_int_fht[idx] = stoch_int_t.index_select(0, idx)
+
+            # time steps
+            time_steps[idx] = k
+
+        # stop if xt_traj in target set
+        if been_in_target_set.all() == True:
+           break
+
+        # update states
+        states = next_states
+
+    # compute cost functional (loss)
+    phi_fht = (work_fht + 0.5 * det_int_fht).detach()
+
+
 def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
               batch_size=10, lr=0.01, n_episodes=2000, seed=1,
               value_function_hjb=None, control_hjb=None, load=False, plot=False):
@@ -93,8 +164,59 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
     # get dimensions of each layer
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
+    # initialize nn model 
     model = FeedForwardNN(d_in=env.state_space_dim, hidden_sizes=d_hidden_layers,
                           d_out=env.action_space_dim)
+
+    # define optimizer
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr=lr,
+    )
+
+    # preallocate arrays
+    run_avg_returns = np.empty(n_iterations)
+    avgs_time_steps = np.empty(n_iterations)
+    cts = np.empty(n_iterations)
+
+    for i in np.arange(n_iterations):
+
+        # reset gradients
+        optimizer.zero_grad()
+
+        # sample trajectories vectorized
+        batch_states, batch_actions, batch_rewards, batch_brownian_increments \
+                = sample_episodes_vectorized(env, model, batch_size)
+
+
+        # compute effective loss and relative entropy loss (phi_fht)
+        #eff_loss, phi_fht, mean_I_u, var_I_u, re_I_u, time_steps, ct = sample_loss_vectorized(env, model, batch_size)
+        #eff_loss.backward()
+
+        # update parameters
+        #optimizer.step()
+
+        # compute loss and variance
+        #loss = np.mean(phi_fht)
+        #var = np.var(phi_fht)
+
+        # average time steps
+        avg_time_steps = np.mean(time_steps)
+
+        msg = 'it.: {:2d}, loss: {:.3e}, var: {:.1e}, mean I^u: {:.3e}, var I^u: {:.1e}, ' \
+              're I^u: {:.1e}, avg ts: {:.3e}, ct: {:.3f}' \
+              ''.format(i, loss, var, mean_I_u, var_I_u, re_I_u, avg_time_steps, ct)
+        print(msg)
+
+        # save statistics
+        losses[i] = loss
+        var_losses[i] = var
+        means_I_u[i] = mean_I_u
+        vars_I_u[i] = var_I_u
+        res_I_u[i] = re_I_u
+        avgs_time_steps[i] = avg_time_steps
+        cts[i] = ct
+
 
     # preallocate lists to hold results
     batch_states = torch.empty((0,), dtype=torch.float32)
@@ -107,12 +229,6 @@ def reinforce(env, gamma=0.99, n_layers=3, d_hidden_layer=30,
     batch_counter = 0
     returns = []
     time_steps = []
-
-    # define optimizer
-    optimizer = optim.Adam(
-        model.parameters(),
-        lr=lr,
-    )
 
     for ep in np.arange(n_episodes):
 
