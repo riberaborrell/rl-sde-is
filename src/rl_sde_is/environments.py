@@ -2,9 +2,6 @@ import numpy as np
 import scipy.stats as stats
 import torch
 
-from sde.langevin_sde import LangevinSDE
-from hjb.hjb_solver import SolverHJB
-
 class DoubleWellStoppingTime1D():
 
     def __init__(self, beta=1., alpha=1., dt=0.005, is_state_init_sampled=False):
@@ -249,6 +246,18 @@ class DoubleWellStoppingTime1D():
         self.get_idx_null_action()
 
     def get_state_idx(self, state):
+
+        # array convertion
+        state = np.asarray(state)
+
+        # scalar input
+        if state.ndim == 0:
+            state = state[np.newaxis, np.newaxis]
+
+        # array input
+        elif state.ndim == 1:
+            state = state[np.newaxis]
+
         idx = np.floor(
             (np.clip(
                 state,
@@ -262,6 +271,17 @@ class DoubleWellStoppingTime1D():
         return np.argmin(np.abs(self.state_space_h - state), axis=1)
 
     def get_action_idx(self, action):
+        # array convertion
+        action = np.asarray(action)
+
+        # scalar input
+        if action.ndim == 0:
+            action = action[np.newaxis, np.newaxis]
+
+        # array input
+        elif action.ndim == 1:
+            action = action[np.newaxis]
+
         return np.argmin(np.abs(self.action_space_h - action), axis=1)
 
     def get_idx_state_init(self):
@@ -287,19 +307,21 @@ class DoubleWellStoppingTime1D():
         return greedy_actions
 
     def get_hjb_solver(self, h_hjb=0.001):
+        from sde_hjb_solver.controlled_sde_1d import DoubleWellStoppingTime1D as SDE1D
+        from sde_hjb_solver.hjb_solver_1d_st import SolverHJB1D
 
-        # initialize Langevin sde
-        sde = LangevinSDE(
-            problem_name='langevin_stop-t',
-            potential_name='nd_2well',
-            d=1,
-            alpha=self.alpha * np.ones(1),
+        # initialize controlled sde object
+        sde = SDE1D(
             beta=self.beta,
-            domain=np.full((1, 2), [-2, 2]),
+            alpha=self.alpha,
+            domain=(-2,  2),
+            target_set=(1, 2),
         )
 
+        # initialize hjb solver object
+        sol_hjb = SolverHJB1D(sde, h=1e-2)
+
         # load  hjb solver
-        sol_hjb = SolverHJB(sde, h=h_hjb)
         sol_hjb.load()
 
         # if hjb solver has different discretization step coarse solution
@@ -307,7 +329,7 @@ class DoubleWellStoppingTime1D():
 
             # discretization step ratio
             k = int(self.h_state / sol_hjb.sde.h)
-            assert self.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
+            assert self.state_space_h.shape == sol_hjb.u_opt[::k].shape, ''
 
             sol_hjb.value_function = sol_hjb.value_function[::k]
             sol_hjb.u_opt = sol_hjb.u_opt[::k]

@@ -319,14 +319,14 @@ def initialize_1d_figures(env, model, control_hjb):
 
     state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
     initial_policy = compute_det_policy_actions(env, model, state_space_h).squeeze()
-    policy_line = initialize_det_policy_figure(env, initial_policy, control_hjb_plot)
+    policy_line = initialize_det_policy_1d_figure(env, initial_policy, control_hjb_plot)
 
     return policy_line
 
 def update_1d_figures(env, model, policy_line):
     states = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
     policy = compute_det_policy_actions(env, model, states)
-    update_det_policy_figure(env, policy, policy_line)
+    update_det_policy_1d_figure(env, policy, policy_line)
 
 def initialize_2d_figures(env, model, policy_hjb):
     states = torch.FloatTensor(env.state_space_h)

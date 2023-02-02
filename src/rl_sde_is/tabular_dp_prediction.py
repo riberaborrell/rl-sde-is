@@ -3,7 +3,7 @@ import numpy as np
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.dynammic_programming import compute_p_tensor_batch, compute_r_table
 from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.plots import plot_value_function
+from rl_sde_is.plots import plot_value_function_1d
 from rl_sde_is.utils_path import *
 
 def get_parser():
@@ -15,7 +15,7 @@ def policy_evaluation(env, policy, gamma=1.0, n_iterations=100, n_avg_iterations
     ''' Dynamic programming policy evaluation.
     '''
     # get dir path
-    dir_path = get_dynamic_programming_dir_path(
+    rel_dir_path = get_dynamic_programming_dir_path(
         env,
         agent='dp-prediction',
         n_iterations=n_iterations,
@@ -37,7 +37,7 @@ def policy_evaluation(env, policy, gamma=1.0, n_iterations=100, n_avg_iterations
     v_table[env.idx_lb:env.idx_rb+1] = 0
 
     # get index initial state
-    idx_state_init = env.get_state_idx(env.state_init)
+    idx_state_init = env.get_state_idx(env.state_init).item()
 
     # for each iteration
     for i in np.arange(n_iterations):
@@ -69,7 +69,7 @@ def policy_evaluation(env, policy, gamma=1.0, n_iterations=100, n_avg_iterations
         'n_iterations': n_iterations,
         'v_table' : v_table,
     }
-    save_data(dir_path, data)
+    save_data(data, rel_dir_path)
 
     return data
 
@@ -103,7 +103,7 @@ def main():
     )
 
     # do plots
-    plot_value_function(env, data['v_table'], sol_hjb.value_function)
+    plot_value_function_1d(env, data['v_table'], sol_hjb.value_function)
 
 
 if __name__ == '__main__':

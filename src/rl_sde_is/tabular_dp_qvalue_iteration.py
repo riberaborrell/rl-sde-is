@@ -40,7 +40,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
     q_table[env.idx_ts] = 0
 
     # get index x_init
-    idx_state_init = env.get_state_idx(env.state_init)
+    idx_state_init = env.get_state_idx(env.state_init).item()
 
     # initialize live figures
     if plot:
@@ -121,10 +121,10 @@ def main():
     v_table, a_table, policy_greedy = compute_tables(env, q_table)
 
     # do plots
-    plot_q_value_function(env, q_table)
-    plot_value_function(env, v_table, sol_hjb.value_function)
-    plot_advantage_function(env, a_table)
-    plot_det_policy(env, policy_greedy, sol_hjb.u_opt)
+    plot_q_value_function_1d(env, q_table)
+    plot_value_function_1d(env, v_table, sol_hjb.value_function)
+    plot_advantage_function_1d(env, a_table)
+    plot_det_policy_1d(env, policy_greedy, sol_hjb.u_opt)
 
 
 if __name__ == '__main__':

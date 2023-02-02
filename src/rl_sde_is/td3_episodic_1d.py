@@ -82,14 +82,18 @@ def main():
     # load initial models
     load_backup_models(data, ep=0)
 
-    # get initial policy
-    _, policy_actor_init = compute_tables_actor_critic(env, actor, critic1)
+    # compute tables following q-value model
+    _, v_table_critic_init, _, policy_critic_init = compute_tables_critic(env, critic1)
+
+    # compute value function and actions following the policy model
+    v_table_actor_critic_init, policy_actor_init = compute_tables_actor_critic(env, actor, critic1)
+
 
     plot_q_value_function_1d(env, q_table)
-    plot_value_function_1d_actor_critic(env, v_table_actor_critic,
-                                        v_table_critic, sol_hjb.value_function)
-    plot_advantage_function_1d(env, a_table)
-    plot_det_policy_1d_actor_critic(env, policy_actor_init, policy_actor,
+    plot_value_function_1d_actor_critic(env, v_table_critic_init, v_table_critic,
+                                        v_table_actor_critic, sol_hjb.value_function)
+    plot_advantage_function_1d(env, a_table, policy_critic)
+    plot_det_policy_1d_actor_critic(env, policy_actor_init, policy_critic_init, policy_actor,
                                     policy_critic, sol_hjb.u_opt)
 
     # plot replay buffer

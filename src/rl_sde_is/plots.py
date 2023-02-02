@@ -345,7 +345,7 @@ def plot_advantage_function_1d(env, a_table, policy_critic=None, vmin=None):
 def plot_value_function_1d(env, value_function, value_function_hjb, loc=None):
 
     fig, ax = plt.subplots()
-    ax.set_title('Value function')
+    ax.set_title(TITLES_FIG['value-function'])
     ax.set_xlabel('States')
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
 
@@ -465,7 +465,7 @@ def plot_det_policy_1d(env, policy, control_hjb, loc=None):
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
 
     ax.plot(env.state_space_h, policy)
-    ax.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
+    ax.plot(env.state_space_h, control_hjb, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
     ax.legend(loc=loc)
     plt.show()
 
@@ -526,7 +526,7 @@ def plot_det_policy_1d_actor_critic(env, policy_actor_initial, policy_critic_ini
     ax.plot(x, policy_actor, label=r'actor: $\mu_\theta(s)$', c='tab:green')
     ax.plot(x, policy_critic, label=r'critic: $\mu_\omega(s) = argmax_a Q_\omega(s, a)$',
             c='tab:orange')
-    ax.plot(x, control_hjb[:, 0], label=r'hjb', color='black', linestyle=':')
+    ax.plot(x, control_hjb, label=r'hjb', color='black', linestyle=':')
     ax.legend(loc=loc)
     plt.show()
 
