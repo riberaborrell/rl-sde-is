@@ -1,3 +1,5 @@
+# copy config_template.py file to config.py
+
 # set the absolute path of the project directory
 PROJECT_ROOT_DIR = '/project/abs/path'
 

@@ -1,7 +1,7 @@
 # data files
 data/
 
-# config files
+# config file
 src/rl_sde_is/config.py
 
 # notebooks
@@ -30,3 +30,6 @@ venv/
 
 # pycharm idea
 .idea/
+
+# Store
+*.DS_Store
