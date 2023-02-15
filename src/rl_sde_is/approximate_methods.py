@@ -187,7 +187,7 @@ def test_policy(env, model, batch_size=10):
                 action = model.forward(torch.FloatTensor(state)).numpy()
 
             # step forwards dynamics
-            state, r, done = env.step(state, action)
+            state, r, done, _ = env.step(state, action)
 
             # save reward + time steps
             ep_ret += r

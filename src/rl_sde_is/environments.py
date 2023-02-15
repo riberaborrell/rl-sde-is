@@ -167,7 +167,7 @@ class DoubleWellStoppingTime1D():
             - 0.5 * np.power(actions[idx], 2) * self.dt - self.f(states[idx]) * self.dt,
         )
 
-        return next_states, rewards, done
+        return next_states, rewards, done, dbt
 
     def step_torch(self, state, action):
 

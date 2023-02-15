@@ -203,6 +203,16 @@ def plot_time_steps_epochs(time_steps):
     #plt.legend()
     plt.show()
 
+def plot_value_rms_error_epochs(rms_errors, ylim=None):
+    fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['value-rms-error'])
+    ax.set_xlabel('Epochs')
+    #ax.set_xlim(0, l2_errors.shape[0])
+    ax.plot(rms_errors)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    plt.show()
+
 def plot_det_policy_l2_error_epochs(l2_errors, ylim=None):
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['policy-l2-error'])

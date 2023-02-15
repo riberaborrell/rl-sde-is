@@ -65,6 +65,20 @@ def load_model(model, rel_dir_path, file_name):
     model.load_state_dict(torch.load(os.path.join(get_data_dir(), rel_dir_path, file_name)))
 
 
+def get_rel_dir_path(env, algorithm_name, param_str):
+
+    # relative directory path
+    rel_dir_path = os.path.join(
+        env.name,
+        algorithm_name,
+        param_str,
+    )
+
+    # create dir path if not exists
+    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
+
+    return rel_dir_path
+
 def get_initial_point_str(env):
     if not env.is_state_init_sampled:
         initial_point_str = 'init-state{:2.1f}_'.format(env.state_init[0, 0].item())
@@ -116,18 +130,7 @@ def get_agent_dir_path(env, **kwargs):
               + 'n-episodes{:.0e}_'.format(kwargs['n_episodes']) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
-
-    # set dir path
-    rel_dir_path = os.path.join(
-        env.name,
-        'agent-{}'.format(kwargs['agent']),
-        param_str,
-    )
-
-    # create dir path if not exists
-    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
-
-    return rel_dir_path
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
 def get_dynamic_programming_dir_path(env, **kwargs):
     '''
@@ -138,19 +141,37 @@ def get_dynamic_programming_dir_path(env, **kwargs):
               + 'dt{:.0e}_'.format(env.dt) \
               + 'n-it{:.0e}'.format(kwargs['n_iterations'])
 
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
-    # set dir path
-    rel_dir_path = os.path.join(
-        env.name,
-        kwargs['agent'],
-        param_str,
-    )
+def get_tabular_td_prediction_dir_path(env, **kwargs):
+    '''
+    '''
 
-    # create dir path if not exists
-    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
+    # set parameters string
+    param_str = 'h-state{:.0e}_'.format(env.h_state) \
+              + 'h-action{:.0e}_'.format(env.h_action) \
+              + 'dt{:.0e}_'.format(env.dt) \
+              + get_initial_point_str(env) \
+              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + 'K{:.0e}'.format(kwargs['n_episodes'])
 
-    return rel_dir_path
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
+def get_tabular_mc_prediction_dir_path(env, **kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'h-state{:.0e}_'.format(env.h_state) \
+              + 'h-action{:.0e}_'.format(env.h_action) \
+              + 'dt{:.0e}_'.format(env.dt) \
+              + get_initial_point_str(env) \
+              + 'K{:.0e}'.format(kwargs['n_episodes'])
+
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
+
+
+#TODO: check
 def get_sarsa_lambda_dir_path(env, **kwargs):
     '''
     '''
@@ -161,20 +182,11 @@ def get_sarsa_lambda_dir_path(env, **kwargs):
               + 'lr{:1.2f}_'.format(kwargs['lr']) \
               + 'lambda{:0.1f}_'.format(kwargs['lam']) \
               + get_eps_str(**kwargs) \
-              + 'K{:.0e}_'.format(kwargs['n_episodes'])
+              + 'K{:.0e}'.format(kwargs['n_episodes'])
 
-    dir_path = os.path.join(
-        get_data_dir(),
-        env.name,
-        'sarsa-lambda',
-        param_str,
-    )
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
-    # create dir path if not exists
-    make_dir_path(dir_path)
-
-    return dir_path
-
+#TODO: check
 def get_qlearning_dir_path(env, **kwargs):
     '''
     '''
@@ -185,63 +197,42 @@ def get_qlearning_dir_path(env, **kwargs):
               + get_initial_point_str(env) \
               + 'lr{:1.2f}_'.format(kwargs['lr']) \
               + get_eps_str(**kwargs) \
-              + 'K{:.0e}_'.format(kwargs['n_episodes'])
+              + 'K{:.0e}'.format(kwargs['n_episodes'])
 
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
-    dir_path = os.path.join(
-        get_data_dir(),
-        env.name,
-        kwargs['agent'],
-        param_str,
-    )
-
-    # create dir path if not exists
-    make_dir_path(dir_path)
-
-    return dir_path
-
+#TODO: check
 def get_qlearning_batch_dir_path(env, **kwargs):
     '''
     '''
 
-    dir_path = os.path.join(
-        get_data_dir(),
-        env.name,
-        kwargs['agent'],
-        'h-state{:.0e}_'.format(env.h_state),
-        'h-action{:.0e}_'.format(env.h_action),
-        get_initial_point_str(env),
-        'lr{:1.2f}_'.format(kwargs['lr']),
-        get_eps_str(**kwargs),
-        'epochs{:.0e}_'.format(kwargs['n_epochs']),
-        'K{:.0e}_'.format(kwargs['batch_size']),
-    )
+    # set parameters string
+    param_str = 'h-state{:.0e}_'.format(env.h_state) \
+              + 'h-action{:.0e}_'.format(env.h_action) \
+              + get_initial_point_str(env) \
+              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + get_eps_str(**kwargs) \
+              + 'epochs{:.0e}_'.format(kwargs['n_epochs']) \
+              + 'K{:.0e}'.format(kwargs['n_episodes'])
 
-    # create dir path if not exists
-    make_dir_path(dir_path)
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
-    return dir_path
-
+#TODO: revise
 def get_dqn_dir_path(env, **kwargs):
     '''
     '''
 
-    dir_path = os.path.join(
-        get_data_dir(),
-        env.name,
-        kwargs['agent'],
-        'h-action{:.0e}_'.format(env.h_action),
-        get_initial_point_str(env),
-        'lr{:.1e}_'.format(kwargs['lr']),
-        'epochs{:.0e}_'.format(kwargs['n_epochs']),
-        'K{:.0e}_'.format(kwargs['batch_size']),
-    )
+    # set parameters string
+    param_str = 'h-action{:.0e}_'.format(env.h_action) \
+              + 'dt{:.0e}_'.format(env.dt) \
+              + get_initial_point_str(env) \
+              + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + get_iter_str(**kwargs) \
+              + 'K{:.0e}'.format(kwargs['batch_size']) \
 
-    # create dir path if not exists
-    make_dir_path(dir_path)
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
-    return dir_path
-
+#TODO: revise
 def get_reinforce_stoch_dir_path(env, **kwargs):
     '''
     '''
@@ -258,17 +249,8 @@ def get_reinforce_stoch_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
-    dir_path = os.path.join(
-        get_data_dir(),
-        env.name,
-        kwargs['agent'],
-        param_str,
-    )
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
-    # create dir path if not exists
-    make_dir_path(dir_path)
-
-    return dir_path
 
 def get_reinforce_det_dir_path(env, **kwargs):
     '''
@@ -282,16 +264,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
-    rel_dir_path = os.path.join(
-        env.name,
-        kwargs['agent'],
-        param_str,
-    )
-
-    # create dir path if not exists
-    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
-
-    return rel_dir_path
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
 def get_ddpg_dir_path(env, **kwargs):
     '''
@@ -308,16 +281,7 @@ def get_ddpg_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
-    rel_dir_path = os.path.join(
-        env.name,
-        kwargs['agent'],
-        param_str,
-    )
-
-    # create dir path if not exists
-    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
-
-    return rel_dir_path
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
 
 def get_td3_dir_path(env, **kwargs):
     '''
@@ -337,13 +301,4 @@ def get_td3_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + 'seed{:1d}'.format(kwargs['seed'])
 
-    rel_dir_path = os.path.join(
-        env.name,
-        kwargs['agent'],
-        param_str,
-    )
-
-    # create dir path if not exists
-    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
-
-    return rel_dir_path
+    return get_rel_dir_path(env, kwargs['agent'], param_str)

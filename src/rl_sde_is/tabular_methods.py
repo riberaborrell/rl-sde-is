@@ -108,3 +108,11 @@ def compute_tables(env, q_table):
     greedy_policy[env.idx_ts] = env.idx_null_action
 
     return v_table, a_table, greedy_policy
+
+def compute_rms_error(table, appr_table):
+
+    # get number of states
+    n_states = table.shape[0]
+
+    return np.linalg.norm(table - appr_table) / np.sqrt(n_states)
+    # return np.linalg.norm(table - appr_table)

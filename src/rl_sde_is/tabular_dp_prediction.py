@@ -3,7 +3,8 @@ import numpy as np
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.dynammic_programming import compute_p_tensor_batch, compute_r_table
 from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.plots import plot_value_function_1d
+from rl_sde_is.plots import *
+from tabular_methods import compute_rms_error
 from rl_sde_is.utils_path import *
 
 def get_parser():
@@ -11,7 +12,8 @@ def get_parser():
     parser.description = ''
     return parser
 
-def policy_evaluation(env, policy, gamma=1.0, n_iterations=100, n_avg_iterations=10, load=False):
+def policy_evaluation(env, policy, value_function, gamma=1.0,
+                      n_iterations=100, n_avg_iterations=10, load=False):
     ''' Dynamic programming policy evaluation.
     '''
     # get dir path
@@ -23,7 +25,7 @@ def policy_evaluation(env, policy, gamma=1.0, n_iterations=100, n_avg_iterations
 
     # load results
     if load:
-        data = load_data(dir_path)
+        data = load_data(rel_dir_path)
         return data
 
     # compute p tensor and r table
@@ -38,6 +40,9 @@ def policy_evaluation(env, policy, gamma=1.0, n_iterations=100, n_avg_iterations
 
     # get index initial state
     idx_state_init = env.get_state_idx(env.state_init).item()
+
+    # preallocate value function rms errors
+    v_rms_errors = np.empty(n_iterations)
 
     # for each iteration
     for i in np.arange(n_iterations):
@@ -60,14 +65,19 @@ def policy_evaluation(env, policy, gamma=1.0, n_iterations=100, n_avg_iterations
                                    v_table_i[np.arange(env.n_states)],
                                )
 
+        # compute root mean square error of value function
+        v_rms_errors[i] = compute_rms_error(value_function, v_table)
+
         # logs
         if i % n_avg_iterations == 0:
-            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[idx_state_init])
+            msg = 'it: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}' \
+                  ''.format(i, v_table[idx_state_init], v_rms_errors[i])
             print(msg)
 
     data = {
         'n_iterations': n_iterations,
         'v_table' : v_table,
+        'v_rms_errors' : v_rms_errors,
     }
     save_data(data, rel_dir_path)
 
@@ -92,10 +102,11 @@ def main():
         for idx_state, _ in enumerate(env.state_space_h)
     ])
 
-    # run mc learning agent following optimal policy
+    # run dynammic programming policy evaluation of the optimal policy
     data = policy_evaluation(
         env,
-        policy,
+        policy=policy,
+        value_function=-sol_hjb.value_function,
         gamma=args.gamma,
         n_iterations=args.n_iterations,
         n_avg_iterations=args.n_avg_iterations,
@@ -103,7 +114,11 @@ def main():
     )
 
     # do plots
+    policy = env.action_space_h[policy]
+    plot_det_policy_1d(env, policy, sol_hjb.u_opt)
     plot_value_function_1d(env, data['v_table'], sol_hjb.value_function)
+    plot_value_function_1d(env, data['v_table'], sol_hjb.value_function)
+    plot_value_rms_error_epochs(data['v_rms_errors'])
 
 
 if __name__ == '__main__':

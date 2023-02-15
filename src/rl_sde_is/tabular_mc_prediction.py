@@ -1,32 +1,36 @@
-# first-visit mc prediction (sutton and barto)
-
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.tabular_learning import *
+from rl_sde_is.plots import *
+from rl_sde_is.tabular_methods import compute_rms_error
+from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
 
-def plot_value_function(env, v_table, value_f_hjb):
 
-    # discretize state space
-    x = env.state_space_h
+def mc_prediction(env, policy, value_function, gamma=1.0, n_episodes=100, n_avg_episodes=10,
+                  n_steps_lim=1000, first_visit=False, load=False):
 
-    fig, ax = plt.subplots()
-    ax.plot(x, -v_table)
-    ax.plot(x, value_f_hjb)
-    #fig.set_ylim(-100, 0)
-    plt.show()
-
-
-def mc_prediction(env, policy, gamma=1.0, n_episodes=100, n_avg_episodes=10,
-                  n_steps_lim=1000, first_visit=False):
+    ''' Monte Carlo learning for policy evaluation. First-visit and every-visit
+        implementation (Sutton and Barto)
     '''
-    '''
+
+    # get dir path
+    rel_dir_path = get_tabular_mc_prediction_dir_path(
+        env,
+        agent='tabular-mc-prediction',
+        n_episodes=n_episodes,
+    )
+
+    # load results
+    if load:
+        data = load_data(rel_dir_path)
+        return data
+
     # initialize value function table and returns
     v_table = -np.random.rand(env.n_states)
     returns_table = [[] for i in range(env.n_states)]
@@ -34,11 +38,14 @@ def mc_prediction(env, policy, gamma=1.0, n_episodes=100, n_avg_episodes=10,
     # set values for the target set
     v_table[env.idx_lb:env.idx_rb+1] = 0
 
+    # get index initial state
+    idx_state_init = env.get_state_idx(env.state_init).item()
+
     # preallocate returns and time steps
-    returns = np.empty(n_episodes)
-    avg_returns = np.empty(n_episodes)
     time_steps = np.empty(n_episodes, dtype=np.int32)
-    avg_time_steps = np.empty(n_episodes)
+
+    # preallocate value function rms errors
+    v_rms_errors = np.empty(n_episodes)
 
     # for each episode
     for ep in np.arange(n_episodes):
@@ -67,14 +74,14 @@ def mc_prediction(env, policy, gamma=1.0, n_episodes=100, n_avg_episodes=10,
 
             # get index of the state
             idx_state = env.get_state_idx(state)
-            idx_states.append(idx_state)
+            idx_states.append(idx_state.item())
 
             # choose action following the given policy
             idx_action = policy[idx_state]
-            action = env.action_space_h[[idx_action]]
+            action = env.action_space_h[idx_action]
 
             # step dynamics forward
-            new_state, r, done = env.step(state, action)
+            new_state, r, done, _ = env.step(state, action)
 
             # save reward
             rewards = np.append(rewards, r)
@@ -103,37 +110,36 @@ def mc_prediction(env, policy, gamma=1.0, n_episodes=100, n_avg_episodes=10,
                 # update v table
                 v_table[idx_state] = np.mean(returns_table[idx_state])
 
-        # save episode return
-        returns[ep] = ret
-
-        # get indices episodes to averaged
-        if ep < n_avg_episodes:
-            idx_last_episodes = slice(0, ep + 1)
-        else:
-            idx_last_episodes = slice(ep + 1 - n_avg_episodes, ep + 1)
-
-        # save episode
-        avg_returns[ep] = np.mean(returns[idx_last_episodes])
-        avg_time_steps[ep] = np.mean(time_steps[idx_last_episodes])
+        # compute root mean square error of value function
+        v_rms_errors[ep] = compute_rms_error(value_function, v_table)
 
         # logs
         if ep % n_avg_episodes == 0:
-            msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
-                  'run avg time steps: {:2.2f}'.format(
+            msg = 'ep: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}'.format(
                     ep,
-                    v_table[env.idx_state_init],
-                    avg_returns[ep],
-                    avg_time_steps[ep],
+                    v_table[idx_state_init],
+                    v_rms_errors[ep],
                 )
             print(msg)
 
-    return returns, avg_returns, time_steps, avg_time_steps, v_table
+    data = {
+        'n_episodes': n_episodes,
+        'v_table' : v_table,
+        'v_rms_errors' : v_rms_errors,
+    }
+    save_data(data, rel_dir_path)
+
+    return data
 
 def main():
     args = get_parser().parse_args()
 
     # initialize environments
     env = DoubleWellStoppingTime1D()
+
+    # set explorable starts flag
+    if args.explorable_starts:
+        env.is_state_init_sampled = True
 
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
@@ -149,18 +155,23 @@ def main():
     ])
 
     # run mc learning agent following optimal policy
-    info = mc_prediction(
+    data = mc_prediction(
         env,
-        policy,
+        policy=policy,
+        value_function=-sol_hjb.value_function,
         gamma=args.gamma,
         n_steps_lim=args.n_steps_lim,
         n_episodes=args.n_episodes,
         n_avg_episodes=args.n_avg_episodes,
+        first_visit=True,
+        load=args.load,
     )
 
-    returns, avg_returns, time_steps, avg_time_steps, v_table = info
-
-    plot_value_function(env, v_table, value_f_hjb=sol_hjb.value_function)
+    # do plots
+    policy = env.action_space_h[policy]
+    #plot_det_policy_1d(env, policy, sol_hjb.u_opt)
+    plot_value_function_1d(env, data['v_table'], sol_hjb.value_function)
+    plot_value_rms_error_epochs(data['v_rms_errors'])
 
 
 

@@ -18,6 +18,8 @@ TITLES_FIG = {
     'value-function': r'Value function $V_\omega(s)$',
     'q-value-function': r'Q-value function $Q_\omega(s, a)$',
     'a-value-function': r'Advantage function $A_\omega(s, a)$',
+    'value-rms-error': r'RMS Error of $V(s)$',
+    'policy-rms-error': r'RMS Error of $\pi(s)$',
     'policy-l2-error': r'Estimation of $L^2(\mu_\theta)$',
     'loss': r'$\widehat{J}(\mu_\theta)$',
     'returns': r'Return $G_0(\tau)$',
