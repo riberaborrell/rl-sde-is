@@ -12,8 +12,8 @@ def get_parser():
     return parser
 
 
-def mc_prediction(env, policy, value_function, gamma=1.0, n_episodes=100, n_avg_episodes=10,
-                  n_steps_lim=1000, first_visit=False, load=False):
+def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
+                  first_visit=False, policy=None, value_function=None, load=False):
 
     ''' Monte Carlo learning for policy evaluation. First-visit and every-visit
         implementation (Sutton and Barto)

@@ -12,8 +12,9 @@ def get_parser():
     parser.description = ''
     return parser
 
-def policy_evaluation(env, policy, value_function, gamma=1.0,
-                      n_iterations=100, n_avg_iterations=10, load=False):
+def policy_evaluation(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
+                      policy=None, value_function=None, load=False):
+
     ''' Dynamic programming policy evaluation.
     '''
     # get dir path

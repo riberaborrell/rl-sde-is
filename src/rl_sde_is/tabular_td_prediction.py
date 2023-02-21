@@ -11,8 +11,8 @@ def get_parser():
     parser.description = ''
     return parser
 
-def td_prediction(env, policy, value_function, gamma=1.0, n_episodes=100,
-                  n_avg_episodes=10, n_steps_lim=1000, lr=0.01, load=False):
+def td_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
+                  lr=0.01, policy=None, value_function=None, load=False):
 
     ''' Temporal difference learning for policy evaluation.
     '''
@@ -51,10 +51,6 @@ def td_prediction(env, policy, value_function, gamma=1.0, n_episodes=100,
         # get index of the state
         idx_state = env.get_state_idx(state)
 
-        # choose action following the given policy
-        idx_action = policy[idx_state]
-        action = env.action_space_h[idx_action]
-
         # reset trajectory rewards
         rewards = np.empty(0)
 
@@ -67,6 +63,10 @@ def td_prediction(env, policy, value_function, gamma=1.0, n_episodes=100,
             # interrupt if we are in a terminal state
             if complete:
                 break
+
+            # choose action following the given policy
+            idx_action = policy[idx_state]
+            action = env.action_space_h[idx_action]
 
             # step dynamics forward
             new_state, r, complete, _ = env.step(state, action)
