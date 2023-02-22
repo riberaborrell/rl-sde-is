@@ -12,7 +12,7 @@ def get_parser():
     return parser
 
 def td_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
-                  lr=0.01, policy=None, value_function=None, load=False):
+                  lr=0.01, seed=None, policy=None, value_function=None, load=False):
 
     ''' Temporal difference learning for policy evaluation.
     '''
@@ -23,12 +23,17 @@ def td_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim
         agent='tabular-td-prediction',
         n_episodes=n_episodes,
         lr=lr,
+        seed=seed,
     )
 
     # load results
     if load:
         data = load_data(rel_dir_path)
         return data
+
+    # set seed
+    if seed is not None:
+        np.random.seed(seed)
 
     # initialize value function table
     v_table = np.random.rand(env.n_states)
@@ -109,7 +114,7 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environments
-    env = DoubleWellStoppingTime1D()
+    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set explorable starts flag
     if args.explorable_starts:
@@ -138,6 +143,7 @@ def main():
         n_steps_lim=args.n_steps_lim,
         n_episodes=args.n_episodes,
         n_avg_episodes=args.n_avg_episodes,
+        seed=args.seed,
         load=args.load,
     )
 

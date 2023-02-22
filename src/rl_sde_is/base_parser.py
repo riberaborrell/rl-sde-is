@@ -34,8 +34,7 @@ def get_base_parser():
         '--seed',
         dest='seed',
         type=int,
-        default=1,
-        help='random seed (default: 1)',
+        help='random seed. Default: None',
     )
     parser.add_argument(
         '--gamma',
@@ -165,7 +164,7 @@ def get_base_parser():
         '--backup-freq-episodes',
         dest='backup_freq_episodes',
         type=int,
-        help='Set frequency of backups in terms of number of episodes . Default: None',
+        help='Set frequency of backups in terms of number of episodes. Default: None',
     )
     parser.add_argument(
         '--n-iterations',
@@ -228,6 +227,13 @@ def get_base_parser():
         type=int,
         default=10,
         help='Set number of trajectories in each batch. Default: 10',
+    )
+    parser.add_argument(
+        '--test-batch-size',
+        dest='test_batch_size',
+        type=int,
+        default=10,
+        help='Set number of trajectories in each test batch. Default: 10',
     )
     parser.add_argument(
         '--h-state',

@@ -13,7 +13,7 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environments
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
+    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set action space bounds
     env.action_space_low = -5
@@ -52,7 +52,7 @@ def main():
         target_noise=args.target_noise,
         polyak=args.polyak,
         test_freq_episodes=args.test_freq_episodes,
-        test_batch_size=1000,
+        test_batch_size=args.test_batch_size,
         backup_freq_episodes=args.backup_freq_episodes,
         value_function_hjb=sol_hjb.value_function,
         control_hjb=control_hjb,

@@ -13,7 +13,7 @@ def get_parser():
 
 
 def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
-                  first_visit=False, policy=None, value_function=None, load=False):
+                  first_visit=False, seed=None, policy=None, value_function=None, load=False):
 
     ''' Monte Carlo learning for policy evaluation. First-visit and every-visit
         implementation (Sutton and Barto)
@@ -24,12 +24,17 @@ def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim
         env,
         agent='tabular-mc-prediction',
         n_episodes=n_episodes,
+        seed=seed,
     )
 
     # load results
     if load:
         data = load_data(rel_dir_path)
         return data
+
+    # set seed
+    if seed is not None:
+        np.random.seed(seed)
 
     # initialize value function table and returns
     v_table = -np.random.rand(env.n_states)
@@ -135,7 +140,7 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environments
-    env = DoubleWellStoppingTime1D()
+    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set explorable starts flag
     if args.explorable_starts:
@@ -164,6 +169,7 @@ def main():
         n_episodes=args.n_episodes,
         n_avg_episodes=args.n_avg_episodes,
         first_visit=True,
+        seed=args.seed,
         load=args.load,
     )
 

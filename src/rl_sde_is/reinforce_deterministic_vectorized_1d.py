@@ -68,7 +68,7 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
+    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set explorable starts flag
     if args.explorable_starts:
@@ -95,7 +95,7 @@ def main():
         backup_freq_iterations=args.backup_freq_iterations,
         seed=args.seed,
         test_freq_iterations=args.test_freq_iterations,
-        test_batch_size=1000,
+        test_batch_size=args.test_batch_size,
         control_hjb=sol_hjb.u_opt,
         load=args.load,
         plot=args.plot,

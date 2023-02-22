@@ -120,6 +120,13 @@ def get_iter_str(**kwargs):
         iter_str = ''
     return iter_str
 
+def get_seed_str(**kwargs):
+    if 'seed' not in kwargs.keys() or not kwargs['seed']:
+        seed_str = 'seedNone'.format(kwargs['seed'])
+    else:
+        seed_str = 'seed{:1d}'.format(kwargs['seed'])
+    return seed_str
+
 def get_agent_dir_path(env, **kwargs):
     '''
     '''
@@ -128,7 +135,7 @@ def get_agent_dir_path(env, **kwargs):
     param_str = get_initial_point_str(env) \
               + 'dt{:.0e}_'.format(env.dt) \
               + 'n-episodes{:.0e}_'.format(kwargs['n_episodes']) \
-              + 'seed{:1d}'.format(kwargs['seed'])
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
@@ -153,7 +160,8 @@ def get_tabular_td_prediction_dir_path(env, **kwargs):
               + 'dt{:.0e}_'.format(env.dt) \
               + get_initial_point_str(env) \
               + 'lr{:1.2f}_'.format(kwargs['lr']) \
-              + 'K{:.0e}'.format(kwargs['n_episodes'])
+              + 'K{:.0e}'.format(kwargs['n_episodes']) \
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
@@ -166,7 +174,8 @@ def get_tabular_mc_prediction_dir_path(env, **kwargs):
               + 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}_'.format(env.dt) \
               + get_initial_point_str(env) \
-              + 'K{:.0e}'.format(kwargs['n_episodes'])
+              + 'K{:.0e}'.format(kwargs['n_episodes']) \
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
@@ -247,7 +256,7 @@ def get_reinforce_stoch_dir_path(env, **kwargs):
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr{:.1e}_'.format(kwargs['lr']) \
               + get_iter_str(**kwargs) \
-              + 'seed{:1d}'.format(kwargs['seed'])
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
@@ -262,7 +271,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr{:.1e}_'.format(kwargs['lr']) \
               + get_iter_str(**kwargs) \
-              + 'seed{:1d}'.format(kwargs['seed'])
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
@@ -279,7 +288,7 @@ def get_ddpg_dir_path(env, **kwargs):
               + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
               + 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) \
               + get_iter_str(**kwargs) \
-              + 'seed{:1d}'.format(kwargs['seed'])
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
@@ -299,6 +308,6 @@ def get_td3_dir_path(env, **kwargs):
               + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
               + 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) \
               + get_iter_str(**kwargs) \
-              + 'seed{:1d}'.format(kwargs['seed'])
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
