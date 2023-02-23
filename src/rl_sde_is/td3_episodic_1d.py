@@ -57,7 +57,7 @@ def main():
         value_function_hjb=sol_hjb.value_function,
         control_hjb=control_hjb,
         load=args.load,
-        plot=args.plot,
+        live_plot=args.live_plot,
     )
 
     # plots

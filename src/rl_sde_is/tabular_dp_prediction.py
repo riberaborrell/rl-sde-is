@@ -13,7 +13,7 @@ def get_parser():
     return parser
 
 def policy_evaluation(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
-                      policy=None, value_function=None, load=False):
+                      policy=None, value_function_opt=None, load=False):
 
     ''' Dynamic programming policy evaluation.
     '''
@@ -67,7 +67,7 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
                                )
 
         # compute root mean square error of value function
-        v_rms_errors[i] = compute_rms_error(value_function, v_table)
+        v_rms_errors[i] = compute_rms_error(value_function_opt, v_table)
 
         # logs
         if i % n_avg_iterations == 0:
@@ -107,7 +107,7 @@ def main():
     data = policy_evaluation(
         env,
         policy=policy,
-        value_function=-sol_hjb.value_function,
+        value_function_opt=-sol_hjb.value_function,
         gamma=args.gamma,
         n_iterations=args.n_iterations,
         n_avg_iterations=args.n_avg_iterations,

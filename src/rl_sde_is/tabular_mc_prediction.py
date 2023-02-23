@@ -13,7 +13,7 @@ def get_parser():
 
 
 def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
-                  first_visit=False, seed=None, policy=None, value_function=None, load=False):
+                  first_visit=False, seed=None, policy=None, value_function_opt=None, load=False):
 
     ''' Monte Carlo learning for policy evaluation. First-visit and every-visit
         implementation (Sutton and Barto)
@@ -116,7 +116,7 @@ def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim
                 v_table[idx_state] = np.mean(returns_table[idx_state])
 
         # compute root mean square error of value function
-        v_rms_errors[ep] = compute_rms_error(value_function, v_table)
+        v_rms_errors[ep] = compute_rms_error(value_function_opt, v_table)
 
         # logs
         if ep % n_avg_episodes == 0:
@@ -139,7 +139,7 @@ def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
+    # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set explorable starts flag
@@ -159,11 +159,11 @@ def main():
         for idx_state, _ in enumerate(env.state_space_h)
     ])
 
-    # run mc learning agent following optimal policy
+    # run mc value function learning agent following optimal policy
     data = mc_prediction(
         env,
         policy=policy,
-        value_function=-sol_hjb.value_function,
+        value_function_opt=-sol_hjb.value_function,
         gamma=args.gamma,
         n_steps_lim=args.n_steps_lim,
         n_episodes=args.n_episodes,

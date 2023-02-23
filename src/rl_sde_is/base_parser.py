@@ -314,7 +314,13 @@ def get_base_parser():
         '--plot',
         dest='plot',
         action='store_true',
-        help='Do plots. Default: False',
+        help='Plot resulted data. Default: False',
+    )
+    parser.add_argument(
+        '--live-plot',
+        dest='live_plot',
+        action='store_true',
+        help='Plot live results. Default: False',
     )
     parser.add_argument(
         '--plot-episode',

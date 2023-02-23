@@ -13,7 +13,8 @@ def get_parser():
     return parser
 
 def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
-                     value_function_hjb=None, control_hjb=None, load=False, plot=False):
+                     value_function_opt=None, policy_opt=None, load=False, live_plot=False):
+
     ''' Dynamic programming q-value iteration.
     '''
 
@@ -43,10 +44,10 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
     idx_state_init = env.get_state_idx(env.state_init).item()
 
     # initialize live figures
-    if plot:
+    if live_plot:
         v_table, a_table, policy = compute_tables(env, q_table)
         lines = initialize_q_learning_figures(env, q_table, v_table, a_table, policy,
-                                          value_function_hjb, control_hjb)
+                                              value_function_opt, policy_opt)
 
     # for each iteration
     for i in np.arange(n_iterations):
@@ -74,10 +75,9 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
             print(msg)
 
         # update live figures
-        if plot and i % 10 == 0:
+        if live_plot and i % 10 == 0:
             v_table, a_table, policy = compute_tables(env, q_table)
             update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
-
 
     data = {
         'n_iterations': n_iterations,
@@ -106,10 +106,10 @@ def main():
         gamma=args.gamma,
         n_iterations=args.n_iterations,
         n_avg_iterations=args.n_avg_iterations,
-        value_function_hjb=sol_hjb.value_function,
-        control_hjb=sol_hjb.u_opt,
+        value_function_opt=-sol_hjb.value_function,
+        policy_opt=sol_hjb.u_opt,
         load=args.load,
-        plot=args.plot,
+        live_plot=args.live_plot,
     )
 
     # plot

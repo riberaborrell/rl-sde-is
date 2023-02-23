@@ -213,6 +213,16 @@ def plot_value_rms_error_epochs(rms_errors, ylim=None):
         ax.set_ylim(ylim)
     plt.show()
 
+def plot_policy_rms_error_epochs(rms_errors, ylim=None):
+    fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['policy-rms-error'])
+    ax.set_xlabel('Epochs')
+    #ax.set_xlim(0, l2_errors.shape[0])
+    ax.plot(rms_errors)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    plt.show()
+
 def plot_det_policy_l2_error_epochs(l2_errors, ylim=None):
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['policy-l2-error'])
@@ -800,7 +810,7 @@ def update_return_and_time_steps_figures(env, returns, time_steps, lines):
     # update figure frequency
     plt.pause(0.1)
 
-def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_function_hjb, control_hjb):
+def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_function_opt, policy_opt):
 
     # initialize figure with multiple subplots
     fig, axes = plt.subplots(nrows=2, ncols=2)
@@ -826,7 +836,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_
     ax2.set_title('Value function')
     ax2.set_xlabel('States')
     line_value_function = ax2.plot(env.state_space_h, v_table)[0]
-    ax2.plot(env.state_space_h, -value_function_hjb)
+    ax2.plot(env.state_space_h, value_function_opt)
 
     # a table
     ax3.set_title(TITLES_FIG['a-value-function'])
@@ -845,7 +855,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_
     ax4.set_xlabel('States')
     ax4.set_ylabel('Actions')
     line_control = ax4.plot(env.state_space_h, policy)[0]
-    ax4.plot(env.state_space_h, control_hjb)
+    ax4.plot(env.state_space_h, policy_opt)
 
     plt.show()
     return (im_q_table, line_value_function, im_a_table, line_control)

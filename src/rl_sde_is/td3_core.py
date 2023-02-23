@@ -165,7 +165,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
                  update_after=5000, update_every=100, policy_delay=50, target_noise=0.2, polyak=0.95,
                  test_freq_episodes=100, test_batch_size=1000, backup_freq_episodes=None,
-                 value_function_hjb=None, control_hjb=None, load=False, plot=False):
+                 value_function_hjb=None, control_hjb=None, load=False, live_plot=False):
 
     # get dir path
     rel_dir_path = get_td3_dir_path(
@@ -321,11 +321,11 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     ])
 
     # initialize figures if plot:
-    if plot and env.d == 1:
+    if live_plot and env.d == 1:
         lines_actor_critic = initialize_1d_figures(env, actor, critic1, value_function_hjb, control_hjb)
         tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
         lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
-    elif plot and env.d == 2:
+    elif live_plot and env.d == 2:
         Q_policy = initialize_2d_figures(env, actor, control_hjb)
         lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
 
@@ -445,7 +445,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
             save_data(data, rel_dir_path)
 
         # update plots
-        if plot and (ep + 1) % 1 == 0:
+        if live_plot and (ep + 1) % 1 == 0:
             if env.d == 1:
                 update_1d_figures(env, actor, critic1, lines_actor_critic)
                 update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)

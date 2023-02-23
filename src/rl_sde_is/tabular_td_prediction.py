@@ -12,7 +12,7 @@ def get_parser():
     return parser
 
 def td_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
-                  lr=0.01, seed=None, policy=None, value_function=None, load=False):
+                  lr=0.01, seed=None, policy=None, value_function_opt=None, load=False):
 
     ''' Temporal difference learning for policy evaluation.
     '''
@@ -90,7 +90,7 @@ def td_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim
             idx_state = idx_new_state
 
         # compute root mean square error of value function
-        v_rms_errors[ep] = compute_rms_error(value_function, v_table)
+        v_rms_errors[ep] = compute_rms_error(value_function_opt, v_table)
 
         # logs
         if ep % n_avg_episodes == 0:
@@ -137,7 +137,7 @@ def main():
     data = td_prediction(
         env,
         policy=policy,
-        value_function=-sol_hjb.value_function,
+        value_function_opt=-sol_hjb.value_function,
         gamma=args.gamma,
         lr=args.lr,
         n_steps_lim=args.n_steps_lim,

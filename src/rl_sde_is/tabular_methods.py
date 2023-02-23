@@ -12,7 +12,7 @@ def get_epsilon_greedy_action(env, q_table, idx_state, epsilon):
     else:
         idx_action = np.random.choice(np.arange(env.n_actions))
 
-    action = env.action_space_h[[idx_action]]
+    action = env.action_space_h[[[idx_action]]]
 
     return idx_action, action
 

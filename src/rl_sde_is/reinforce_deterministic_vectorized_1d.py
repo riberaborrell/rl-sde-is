@@ -98,7 +98,7 @@ def main():
         test_batch_size=args.test_batch_size,
         control_hjb=sol_hjb.u_opt,
         load=args.load,
-        plot=args.plot,
+        live_plot=args.live_plot,
     )
 
     # do plots

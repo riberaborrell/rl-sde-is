@@ -1,9 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-from base_parser import get_base_parser
-from environments import DoubleWellStoppingTime1D
-from tabular_learning import *
+from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.plots import *
+from rl_sde_is.tabular_methods import *
 
 def get_parser():
     parser = get_base_parser()
@@ -59,9 +59,9 @@ def sarsa_prediction(env, policy, gamma=1.0, epsilons=None, n_episodes=100, n_av
         idx_state = env.get_state_idx(state)
 
         # choose action following the given policy
-        #idx_action = policy[idx_state]
-        #action = env.action_space_h[[idx_action]]
-        idx_action, action = get_epsilon_greedy_action(env, policy, idx_state, epsilons[ep])
+        idx_action = policy[idx_state]
+        action = env.action_space_h[idx_action]
+        #idx_action, action = get_epsilon_greedy_action(env, policy, idx_state, epsilons[ep])
 
         # reset trajectory rewards
         rewards = np.empty(0)
@@ -77,12 +77,12 @@ def sarsa_prediction(env, policy, gamma=1.0, epsilons=None, n_episodes=100, n_av
                 break
 
             # step dynamics forward
-            new_state, r, complete = env.step(state, action)
+            new_state, r, complete, _ = env.step(state, action)
             idx_new_state = env.get_state_idx(new_state)
 
             # choose next action following the given policy
             idx_new_action = policy[idx_new_state]
-            new_action = env.action_space_h[[idx_new_action]]
+            new_action = env.action_space_h[idx_new_action]
 
             # update v values
             q_table[idx_state, idx_action] += alpha * (
@@ -167,10 +167,14 @@ def main():
 
     returns, avg_returns, time_steps, avg_time_steps, q_table = info
 
-    plot_q_table(env, q_table)
-    plot_v_table(env, q_table, value_function_hjb=sol_hjb.value_function)
-    plot_a_table(env, q_table)
-    plot_greedy_policy(env, q_table, control_hjb=sol_hjb.u_opt)
+    # compute data
+    v_table, a_table, policy_greedy = compute_tables(env, q_table)
+
+    # do plots
+    plot_value_function_1d(env, v_table, sol_hjb.value_function)
+    plot_q_value_function_1d(env, q_table)
+    plot_advantage_function_1d(env, a_table)
+    plot_det_policy_1d(env, policy_greedy, sol_hjb.u_opt)
 
 
 if __name__ == '__main__':

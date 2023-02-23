@@ -104,7 +104,7 @@ def sample_loss_vectorized(env, model, K):
 def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
               batch_size=1000, lr=1e-3, n_iterations=100, test_batch_size=1000,
               test_freq_iterations=100, backup_freq_iterations=None, seed=None,
-              control_hjb=None, load=False, plot=False):
+              control_hjb=None, load=False, live_plot=False):
 
     # get dir path
     rel_dir_path = get_reinforce_det_dir_path(
@@ -208,9 +208,9 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
     print(msg)
 
     # initialize live figures
-    if plot and env.d == 1:
+    if live_plot and env.d == 1:
         policy_line = initialize_1d_figures(env, model, control_hjb)
-    elif plot and env.d == 2:
+    elif live_plot and env.d == 2:
         Q_policy = initialize_2d_figures(env, model, control_hjb)
 
     for i in np.arange(n_iterations):
@@ -287,7 +287,7 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
             save_data(data, rel_dir_path)
 
         # update figure
-        if plot and i % 1 == 0:
+        if live_plot and i % 10 == 0:
 
             if env.d == 1:
                 update_1d_figures(env, model, policy_line)
