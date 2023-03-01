@@ -1,10 +1,32 @@
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
+from rl_sde_is.approximate_methods import *
+from rl_sde_is.tabular_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.models import mlp
 from rl_sde_is.plots import *
-from rl_sde_is.tabular_methods import *
 from rl_sde_is.utils_path import *
+
+class ValueFunction(nn.Module):
+
+    def __init__(self, state_dim, hidden_sizes, activation):
+        super().__init__()
+        self.sizes = [state_dim] + list(hidden_sizes) + [1]
+        self.v = mlp(self.sizes, activation)
+        self.apply(self.init_last_layer_weights)
+
+    def init_last_layer_weights(self, module):
+        if isinstance(module, nn.Linear):
+            if module.out_features == self.sizes[-1]:
+                nn.init.uniform_(module.weight, -5e-4, 5e-4)
+                nn.init.uniform_(module.bias, -5e-4, 5e-4)
+
+    def forward(self, state):
+        return self.v(state)
 
 def get_parser():
     parser = get_base_parser()
@@ -19,9 +41,9 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
     '''
 
     # get dir path
-    rel_dir_path = get_tabular_td_prediction_dir_path(
+    rel_dir_path = get_semi_gradient_td_prediction_dir_path(
         env,
-        agent='tabular-td-prediction',
+        agent='semi-gradient-td-prediction',
         n_episodes=n_episodes,
         lr=lr,
         seed=seed,
@@ -36,11 +58,15 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
     if seed is not None:
         np.random.seed(seed)
 
-    # initialize value function table
-    v_table = np.random.rand(env.n_states)
+    # initialize value function model
+    model = ValueFunction(
+        state_dim=env.state_space_dim,
+        hidden_sizes=[32, 32],
+        activation=nn.Tanh()
+    )
 
-    # set values for the target set
-    v_table[env.idx_ts] = 0
+    # set optimizer
+    optimizer = optim.SGD(model.parameters(), lr=lr)
 
     # get index initial state
     idx_state_init = env.get_state_idx(env.state_init).item()
@@ -51,16 +77,14 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
 
     # initialize live figures
     if live_plot:
-        line = initialize_value_function_1d_figure(env, v_table, value_function_opt)
+        value_function = compute_v_table(env, model)
+        line = initialize_value_function_1d_figure(env, value_function, value_function_opt)
 
     # for each episode
     for ep in np.arange(n_episodes):
 
         # reset environment
-        state = env.reset()
-
-        # get index of the state
-        idx_state = env.get_state_idx(state)
+        state = torch.FloatTensor(env.reset(batch_size=1))
 
         # reset trajectory rewards
         rewards = np.empty(0)
@@ -76,50 +100,59 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
                 break
 
             # choose action following the given policy
-            idx_action = policy[idx_state]
-            action = env.action_space_h[idx_action]
+            idx_state = env.get_state_idx(state)
+            action = torch.FloatTensor(policy[[idx_state]])
 
             # step dynamics forward
-            new_state, r, done, _ = env.step(state, action)
-            idx_new_state = env.get_state_idx(new_state)
+            new_state, r, done, _ = env.step_torch(state, action)
 
-            # update v values
-            v_table[idx_state] += lr * (
-                r + gamma * v_table[idx_new_state] - v_table[idx_state]
-            )
+            # reset gradients
+            optimizer.zero_grad()
+
+            # loss
+            MSE = nn.MSELoss()
+            state_value = model.forward(state)
+            with torch.no_grad():
+                prediction = model.forward(new_state)
+                target = r + gamma * prediction
+            loss = MSE(state_value, target)
+            loss.backward()
+
+            # update parameters
+            optimizer.step()
 
             # save reward
             rewards = np.append(rewards, r)
 
             # update state and action
             state = new_state
-            idx_state = idx_new_state
 
         # test
         if (ep + 1) % test_freq_episodes == 0:
 
             # compute root mean square error of value function
             ep_test = (ep + 1) // test_freq_episodes
-            v_rms_errors[ep_test] = compute_rms_error(value_function_opt, v_table)
+            value_function = compute_v_table(env, model).squeeze()
+            v_rms_errors[ep_test] = compute_rms_error(value_function, value_function_opt)
 
             # logs
             msg = 'ep: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}'.format(
-                    ep,
-                    v_table[idx_state_init],
-                    v_rms_errors[ep_test],
+                   ep,
+                   value_function[idx_state_init],
+                   v_rms_errors[ep_test],
                 )
             print(msg)
 
-            # update live figure
+            # update live figures
             if live_plot:
-                update_value_function_1d_figure(env, v_table, line)
+                update_value_function_1d_figure(env, value_function, line)
 
     data = {
         'n_episodes': n_episodes,
         'lr': lr,
         'seed': seed,
-        'v_table' : v_table,
         'v_rms_errors' : v_rms_errors,
+        'model': model,
     }
     save_data(data, rel_dir_path)
 
@@ -128,30 +161,23 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
+    # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set explorable starts flag
     if args.explorable_starts:
         env.is_state_init_sampled = True
 
-    # discretize observation and action space
-    env.discretize_state_space(args.h_state)
-    env.discretize_action_space(args.h_action)
+    # discretize state space
+    env.discretize_state_space(h_state=0.01)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # set deterministic policy from the hjb control
-    policy = np.array([
-        env.get_action_idx(sol_hjb.u_opt[idx_state])
-        for idx_state, _ in enumerate(env.state_space_h)
-    ])
-
-    # run temporal difference learning agent following optimal policy
+    # run semi-gradient temporal difference learning agent following optimal policy
     data = td_prediction(
         env,
-        policy=policy,
+        policy=sol_hjb.u_opt,
         gamma=args.gamma,
         lr=args.lr,
         n_steps_lim=args.n_steps_lim,
@@ -168,9 +194,8 @@ def main():
         return
 
     # do plots
-    policy = env.action_space_h[policy]
-    plot_det_policy_1d(env, policy, sol_hjb.u_opt)
-    plot_value_function_1d(env, data['v_table'], -sol_hjb.value_function)
+    value_function = compute_v_table(env, data['model'])
+    plot_value_function_1d(env, value_function, -sol_hjb.value_function)
     plot_value_rms_error_episodes(data['v_rms_errors'], args.test_freq_episodes)
 
 if __name__ == '__main__':

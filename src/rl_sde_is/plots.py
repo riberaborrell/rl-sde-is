@@ -203,25 +203,42 @@ def plot_time_steps_epochs(time_steps):
     #plt.legend()
     plt.show()
 
-def plot_value_rms_error_epochs(rms_errors, ylim=None):
+def plot_value_rms_error(x, y, xlabel=None, ylim=None):
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['value-rms-error'])
-    ax.set_xlabel('Epochs')
-    #ax.set_xlim(0, l2_errors.shape[0])
-    ax.plot(rms_errors)
+    ax.set_xlabel(xlabel)
+    ax.plot(x, y)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    plt.show()
+
+def plot_value_rms_error_episodes(rms_errors, test_freq_episodes, ylim=None):
+    n_test_episodes = rms_errors.shape[0]
+    episodes = np.arange(n_test_episodes) * test_freq_episodes
+    plot_value_rms_error(episodes, rms_errors, xlabel='Episodes', ylim=ylim)
+
+def plot_value_rms_error_iterations(rms_errors, test_freq_iterations, ylim=None):
+    n_test_iterations = rms_errors.shape[0]
+    iterations = np.arange(n_test_iterations) * test_freq_iterations
+    plot_value_rms_error(iterations, rms_errors, xlabel='Iterations', ylim=ylim)
+
+def plot_policy_rms_error(x, y, xlabel=None, ylim=None):
+    fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['policy-rms-error'])
+    ax.set_xlabel(xlabel)
+    ax.plot(x, y)
     if ylim is not None:
         ax.set_ylim(ylim)
     plt.show()
 
 def plot_policy_rms_error_epochs(rms_errors, ylim=None):
-    fig, ax = plt.subplots()
-    ax.set_title(TITLES_FIG['policy-rms-error'])
-    ax.set_xlabel('Epochs')
-    #ax.set_xlim(0, l2_errors.shape[0])
-    ax.plot(rms_errors)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    plt.show()
+    n_test_iterations = rms_errors.shape[0]
+    iterations = np.arange(n_test_iterations) * test_freq_iterations
+
+def plot_policy_rms_error_iterations(rms_errors, test_freq_iterations, ylim=None):
+    n_test_iterations = rms_errors.shape[0]
+    iterations = np.arange(n_test_iterations) * test_freq_iterations
+    plot_policy_rms_error(iterations, rms_errors, xlabel='Iterations', ylim=ylim)
 
 def plot_det_policy_l2_error_epochs(l2_errors, ylim=None):
     fig, ax = plt.subplots()
@@ -362,7 +379,7 @@ def plot_advantage_function_1d(env, a_table, policy_critic=None, vmin=None):
 
     plt.show()
 
-def plot_value_function_1d(env, value_function, value_function_hjb, loc=None):
+def plot_value_function_1d(env, value_function, value_function_opt, loc=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['value-function'])
@@ -370,11 +387,11 @@ def plot_value_function_1d(env, value_function, value_function_hjb, loc=None):
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
 
     plt.plot(env.state_space_h, value_function)
-    plt.plot(env.state_space_h, -value_function_hjb, label=r'hjb', linestyle=':')
+    plt.plot(env.state_space_h, value_function_opt, label=r'hjb', linestyle=':')
     plt.legend(loc=loc)
     plt.show()
 
-def plot_value_function_2d(env, value_function, value_function_hjb):
+def plot_value_function_2d(env, value_function, value_function_opt):
 
     fig, ax = plt.subplots()
     ax.set_title(r'Value function $V(s) = max_a Q_\omega(s, a)$')
@@ -383,8 +400,8 @@ def plot_value_function_2d(env, value_function, value_function_hjb):
 
     im = fig.axes[0].imshow(
         value_function.T,
-        vmin=np.min(value_function_hjb),
-        vmax=np.max(value_function_hjb),
+        vmin=np.min(value_function_opt),
+        vmax=np.max(value_function_opt),
         origin='lower',
         extent=get_state_2d_extent(env),
         cmap=cm.coolwarm,
@@ -399,7 +416,7 @@ def plot_value_function_2d(env, value_function, value_function_hjb):
 
 
 def plot_value_function_1d_actor_critic(env, value_function_critic_initial, value_function_critic,
-                                        value_function_actor_critic, value_function_hjb,
+                                        value_function_actor_critic, value_function_opt,
                                         ylim=None, loc=None):
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['value-function'])
@@ -415,11 +432,11 @@ def plot_value_function_1d_actor_critic(env, value_function_critic_initial, valu
     ax.plot(x, value_function_actor_critic,
              label=r'actor-critic: $ V_{\theta, \omega}(s) = Q_\omega(s, \mu_\theta(s))$',
             c='tab:purple')
-    ax.plot(x, -value_function_hjb, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
+    ax.plot(x, value_function_opt, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
     ax.legend(loc=loc)
     plt.show()
 
-def plot_stoch_policy(env, action_prob_dists, policy, control_hjb, loc=None):
+def plot_stoch_policy(env, action_prob_dists, policy, policy_opt, loc=None):
 
     # plot action probability distributions
     fig, ax = plt.subplots()
@@ -446,7 +463,7 @@ def plot_stoch_policy(env, action_prob_dists, policy, control_hjb, loc=None):
     ax.set_xlabel('States')
     ax.set_ylabel('Sampled actions')
     plt.scatter(env.state_space_h, policy)
-    plt.plot(env.state_space_h, control_hjb[:, 0], label=r'hjb solution')
+    plt.plot(env.state_space_h, policy_opt, label=r'hjb solution')
     plt.legend(loc=loc)
     plt.show()
 
@@ -810,7 +827,32 @@ def update_return_and_time_steps_figures(env, returns, time_steps, lines):
     # update figure frequency
     plt.pause(0.1)
 
-def initialize_q_learning_figures(env, q_table, v_table, a_table, policy, value_function_opt, policy_opt):
+def initialize_value_function_1d_figure(env, value_function, value_function_opt):
+
+    # initialize figure
+    fig, ax = plt.subplots()
+
+    # turn interactive mode on
+    plt.ion()
+
+    ax.set_title(TITLES_FIG['value-function'], fontsize=10)
+    ax.set_xlabel('States', fontsize=8)
+    ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
+
+    det_v_function_line = ax.plot(env.state_space_h, value_function)[0]
+    ax.plot(env.state_space_h, value_function_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+
+    plt.legend()
+    plt.show()
+
+    return det_v_function_line
+
+def update_value_function_1d_figure(env, value_function, line):
+    line.set_data(env.state_space_h, value_function)
+    plt.pause(0.1)
+
+def initialize_q_learning_figures(env, q_table, v_table, a_table,
+                                  policy, value_function_opt, policy_opt):
 
     # initialize figure with multiple subplots
     fig, axes = plt.subplots(nrows=2, ncols=2)
@@ -875,7 +917,7 @@ def update_q_learning_figures(env, q_table, v_table, a_table, policy, tuples):
     plt.pause(0.1)
 
 def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
-                                    policy_actor, policy_critic, value_function_hjb, control_hjb):
+                                    policy_actor, policy_critic, value_function_opt, control_hjb):
 
     # initialize figure with multiple subplots
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(5, 4))
@@ -906,7 +948,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax2.set_xlim(env.state_space_low, env.state_space_high)
     line_value_f_actor_critic = ax2.plot(env.state_space_h, v_table_actor_critic)[0]
     line_value_f_critic = ax2.plot(env.state_space_h, v_table_critic)[0]
-    ax2.plot(env.state_space_h, -value_function_hjb)
+    ax2.plot(env.state_space_h, value_function_opt)
 
     # a table
     ax3.set_title(TITLES_FIG['a-value-function'], fontsize=10)
@@ -954,7 +996,7 @@ def update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_crit
     # update figure frequency
     plt.pause(0.1)
 
-def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_hjb, control_hjb):
+def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_opt, control_hjb):
     from rl_sde_is.td3_core import load_backup_models
     from rl_sde_is.approximate_methods import compute_tables_critic, compute_tables_actor_critic
 
@@ -1011,7 +1053,7 @@ def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_hj
         ax2.set_xlim(env.state_space_low, env.state_space_high)
         ax2.plot(env.state_space_h, v_table_actor_critic)
         ax2.plot(env.state_space_h, v_table_critic)
-        ax2.plot(env.state_space_h, -value_function_hjb)
+        ax2.plot(env.state_space_h, value_function_opt)
 
         # a table
         ax3.imshow(

@@ -12,8 +12,9 @@ def get_parser():
     return parser
 
 
-def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim=1000,
-                  first_visit=False, seed=None, policy=None, value_function_opt=None, load=False):
+def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
+                  n_steps_lim=1000, test_freq_episodes=10, first_visit=False, seed=None,
+                  value_function_opt=None, load=False, live_plot=False):
 
     ''' Monte Carlo learning for policy evaluation. First-visit and every-visit
         implementation (Sutton and Barto)
@@ -41,7 +42,7 @@ def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim
     returns_table = [[] for i in range(env.n_states)]
 
     # set values for the target set
-    v_table[env.idx_lb:env.idx_rb+1] = 0
+    v_table[env.idx_ts] = 0
 
     # get index initial state
     idx_state_init = env.get_state_idx(env.state_init).item()
@@ -50,7 +51,12 @@ def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim
     time_steps = np.empty(n_episodes, dtype=np.int32)
 
     # preallocate value function rms errors
-    v_rms_errors = np.empty(n_episodes)
+    n_test_episodes = n_episodes // test_freq_episodes + 1
+    v_rms_errors = np.empty(n_test_episodes)
+
+    # initialize live figures
+    if live_plot:
+        line = initialize_value_function_1d_figure(env, v_table, value_function_opt)
 
     # for each episode
     for ep in np.arange(n_episodes):
@@ -115,17 +121,24 @@ def mc_prediction(env, gamma=1.0, n_episodes=100, n_avg_episodes=10, n_steps_lim
                 # update v table
                 v_table[idx_state] = np.mean(returns_table[idx_state])
 
-        # compute root mean square error of value function
-        v_rms_errors[ep] = compute_rms_error(value_function_opt, v_table)
+        # test
+        if (ep + 1) % test_freq_episodes == 0:
 
-        # logs
-        if ep % n_avg_episodes == 0:
+            # compute root mean square error of value function
+            ep_test = (ep + 1) // test_freq_episodes
+            v_rms_errors[ep_test] = compute_rms_error(value_function_opt, v_table)
+
+            # logs
             msg = 'ep: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}'.format(
-                    ep,
-                    v_table[idx_state_init],
-                    v_rms_errors[ep],
-                )
+                ep,
+                v_table[idx_state_init],
+                v_rms_errors[ep_test],
+            )
             print(msg)
+
+            # update live figure
+            if live_plot:
+                update_value_function_1d_figure(env, v_table, line)
 
     data = {
         'n_episodes': n_episodes,
@@ -163,23 +176,26 @@ def main():
     data = mc_prediction(
         env,
         policy=policy,
-        value_function_opt=-sol_hjb.value_function,
         gamma=args.gamma,
         n_steps_lim=args.n_steps_lim,
         n_episodes=args.n_episodes,
-        n_avg_episodes=args.n_avg_episodes,
+        test_freq_episodes=args.test_freq_episodes,
         first_visit=True,
         seed=args.seed,
+        value_function_opt=-sol_hjb.value_function,
         load=args.load,
+        live_plot=args.live_plot,
     )
+
+    # plot
+    if not args.plot:
+        return
 
     # do plots
     policy = env.action_space_h[policy]
-    #plot_det_policy_1d(env, policy, sol_hjb.u_opt)
-    plot_value_function_1d(env, data['v_table'], sol_hjb.value_function)
-    plot_value_rms_error_epochs(data['v_rms_errors'])
-
-
+    plot_det_policy_1d(env, policy, sol_hjb.u_opt)
+    plot_value_function_1d(env, data['v_table'], -sol_hjb.value_function)
+    plot_value_rms_error_episodes(data['v_rms_errors'], args.test_freq_episodes)
 
 if __name__ == '__main__':
     main()
