@@ -88,7 +88,7 @@ class DoubleWellStoppingTime1D():
         reward = np.where(
             done,
             - self.g(state),
-            - (self.f(state) + 0.5 * (np.linalg.norm(action, axis=1)**2)) * self.dt,
+            - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt,
         )
         return reward, done
 
@@ -96,18 +96,18 @@ class DoubleWellStoppingTime1D():
         done = self.is_done(next_state)
         reward = np.where(
             done,
-            - (self.f(state) + 0.5 * (np.linalg.norm(action, axis=1)**2)) * self.dt \
+            - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt \
             - self.g(next_state),
-            - (self.f(state) + 0.5 * (np.linalg.norm(action, axis=1)**2)) * self.dt,
+            - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt,
         )
         return reward, done
 
     def reward_signal_state_action_torch(self, state, action):
-        done = self.is_done(state)
-        reward = np.where(
+        done = self.is_done_torch(state)
+        reward = torch.where(
             done,
-            - self.g(state),
-            - self.f(state) * self.dt - 0.5 * (torch.linalg.norm(action, axis=1)**2) * self.dt,
+            - self.g_torch(state),
+            - (self.f_torch(state) + 0.5 * torch.linalg.norm(action, axis=1)**2) * self.dt_tensor,
         )
         return reward, done
 
@@ -138,6 +138,9 @@ class DoubleWellStoppingTime1D():
         # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
         r, done = self.reward_signal_state_action_next_state(state, action, next_state)
 
+        # reward signal r_n = r(s_n, a_n)
+        #r, done = self.reward_signal_state_action(state, action)
+
         return next_state, r, done, dbt
 
     def step_vectorized_stopped(self, states, actions, idx):
@@ -157,15 +160,23 @@ class DoubleWellStoppingTime1D():
         # done if position x in the target set
         done = np.where(next_states >= self.lb, True, False)
 
-        # rewards signal r_{n+1} = r(s_{n+1}, s_n, a_n)
         batch_size = states.shape[0]
         rewards = np.zeros((batch_size, 1))
+
+        # rewards signal r_{n+1} = r(s_{n+1}, s_n, a_n)
         rewards[idx] = np.where(
             done[idx],
-            - 0.5 * np.power(actions[idx], 2) * self.dt - self.f(states[idx]) * self.dt -
-            self.g(next_states[idx]),
-            - 0.5 * np.power(actions[idx], 2) * self.dt - self.f(states[idx]) * self.dt,
+            - (self.f(states[idx]) + 0.5 * np.power(actions[idx], 2)) * self.dt \
+            - self.g(next_states[idx]),
+            - (self.f(states[idx]) + 0.5 * np.power(actions[idx], 2)) * self.dt,
         )
+
+        # rewards signal r_n = r(s_n, a_n)
+        #rewards[idx] = np.where(
+        #    done[idx],
+        #    - self.g(states[idx]),
+        #    - (self.f(states[idx]) + 0.5 * np.power(actions[idx], 2)) * self.dt,
+        #)
 
         return next_states, rewards, done, dbt
 
@@ -185,7 +196,10 @@ class DoubleWellStoppingTime1D():
                    + sigma * dbt
 
         # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
-        r, done = self.reward_signal_state_action_next_state_torch(state, action, next_state)
+        #r, done = self.reward_signal_state_action_next_state_torch(state, action, next_state)
+
+        # reward signal r_n = r(s_n, a_n)
+        r, done = self.reward_signal_state_action_torch(state, action)
 
         return next_state, r, done, dbt
 
