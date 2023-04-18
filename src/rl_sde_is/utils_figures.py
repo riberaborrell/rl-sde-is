@@ -15,6 +15,7 @@ COLORS_FIG = {
 TITLES_FIG = {
     'potential': r'Potential $V_\alpha(s)$',
     'policy': r'Deterministic policy $\mu_\theta(s)$',
+    'stoch-policy': r'Stochastic policy $\pi_\theta(s)$',
     'value-function': r'Value function $V_\omega(s)$',
     'q-value-function': r'Q-value function $Q_\omega(s, a)$',
     'a-value-function': r'Advantage function $A_\omega(s, a)$',

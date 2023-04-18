@@ -111,7 +111,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
+    # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # discretize state and action space
@@ -121,7 +121,7 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
-    # run dynamic programming tabular method 
+    # run dynamic programming q-value iteration
     data = qvalue_iteration(
         env,
         gamma=args.gamma,

@@ -4,15 +4,42 @@ from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 from rl_sde_is.tabular_methods import *
+from rl_sde_is.utils_numeric import discount_cumsum
+from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
 
-def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01,
-                n_episodes=1000, n_avg_episodes=10, n_steps_lim=1000, seed=None,
+def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_episodes=1000,
+                n_steps_lim=1000, test_freq_episodes=10, n_avg_episodes=10, seed=None,
                 value_function_opt=None, policy_opt=None, load=None, live_plot=False):
+
+    ''' Mc learning
+    '''
+
+    # get dir path
+    rel_dir_path = get_mc_learning_dir_path(
+        env,
+        agent='mc-learning',
+        eps_type='constant',
+        eps_init=0,
+        n_episodes=n_episodes,
+        lr=lr,
+        lam=1,
+        seed=seed,
+    )
+
+    # load results
+    if load:
+        data = load_data(rel_dir_path)
+        return data
+
+    # set seed
+    if seed is not None:
+        np.random.seed(seed)
+
 
     # initialize q-value function table
     q_table = - np.random.rand(env.n_states, env.n_actions)
@@ -30,8 +57,9 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01,
     avg_time_steps = np.empty(n_episodes)
 
     # preallocate value function and control rms errors
-    v_rms_errors = np.empty(n_episodes)
-    u_rms_errors = np.empty(n_episodes)
+    n_test_episodes = n_episodes // test_freq_episodes + 1
+    v_rms_errors = np.empty(n_test_episodes)
+    p_rms_errors = np.empty(n_test_episodes)
 
     # initialize live figures
     if live_plot:
@@ -127,13 +155,17 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01,
         time_steps[ep] = n_steps_trajectory
         avg_time_steps[ep] = np.mean(time_steps[idx_last_episodes])
 
-        # compute root mean square error of value function and control
-        v_table, a_table, policy = compute_tables(env, q_table)
-        v_rms_errors[ep] = compute_rms_error(value_function_opt, v_table)
-        u_rms_errors[ep] = compute_rms_error(policy_opt, policy)
 
-        # logs
-        if ep % n_avg_episodes == 0:
+        # test
+        if (ep + 1) % test_freq_episodes == 0:
+
+            # compute root mean square error of value function and control
+            ep_test = (ep + 1) // test_freq_episodes
+            v_table, a_table, policy = compute_tables(env, q_table)
+            v_rms_errors[ep_test] = compute_rms_error(value_function_opt, v_table)
+            p_rms_errors[ep_test] = compute_rms_error(policy_opt, policy)
+
+            # logs
             msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
                     'run avg time steps: {:2.2f}, epsilon: {:.2f}'.format(
                     ep,
@@ -144,22 +176,28 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01,
                 )
             print(msg)
 
-        # update live figures
-        if live_plot and ep % 10 == 0:
-            update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
+            # update live figures
+            if live_plot:
+                update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
 
     data = {
+        'gamma': gamma,
+        'n_episodes': n_episodes,
+        'n_steps_lim': n_steps_lim,
+        'lr': lr,
+        'seed': seed,
+        'n_avg_episodes' : n_avg_episodes,
+        'test_freq_episodes' : test_freq_episodes,
         'returns': returns,
         'avg_returns': avg_returns,
         'time_steps': time_steps,
         'avg_time_steps': avg_time_steps,
-        'n_episodes': n_episodes,
         'n_table' : n_table,
         'q_table' : q_table,
         'v_rms_errors' : v_rms_errors,
-        'u_rms_errors' : u_rms_errors,
+        'p_rms_errors' : p_rms_errors,
     }
-    #save_data(data, rel_dir_path)
+    save_data(data, rel_dir_path)
 
     return data
 
@@ -168,7 +206,7 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01,
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
+    # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set explorable starts flag
@@ -196,6 +234,7 @@ def main():
         lr=args.lr,
         n_episodes=args.n_episodes,
         n_avg_episodes=args.n_avg_episodes,
+        test_freq_episodes=args.test_freq_episodes,
         n_steps_lim=args.n_steps_lim,
         seed=args.seed,
         value_function_opt=-sol_hjb.value_function,
@@ -213,12 +252,12 @@ def main():
     v_table, a_table, policy_greedy = compute_tables(env, q_table)
 
     # do plots
-    plot_value_function_1d(env, v_table, sol_hjb.value_function)
+    plot_value_function_1d(env, v_table, -sol_hjb.value_function)
     plot_q_value_function_1d(env, q_table)
     plot_advantage_function_1d(env, a_table)
     plot_det_policy_1d(env, policy_greedy, sol_hjb.u_opt)
-    plot_value_rms_error_epochs(data['v_rms_errors'])
-    plot_policy_rms_error_epochs(data['u_rms_errors'])
+    plot_value_rms_error_episodes(data['v_rms_errors'], data['test_freq_episodes'])
+    plot_policy_rms_error_episodes(data['p_rms_errors'], data['test_freq_episodes'])
 
 
 if __name__ == '__main__':

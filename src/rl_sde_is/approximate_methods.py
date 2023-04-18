@@ -1,25 +1,6 @@
 import numpy as np
 import torch
 
-def discount_cumsum_torch(x, gamma):
-    import scipy
-    """
-    magic from rllab for computing discounted cumulative sums of vectors.
-    See https://github.com/openai/spinningup/blob/master/spinup/algos/pytorch/vpg/core.py
-    input:
-        vector x,
-        [x0,
-         x1,
-         x2]
-
-     output:
-        [x0 + gamma * x1 + gamma^2 * x2,
-         x1 + gamma * x2,
-         x2]
-    """
-    breakpoint()
-    return scipy.signal.lfilter([1], [1, float(-gamma)], x[::-1], axis=0)[::-1]
-
 def compute_running_mean(array, run_window=10):
     ''' computes the running mean / moving average of the given array along the given running window.
     '''
@@ -64,6 +45,15 @@ def get_epsilon_greedy_continuous_action(env, model, state, epsilon):
     # pick random action (exploration)
     else:
         return np.random.uniform(env.action_space_low, env.action_space_high, (1,))
+
+def compute_v_table(env, model):
+    states = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
+
+    # compute v table
+    with torch.no_grad():
+        v_table = model.forward(states).numpy()
+
+    return v_table
 
 def compute_tables_discrete_actions(env, model):
 

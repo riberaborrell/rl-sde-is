@@ -129,7 +129,7 @@ def value_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
+    # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # discretize observation and action space

@@ -165,6 +165,19 @@ def get_tabular_td_prediction_dir_path(env, **kwargs):
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
+def get_semi_gradient_td_prediction_dir_path(env, **kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + get_initial_point_str(env) \
+              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + 'K{:.0e}'.format(kwargs['n_episodes']) \
+              + get_seed_str(**kwargs)
+
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
+
 def get_tabular_mc_prediction_dir_path(env, **kwargs):
     '''
     '''
@@ -180,7 +193,6 @@ def get_tabular_mc_prediction_dir_path(env, **kwargs):
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
 
-#TODO: check
 def get_sarsa_lambda_dir_path(env, **kwargs):
     '''
     '''
@@ -191,7 +203,22 @@ def get_sarsa_lambda_dir_path(env, **kwargs):
               + 'lr{:1.2f}_'.format(kwargs['lr']) \
               + 'lambda{:0.1f}_'.format(kwargs['lam']) \
               + get_eps_str(**kwargs) \
-              + 'K{:.0e}'.format(kwargs['n_episodes'])
+              + 'K{:.0e}'.format(kwargs['n_episodes']) \
+              + get_seed_str(**kwargs)
+
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
+
+def get_mc_learning_dir_path(env, **kwargs):
+    '''
+    '''
+    # set parameters string
+    param_str = 'h-state{:.0e}_'.format(env.h_state) \
+              + 'h-action{:.0e}_'.format(env.h_action) \
+              + get_initial_point_str(env) \
+              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + get_eps_str(**kwargs) \
+              + 'K{:.0e}'.format(kwargs['n_episodes']) \
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
@@ -241,7 +268,6 @@ def get_dqn_dir_path(env, **kwargs):
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
-#TODO: revise
 def get_reinforce_stoch_dir_path(env, **kwargs):
     '''
     '''
@@ -251,10 +277,11 @@ def get_reinforce_stoch_dir_path(env, **kwargs):
         h_action_str = ''
 
     # set parameters string
-    param_str = get_initial_point_str(env) \
-              + h_action_str \
-              + 'K{:.0e}_'.format(kwargs['batch_size']) \
+    param_str = h_action_str \
+              + 'dt{:.0e}_'.format(env.dt) \
+              + get_initial_point_str(env) \
               + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 

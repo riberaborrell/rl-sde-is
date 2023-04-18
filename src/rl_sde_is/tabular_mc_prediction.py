@@ -141,7 +141,11 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
                 update_value_function_1d_figure(env, v_table, line)
 
     data = {
+        'gamma': gamma,
         'n_episodes': n_episodes,
+        'n_steps_lim': n_steps_lim,
+        'seed': seed,
+        'test_freq_episodes' : test_freq_episodes,
         'v_table' : v_table,
         'v_rms_errors' : v_rms_errors,
     }
@@ -195,7 +199,7 @@ def main():
     policy = env.action_space_h[policy]
     plot_det_policy_1d(env, policy, sol_hjb.u_opt)
     plot_value_function_1d(env, data['v_table'], -sol_hjb.value_function)
-    plot_value_rms_error_episodes(data['v_rms_errors'], args.test_freq_episodes)
+    plot_value_rms_error_episodes(data['v_rms_errors'], data['test_freq_episodes'])
 
 if __name__ == '__main__':
     main()

@@ -4,6 +4,7 @@ from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 from rl_sde_is.tabular_methods import *
+from rl_sde_is.utils_numeric import *
 
 def get_parser():
     parser = get_base_parser()
@@ -34,7 +35,7 @@ def qlearning(env, gamma=1., epsilons=None, lr=0.01,
 
     # preallocate value function and control rms errors
     v_rms_errors = np.empty(n_episodes)
-    u_rms_errors = np.empty(n_episodes)
+    p_rms_errors = np.empty(n_episodes)
 
     # initialize live figures
     if live_plot:
@@ -109,7 +110,7 @@ def qlearning(env, gamma=1., epsilons=None, lr=0.01,
         # compute root mean square error of value function and control
         v_table, a_table, policy = compute_tables(env, q_table)
         v_rms_errors[ep] = compute_rms_error(value_function_opt, v_table)
-        u_rms_errors[ep] = compute_rms_error(policy_opt, policy)
+        p_rms_errors[ep] = compute_rms_error(policy_opt, policy)
 
         # logs
         if ep % n_avg_episodes == 0:
@@ -138,7 +139,7 @@ def qlearning(env, gamma=1., epsilons=None, lr=0.01,
         'n_table' : n_table,
         'q_table' : q_table,
         'v_rms_errors' : v_rms_errors,
-        'u_rms_errors' : u_rms_errors,
+        'p_rms_errors' : p_rms_errors,
     }
     #save_data(data, rel_dir_path)
 
@@ -149,7 +150,7 @@ def qlearning(env, gamma=1., epsilons=None, lr=0.01,
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
+    # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set explorable starts flag
@@ -197,8 +198,8 @@ def main():
     plot_q_value_function_1d(env, q_table)
     plot_advantage_function_1d(env, a_table)
     plot_det_policy_1d(env, policy_greedy, sol_hjb.u_opt)
-    plot_value_rms_error_epochs(data['v_rms_errors'])
-    plot_policy_rms_error_epochs(data['u_rms_errors'])
+    plot_value_rms_error_episodes(data['v_rms_errors'])
+    plot_policy_rms_error_epochs(data['p_rms_errors'])
 
 if __name__ == '__main__':
     main()

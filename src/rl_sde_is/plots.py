@@ -231,9 +231,10 @@ def plot_policy_rms_error(x, y, xlabel=None, ylim=None):
         ax.set_ylim(ylim)
     plt.show()
 
-def plot_policy_rms_error_epochs(rms_errors, ylim=None):
-    n_test_iterations = rms_errors.shape[0]
-    iterations = np.arange(n_test_iterations) * test_freq_iterations
+def plot_policy_rms_error_episodes(rms_errors, test_freq_episodes, ylim=None):
+    n_test_episodes = rms_errors.shape[0]
+    episodes = np.arange(n_test_episodes) * test_freq_episodes
+    plot_policy_rms_error(episodes, rms_errors, xlabel='Episodes', ylim=ylim)
 
 def plot_policy_rms_error_iterations(rms_errors, test_freq_iterations, ylim=None):
     n_test_iterations = rms_errors.shape[0]
@@ -436,7 +437,7 @@ def plot_value_function_1d_actor_critic(env, value_function_critic_initial, valu
     ax.legend(loc=loc)
     plt.show()
 
-def plot_stoch_policy(env, action_prob_dists, policy, policy_opt, loc=None):
+def plot_stoch_policy_1d(env, action_prob_dists, policy, policy_opt, loc=None):
 
     # plot action probability distributions
     fig, ax = plt.subplots()
@@ -467,7 +468,7 @@ def plot_stoch_policy(env, action_prob_dists, policy, policy_opt, loc=None):
     plt.legend(loc=loc)
     plt.show()
 
-def plot_mu_and_simga_gaussian_stoch_policy(env, mu, sigma_sq):
+def plot_mu_and_simga_gaussian_stoch_policy_1d(env, mu, sigma_sq):
 
     # plot mu
     fig, ax = plt.subplots()
@@ -494,7 +495,7 @@ def plot_mu_and_simga_gaussian_stoch_policy(env, mu, sigma_sq):
     ax.set_xlabel('State space')
     plt.show()
 
-def plot_det_policy_1d(env, policy, control_hjb, loc=None):
+def plot_det_policy_1d(env, policy, policy_opt, loc=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['policy'])
@@ -502,11 +503,11 @@ def plot_det_policy_1d(env, policy, control_hjb, loc=None):
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
 
     ax.plot(env.state_space_h, policy)
-    ax.plot(env.state_space_h, control_hjb, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
+    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
     ax.legend(loc=loc)
     plt.show()
 
-def plot_det_policies_1d(env, policies, control_hjb, labels=None, colors=None,
+def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
                          ylim=None, loc='upper right'):
 
     n_policies = policies.shape[0]
@@ -527,13 +528,13 @@ def plot_det_policies_1d(env, policies, control_hjb, labels=None, colors=None,
     x = env.state_space_h
     for i in range(n_policies):
         ax.plot(x, policies[i], color=colors[i], label=labels[i])
-    ax.plot(x, control_hjb, color=colors[i+1], linestyle=':', label=labels[i+1])
+    ax.plot(x, policy_opt, color=colors[i+1], linestyle=':', label=labels[i+1])
 
     if labels[0]:
         plt.legend(loc=loc)
     plt.show()
 
-def plot_det_policies_1d_black_and_white(env, policies, control_hjb):
+def plot_det_policies_1d_black_and_white(env, policies, policy_opt):
     n_policies = policies.shape[0]
     cmap = cm.get_cmap('Greys')
     colors = cmap(np.linspace(0, 1, n_policies))
@@ -544,12 +545,12 @@ def plot_det_policies_1d_black_and_white(env, policies, control_hjb):
 
     for i in range(n_policies):
         ax.plot(env.state_space_h, policies[i], c=colors[i])
-    ax.plot(env.state_space_h, control_hjb, c='black', ls='-.')
+    ax.plot(env.state_space_h, policy_opt, c='black', ls='-.')
     #ax.set_ylim(-3, 3)
     plt.show()
 
 def plot_det_policy_1d_actor_critic(env, policy_actor_initial, policy_critic_initial, policy_actor,
-                                    policy_critic, control_hjb, ylim=None, loc=None):
+                                    policy_critic, policy_opt, ylim=None, loc=None):
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel('States')
@@ -563,7 +564,7 @@ def plot_det_policy_1d_actor_critic(env, policy_actor_initial, policy_critic_ini
     ax.plot(x, policy_actor, label=r'actor: $\mu_\theta(s)$', c='tab:green')
     ax.plot(x, policy_critic, label=r'critic: $\mu_\omega(s) = argmax_a Q_\omega(s, a)$',
             c='tab:orange')
-    ax.plot(x, control_hjb, label=r'hjb', color='black', linestyle=':')
+    ax.plot(x, policy_opt, label=r'hjb', color='black', linestyle=':')
     ax.legend(loc=loc)
     plt.show()
 
@@ -612,7 +613,7 @@ def plot_det_policy_2d(env, policy, policy_hjb):
 
     plt.show()
 
-def initialize_det_policy_1d_figure(env, policy, control_hjb):
+def initialize_det_policy_1d_figure(env, policy, policy_opt):
 
     # initialize figure
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -625,7 +626,7 @@ def initialize_det_policy_1d_figure(env, policy, control_hjb):
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.action_space_low, env.action_space_high)
     det_policy_line = ax.plot(env.state_space_h, policy)[0]
-    ax.plot(env.state_space_h, control_hjb, label=r'hjb', color=COLORS_FIG['hjb'])
+    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
 
     plt.legend()
     plt.show()
@@ -634,6 +635,30 @@ def initialize_det_policy_1d_figure(env, policy, control_hjb):
 
 def update_det_policy_1d_figure(env, policy, line):
     line.set_data(env.state_space_h, policy)
+    plt.pause(0.1)
+
+def initialize_stoch_policy_1d_figure(env, policy, policy_opt):
+
+    # initialize figure
+    fig, ax = plt.subplots(figsize=(5, 4))
+
+    # turn interactive mode on
+    plt.ion()
+
+    ax.set_title(TITLES_FIG['stoch-policy'], fontsize=10)
+    ax.set_xlabel('States', fontsize=8)
+    ax.set_xlim(env.state_space_low, env.state_space_high)
+    ax.set_ylim(env.action_space_low, env.action_space_high)
+    sc = ax.scatter(env.state_space_h, policy)
+    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+
+    plt.legend()
+    plt.show()
+
+    return sc
+
+def update_stoch_policy_1d_figure(env, policy, sc):
+    sc.set_offsets(np.c_[env.state_space_h, policy])
     plt.pause(0.1)
 
 def coarse_quiver_arrows(U, V, X=None, Y=None, l=25):
@@ -709,7 +734,7 @@ def update_det_policy_2d_figure(env, policy, Q_policy):
     # update figure frequency
     plt.pause(0.1)
 
-def canvas_det_policy_2d_figure(env, data, backup_episodes, control_hjb):
+def canvas_det_policy_2d_figure(env, data, backup_episodes, policy_opt):
     import torch
     from rl_sde_is.td3_core import load_backup_models
     from rl_sde_is.approximate_methods import compute_det_policy_actions
@@ -728,8 +753,8 @@ def canvas_det_policy_2d_figure(env, data, backup_episodes, control_hjb):
     X = env.state_space_h[:, :, 0]
     Y = env.state_space_h[:, :, 1]
 
-    U_hjb = control_hjb[:, :, 0]
-    V_hjb = control_hjb[:, :, 1]
+    U_hjb = policy_opt[:, :, 0]
+    V_hjb = policy_opt[:, :, 1]
     X, Y, U_hjb, V_hjb = coarse_quiver_arrows(U_hjb, V_hjb, X, Y, l=25)
 
     # initialize norm object and make rgba array
@@ -916,8 +941,31 @@ def update_q_learning_figures(env, q_table, v_table, a_table, policy, tuples):
     # update figure frequency
     plt.pause(0.1)
 
+def initialize_frequency_figure(env, n_table):
+
+    # initialize figure
+    fig, ax = plt.subplots()
+
+    # frequency table
+    ax.set_title('Frequency')
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+    im_n_table = ax.imshow(
+        n_table.T,
+        origin='lower',
+        extent=get_state_action_1d_extent(env),
+        #cmap=cm.plasma,
+        #aspect='auto',
+    )
+    plt.show()
+    return im_n_table
+
+def update_frequency_figure(env, n_table, im_n_table):
+    im_n_table.set_data(n_table.T)
+    plt.pause(0.1)
+
 def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
-                                    policy_actor, policy_critic, value_function_opt, control_hjb):
+                                    policy_actor, policy_critic, value_function_opt, policy_opt):
 
     # initialize figure with multiple subplots
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(5, 4))
@@ -972,7 +1020,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax4.set_ylim(env.action_space_low, env.action_space_high)
     line_policy_actor = ax4.plot(env.state_space_h, policy_actor)[0]
     line_policy_critic = ax4.plot(env.state_space_h, policy_critic)[0]
-    ax4.plot(env.state_space_h, control_hjb)
+    ax4.plot(env.state_space_h, policy_opt)
 
     plt.show()
     return (im_q_table, line_value_f_actor_critic, line_value_f_critic, im_a_table,
@@ -996,7 +1044,7 @@ def update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_crit
     # update figure frequency
     plt.pause(0.1)
 
-def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_opt, control_hjb):
+def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_opt, policy_opt):
     from rl_sde_is.td3_core import load_backup_models
     from rl_sde_is.approximate_methods import compute_tables_critic, compute_tables_actor_critic
 
@@ -1072,7 +1120,7 @@ def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_op
         ax4.set_ylim(env.action_space_low, env.action_space_high)
         ax4.plot(env.state_space_h, policy_actor)
         ax4.plot(env.state_space_h, policy_critic)
-        ax4.plot(env.state_space_h, control_hjb[:, 0], color='black', linestyle=':')
+        ax4.plot(env.state_space_h, policy_opt, color='black', linestyle=':')
 
         # pause
         plt.pause(0.01)
