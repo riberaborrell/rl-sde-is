@@ -107,12 +107,10 @@ def main():
 
     # plot policy
     policy = get_policy(env, data, it=args.plot_iteration)
-    plot_det_policy(env, policy, sol_hjb.u_opt)
+    plot_det_policy_1d(env, policy, sol_hjb.u_opt)
 
-    #iterations = np.linspace(0, 4000, 6, dtype=np.int32)
-    #policies = get_policies(env, data, iterations)
     policies = get_backup_policies(env, data)
-    plot_det_policies(env, policies, sol_hjb.u_opt)
+    plot_det_policies_1d(env, policies, sol_hjb.u_opt)
     #plot_det_policies_black_and_white(env, policies, sol_hjb.u_opt)
 
     # plot expected values for each epoch

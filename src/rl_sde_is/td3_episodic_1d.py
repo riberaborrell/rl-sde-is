@@ -12,7 +12,7 @@ def get_parser():
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
+    # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set action space bounds
@@ -54,8 +54,8 @@ def main():
         test_freq_episodes=args.test_freq_episodes,
         test_batch_size=args.test_batch_size,
         backup_freq_episodes=args.backup_freq_episodes,
-        value_function_hjb=sol_hjb.value_function,
-        control_hjb=control_hjb,
+        value_function_opt=-sol_hjb.value_function,
+        policy_opt=control_hjb,
         load=args.load,
         live_plot=args.live_plot,
     )

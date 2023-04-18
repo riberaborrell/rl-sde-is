@@ -208,6 +208,7 @@ def ddpg_episodic(env, gamma=0.99, d_hidden_layer=256, n_layers=3,
     rel_dir_path = get_ddpg_dir_path(
         env,
         agent='ddpg-episodic',
+        gamma=gamma,
         d_hidden_layer=d_hidden_layer,
         noise_scale=noise_scale,
         batch_size=batch_size,

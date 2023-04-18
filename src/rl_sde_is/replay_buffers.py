@@ -7,7 +7,7 @@ class DiscreteReplayBuffer:
         self.next_state_buf = np.zeros([size, state_dim], dtype=np.float32)
         self.idx_act_buf = np.zeros(size, dtype=np.int64)
         self.rew_buf = np.zeros(size, dtype=np.float32)
-        self.done_buf = np.zeros(size, dtype=np.bool)
+        self.done_buf = np.zeros(size, dtype=bool)
         self.ptr = 0
         self.size = 0
         self.max_size = size
@@ -36,7 +36,7 @@ class ContinuousReplayBuffer:
         self.next_state_buf = np.zeros([size, state_dim], dtype=np.float32)
         self.act_buf = np.zeros([size, action_dim], dtype=np.float32)
         self.rew_buf = np.zeros(size, dtype=np.float32)
-        self.done_buf = np.zeros(size, dtype=np.bool)
+        self.done_buf = np.zeros(size, dtype=bool)
         self.ptr = 0
         self.size = 0
         self.max_size = size
