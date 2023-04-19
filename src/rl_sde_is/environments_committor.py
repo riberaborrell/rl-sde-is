@@ -2,12 +2,9 @@ import numpy as np
 import scipy.stats as stats
 import torch
 
-from sde.langevin_sde import LangevinSDE
-from hjb.hjb_solver import SolverHJB
-
 class DoubleWellCommittor1D():
 
-    def __init__(self, beta=1., alpha=1., dt=0.005, is_state_init_sampled=False):
+    def __init__(self, beta=1., alpha=1., dt=0.005, epsilon=1e-10, is_state_init_sampled=False):
 
         # environment log name
         self.name = 'doublewell-1d-committor__beta{:.1f}_alpha{:.1f}'.format(beta, alpha)
@@ -25,9 +22,12 @@ class DoubleWellCommittor1D():
         self.dt = dt
         self.dt_tensor = torch.tensor(self.dt, dtype=torch.float32)
 
+        # committor
+        self.epsilon = epsilon
+
         # target set
-        self.a_lb, self.a_rb = -2, -1
-        self.b_lb, self.b_rb = 1, 2
+        self.target_set_a = (-2, -1)
+        self.target_set_b = (1, 2)
 
         # initial state
         self.is_state_init_sampled = is_state_init_sampled
@@ -51,7 +51,7 @@ class DoubleWellCommittor1D():
 
     def is_done(self, state):
         done = np.where(
-            (state[:, 0] <= self.a_rb) | (state[:, 0] >= self.b_lb),
+            (state[:, 0] <= self.target_set_a[1]) | (state[:, 0] >= self.target_set_b[0]),
             True,
             False,
         )
@@ -59,24 +59,29 @@ class DoubleWellCommittor1D():
 
     def is_done_torch(self, state):
         done = torch.where(
-            (state[:, 0] <= self.a_rb) | (state[:, 0] >= self.b_lb),
+            (state[:, 0] <= self.target_set_a[1]) | (state[:, 0] >= self.target_set_b[0]),
             True,
             False,
         )
         return done
 
-    def is_in_b(self, state):
-        return np.where(state[:, 0] >= self.b_lb, True, False)
+    #def is_in_b(self, state):
+    #    return np.where(state[:, 0] >= self.b_lb, True, False)
         #return np.where(state[:, 0] <= self.a_rb, True, False)
 
-    def is_in_b_torch(self, state):
-        return torch.where(state[:, 0] >= self.b_lb, True, False)
+    #def is_in_b_torch(self, state):
+    #    return torch.where(state[:, 0] >= self.b_lb, True, False)
 
     def f(self, state):
         return np.zeros(state.shape[0])
 
     def g(self, state):
-        return np.where(self.is_in_b(state), 0, 10**5)
+        #return np.where(self.is_in_b(state), 0, 10**5)
+        return np.where(
+            (state >= self.target_set_b[0]) & (state <= self.target_set_b[1]),
+            0,
+            -np.log(self.epsilon),
+        ).squeeze()
 
     def f_torch(self, state):
         return torch.zeros(state.shape[0])
@@ -88,7 +93,10 @@ class DoubleWellCommittor1D():
         if not self.is_state_init_sampled:
             return np.full((batch_size, self.d), self.state_init)
         else:
-            return np.random.uniform(self.a_rb, self.b_lb, (batch_size, self.d))
+            return np.full(
+                (batch_size, self.d),
+                np.random.uniform(self.target_set_a[1], self.target_set_b[0], (self.d,))
+            )
 
     def state_action_transition_function(self, next_state, state, action, h):
         mu = state + (- self.gradient(state) + self.sigma * action) * self.dt
@@ -102,7 +110,7 @@ class DoubleWellCommittor1D():
         reward = np.where(
             done,
             - self.g(state),
-            - (self.f(state) + 0.5 * (np.linalg.norm(action, axis=1)**2)) * self.dt,
+            - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt,
         )
         return reward, done
 
@@ -110,18 +118,18 @@ class DoubleWellCommittor1D():
         done = self.is_done(next_state)
         reward = np.where(
             done,
-            - (self.f(state) + 0.5 * (np.linalg.norm(action, axis=1)**2)) * self.dt \
+            - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt \
             - self.g(next_state),
-            - (self.f(state) + 0.5 * (np.linalg.norm(action, axis=1)**2)) * self.dt,
+            - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt,
         )
         return reward, done
 
     def reward_signal_state_action_torch(self, state, action):
-        done = self.is_done(state)
-        reward = np.where(
+        done = self.is_done_torch(state)
+        reward = torch.where(
             done,
-            - self.g(state),
-            - self.f(state) * self.dt - 0.5 * (torch.linalg.norm(action, axis=1)**2) * self.dt,
+            - self.g_torch(state),
+            - (self.f_torch(state) + 0.5 * torch.linalg.norm(action, axis=1)**2) * self.dt_tensor,
         )
         return reward, done
 
@@ -152,36 +160,10 @@ class DoubleWellCommittor1D():
         # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
         r, done = self.reward_signal_state_action_next_state(state, action, next_state)
 
+        # reward signal r_n = r(s_n, a_n)
+        #r, done = self.reward_signal_state_action(state, action)
+
         return next_state, r, done, dbt
-
-    def step_vectorized_stopped(self, states, actions, idx):
-
-        # number of trajectories which have not arrived yet
-        n_not_in_ts = idx.shape[0]
-
-        # brownian increment
-        dbt = np.array(np.sqrt(self.dt) * np.random.randn(n_not_in_ts, 1), dtype=np.float32)
-
-        # sde step
-        next_states = states.copy()
-        next_states[idx] = states[idx] \
-                         + (- self.gradient(states[idx]) + self.sigma * actions[idx]) * self.dt \
-                         + self.sigma * dbt
-
-        # done if position x in the target set
-        done = np.where(next_states > self.lb, True, False)
-
-        # rewards signal r_{n+1} = r(s_{n+1}, s_n, a_n)
-        batch_size = states.shape[0]
-        rewards = np.zeros((batch_size, 1))
-        rewards[idx] = np.where(
-            done[idx],
-            - 0.5 * np.power(actions[idx], 2) * self.dt - self.f(states[idx]) * self.dt -
-            self.g(next_states[idx]),
-            - 0.5 * np.power(actions[idx], 2) * self.dt - self.f(states[idx]) * self.dt,
-        )
-
-        return next_states, rewards, done
 
     def step_torch(self, state, action):
 
@@ -200,6 +182,9 @@ class DoubleWellCommittor1D():
 
         # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
         r, done = self.reward_signal_state_action_next_state_torch(state, action, next_state)
+
+        # reward signal r_n = r(s_n, a_n)
+        #r, done = self.reward_signal_state_action_torch(state, action)
 
         return next_state, r, done, dbt
 
@@ -259,26 +244,72 @@ class DoubleWellCommittor1D():
         # get null action index
         self.get_idx_null_action()
 
-
     def get_state_idx(self, state):
-        return np.argmin(np.abs(self.state_space_h - state), axis=1)
 
-    def get_state_idx_clip(self, state):
-        return np.floor((
-            np.clip(state, self.state_space_low, self.state_space_high - 2 * self.h_state) + self.state_space_high
-        ) / self.h_state).astype(int)
+        # array convertion
+        state = np.asarray(state)
+
+        # scalar input
+        if state.ndim == 0:
+            state = state[np.newaxis, np.newaxis]
+
+        # array input
+        elif state.ndim == 1:
+            state = state[np.newaxis]
+
+        idx = np.floor(
+            (np.clip(
+                state,
+                self.state_space_low,
+                self.state_space_high - 2 * self.h_state
+            ) + self.state_space_high) / self.h_state).astype(int)
+        idx = idx[:, 0]
+        return idx
 
     def get_action_idx(self, action):
+        # array convertion
+        action = np.asarray(action)
+
+        # scalar input
+        if action.ndim == 0:
+            action = action[np.newaxis, np.newaxis]
+
+        # array input
+        elif action.ndim == 1:
+            action = action[np.newaxis]
+
         return np.argmin(np.abs(self.action_space_h - action), axis=1)
 
     def get_idx_state_init(self):
         self.idx_state_init = self.get_state_idx(self.state_init)
 
     def get_idx_target_set(self):
-        self.idx_a = np.where(self.state_space_h <= self.a_rb)[0]
-        self.idx_b = np.where(self.state_space_h >= self.b_lb)[0]
-        self.idx_ts = np.where((self.state_space_h <= self.a_rb) | (self.state_space_h >= self.b_lb))[0]
-        self.idx_not_ts = np.where((self.state_space_h > self.a_rb) & (self.state_space_h < self.b_lb))[0]
+        #self.idx_a = np.where(self.state_space_h <= self.a_rb)[0]
+        #self.idx_b = np.where(self.state_space_h >= self.b_lb)[0]
+        #self.idx_ts = np.where((self.state_space_h <= self.a_rb) | (self.state_space_h >= self.b_lb))[0]
+        #self.idx_not_ts = np.where((self.state_space_h > self.a_rb) & (self.state_space_h < self.b_lb))[0]
+
+        # indices of domain_h in tha target set A
+        self.idx_ts_a = np.where(
+            (self.state_space_h >= self.target_set_a[0]) & (self.state_space_h <= self.target_set_a[1])
+        )[0]
+
+        # indices of domain_h in tha target set B
+        self.idx_ts_b = np.where(
+            (self.state_space_h >= self.target_set_b[0]) & (self.state_space_h <= self.target_set_b[1])
+        )[0]
+
+        # indices of the discretized domain corresponding to the target set
+        self.idx_ts = np.where(
+            ((self.state_space_h >= self.target_set_a[0]) & (self.state_space_h <= self.target_set_a[1])) |
+            ((self.state_space_h >= self.target_set_b[0]) & (self.state_space_h <= self.target_set_b[1]))
+        )[0]
+
+        # indices of the discretized domain corresponding to the target set
+        self.idx_not_ts = np.where(
+            ((self.state_space_h < self.target_set_a[0]) | (self.state_space_h > self.target_set_a[1])) &
+            ((self.state_space_h < self.target_set_b[0]) | (self.state_space_h > self.target_set_b[1]))
+        )[0]
 
     def get_idx_null_action(self):
         self.idx_null_action = self.get_action_idx(np.zeros((1, 1)))
@@ -294,27 +325,31 @@ class DoubleWellCommittor1D():
         return greedy_actions
 
     def get_hjb_solver(self, h_hjb=0.001):
+        from sde_hjb_solver.controlled_sde_1d import DoubleWellCommittor1D as SDE1D
+        from sde_hjb_solver.hjb_solver_1d_st import SolverHJB1D
 
-        # initialize Langevin sde
-        sde = LangevinSDE(
-            problem_name='langevin_stop-t',
-            potential_name='nd_2well',
-            d=1,
-            alpha=self.alpha * np.ones(1),
+        # initialize controlled sde object
+        sde = SDE1D(
             beta=self.beta,
-            domain=np.full((1, 2), [-2, 2]),
+            alpha=self.alpha,
+            domain=(-2,  2),
+            target_set_a=(-2, -1),
+            target_set_b=(1, 2),
         )
 
+        # initialize hjb solver object
+        sol_hjb = SolverHJB1D(sde, h=1e-2)
+
         # load  hjb solver
-        sol_hjb = SolverHJB(sde, h=h_hjb)
         sol_hjb.load()
+
 
         # if hjb solver has different discretization step coarse solution
         if sol_hjb.sde.h < self.h_state:
 
             # discretization step ratio
             k = int(self.h_state / sol_hjb.sde.h)
-            assert self.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
+            assert self.state_space_h.shape == sol_hjb.u_opt[::k].shape, ''
 
             sol_hjb.value_function = sol_hjb.value_function[::k]
             sol_hjb.u_opt = sol_hjb.u_opt[::k]

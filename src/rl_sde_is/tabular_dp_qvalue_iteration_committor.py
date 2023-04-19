@@ -4,7 +4,7 @@ from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.dynammic_programming import compute_p_tensor_batch, compute_r_table
 from rl_sde_is.environments_committor import DoubleWellCommittor1D
 from rl_sde_is.plots import *
-from rl_sde_is.tabular_methods import compute_tables
+from rl_sde_is.tabular_methods import *
 from rl_sde_is.utils_path import *
 
 def get_parser():
@@ -12,12 +12,11 @@ def get_parser():
     parser.description = ''
     return parser
 
-def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
-                     value_function_hjb=None, control_hjb=None, load=False, plot=False):
+def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
+                     value_function_opt=None, policy_opt=None, load=False, live_plot=False):
+
     ''' Dynamic programming q-value iteration.
     '''
-    value_function_hjb.fill(np.nan)
-    control_hjb.fill(np.nan)
 
     # get dir path
     rel_dir_path = get_dynamic_programming_dir_path(
@@ -39,17 +38,30 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
     q_table = - np.random.rand(env.n_states, env.n_actions)
 
     # set values for the target set and null action
-    q_table[env.idx_a] = -1
-    q_table[env.idx_b] = 0
+    #?
+    #q_table[env.idx_a] = -1
+    q_table[env.idx_ts_a] = 0
+    q_table[env.idx_ts_b] = 0
 
     # get index x_init
-    idx_state_init = env.get_state_idx(env.state_init)
+    idx_state_init = env.get_state_idx(env.state_init).item()
+
+    # preallocate value function rms errors
+    n_test_iterations = n_iterations // test_freq_iterations + 1
+    v_rms_errors = np.empty(n_test_iterations)
+    p_rms_errors = np.empty(n_test_iterations)
+
+    # compute tables
+    v_table, a_table, policy = compute_tables(env, q_table)
+
+    # compute errors
+    v_rms_errors[0] = compute_rms_error(value_function_opt, v_table)
+    p_rms_errors[0] = compute_rms_error(policy_opt, policy)
 
     # initialize live figures
-    if plot:
-        v_table, a_table, policy = compute_tables(env, q_table)
+    if live_plot:
         lines = initialize_q_learning_figures(env, q_table, v_table, a_table, policy,
-                                          value_function_hjb, control_hjb)
+                                              value_function_opt, policy_opt)
 
     # for each iteration
     for i in np.arange(n_iterations):
@@ -72,20 +84,31 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
 
                 q_table[idx_state, idx_action] = value
 
-        # logs
-        if i % n_avg_iterations == 0:
+        # test
+        if (i + 1) % test_freq_iterations == 0:
+
+            # compute tables
+            v_table, a_table, policy = compute_tables(env, q_table)
+
+            # compute root mean square error of value function and policy
+            j = (i + 1) // test_freq_iterations
+            v_rms_errors[j] = compute_rms_error(value_function_opt, v_table)
+            p_rms_errors[j] = compute_rms_error(policy_opt, policy)
+
+            # logs
             msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, np.max(q_table[idx_state_init]))
             print(msg)
 
-        # update live figures
-        if plot and i % 1 == 0:
-            v_table, a_table, policy = compute_tables(env, q_table)
-            update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
+            # update live figures
+            if live_plot:
+                update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
 
 
     data = {
         'n_iterations': n_iterations,
         'q_table' : q_table,
+        'v_rms_errors' : v_rms_errors,
+        'p_rms_errors' : p_rms_errors,
     }
     save_data(data, rel_dir_path)
     return data
@@ -94,8 +117,8 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, n_avg_iterations=10,
 def main():
     args = get_parser().parse_args()
 
-    # initialize environments
-    env = DoubleWellCommittor1D(dt=args.dt)
+    # initialize environment
+    env = DoubleWellCommittor1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # discretize state and action space
     env.discretize_state_space(args.h_state)
@@ -109,13 +132,11 @@ def main():
         env,
         gamma=args.gamma,
         n_iterations=args.n_iterations,
-        n_avg_iterations=args.n_avg_iterations,
-        #value_function_hjb=None,
-        #control_hjb=None,
-        value_function_hjb=sol_hjb.value_function,
-        control_hjb=sol_hjb.u_opt,
+        test_freq_iterations=args.test_freq_iterations,
+        value_function_opt=-sol_hjb.value_function,
+        policy_opt=sol_hjb.u_opt,
         load=args.load,
-        plot=args.plot,
+        live_plot=args.live_plot,
     )
 
     # plot
@@ -127,10 +148,12 @@ def main():
     v_table, a_table, policy_greedy = compute_tables(env, q_table)
 
     # do plots
-    plot_q_value_function(env, q_table)
-    plot_value_function(env, v_table, sol_hjb.value_function)
-    plot_advantage_function(env, a_table)
-    plot_det_policy(env, policy_greedy, sol_hjb.u_opt)
+    plot_value_function_1d(env, v_table, -sol_hjb.value_function)
+    plot_q_value_function_1d(env, q_table)
+    plot_advantage_function_1d(env, a_table)
+    plot_det_policy_1d(env, policy_greedy, sol_hjb.u_opt)
+    plot_value_rms_error_iterations(data['v_rms_errors'], args.test_freq_iterations)
+    plot_policy_rms_error_iterations(data['p_rms_errors'], args.test_freq_iterations)
 
 
 if __name__ == '__main__':
