@@ -67,7 +67,6 @@ class DoubleWellStoppingTime1D():
         if not self.is_state_init_sampled:
             return np.full((batch_size, self.d), self.state_init)
         else:
-            #return np.random.uniform(self.state_space_low, self.lb, (batch_size, self.d))
             return np.full((batch_size, self.d), np.random.uniform(self.state_space_low, self.lb, (self.d,)))
 
     def sample_state(self, batch_size=1):
@@ -196,10 +195,10 @@ class DoubleWellStoppingTime1D():
                    + sigma * dbt
 
         # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
-        #r, done = self.reward_signal_state_action_next_state_torch(state, action, next_state)
+        r, done = self.reward_signal_state_action_next_state_torch(state, action, next_state)
 
         # reward signal r_n = r(s_n, a_n)
-        r, done = self.reward_signal_state_action_torch(state, action)
+        #r, done = self.reward_signal_state_action_torch(state, action)
 
         return next_state, r, done, dbt
 

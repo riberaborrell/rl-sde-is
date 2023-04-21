@@ -107,7 +107,7 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
         for k in np.flip(np.arange(time_steps[ep])):
 
             # compute return at time step k  
-            ret = gamma * ret + r
+            ret = gamma * ret + rewards[k]
 
             # if state not in the previous time steps
             if not idx_states[k] in idx_states[:k] or not first_visit:
