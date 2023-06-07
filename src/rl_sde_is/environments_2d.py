@@ -2,16 +2,18 @@ import numpy as np
 import scipy.stats as stats
 import torch
 
-class DoubleWellStoppingTime1D():
+class DoubleWellStoppingTime2D():
 
     def __init__(self, beta=1., alpha=1., dt=0.005, is_state_init_sampled=False):
 
         # environment log name
-        self.name = 'doublewell-1d-st__beta{:.1f}_alpha{:.1f}'.format(beta, alpha)
+        self.name = 'doublewell-2d-st__beta{:.1f}_alpha{:.1f}'.format(beta, alpha)
 
         # double well potential
-        self.d = 1
-        self.alpha = alpha
+        self.d = 2
+        #self.alpha = alpha * np.ones(self.d)
+        self.alpha = np.full(self.d, alpha)
+        self.alpha_tensor = torch.tensor(self.alpha, dtype=torch.float32)
 
         # sde
         self.beta = beta
@@ -30,26 +32,33 @@ class DoubleWellStoppingTime1D():
         self.state_init = - np.ones((1, self.d), dtype=np.float32)
 
         # observation space bounds
-        self.state_space_dim = 1
+        self.state_space_dim = 2
         self.state_space_low = -2.
         self.state_space_high = 2.
 
         # action space bounds
-        self.action_space_dim = 1
+        self.action_space_dim = 2
         self.action_space_low = 0.
         self.action_space_high = 3.
 
     def potential(self, state):
-        return self.alpha * (state**2 - 1) ** 2
+        return np.sum(self.alpha * (state**2 - 1) ** 2, axis=1)
+
+    def potential_torch(self, state):
+        return torch.sum(self.alpha * (state**2 - 1) ** 2, axis=1)
 
     def gradient(self, state):
         return 4 * self.alpha * state * (state**2 - 1)
 
+    def gradient_torch(self, state):
+        return 4 * self.alpha_tensor * state * (state**2 - 1)
+
     def is_done(self, state):
-        return np.where(state[:, 0] >= self.lb, True, False)
+        return (state >= self.lb).all(axis=1)
 
     def is_done_torch(self, state):
-        return torch.where(state[:, 0] >= self.lb, True, False)
+        return (state >= self.lb).all(axis=1)
+        #return torch.where(state >= self.lb, True, False)
 
     def f(self, state):
         return np.ones(state.shape[0])
@@ -67,6 +76,7 @@ class DoubleWellStoppingTime1D():
         if not self.is_state_init_sampled:
             return np.full((batch_size, self.d), self.state_init)
         else:
+            #return np.random.uniform(self.state_space_low, self.lb, (batch_size, self.d))
             return np.full((batch_size, self.d), np.random.uniform(self.state_space_low, self.lb, (self.d,)))
 
     def sample_state(self, batch_size=1):
@@ -159,25 +169,17 @@ class DoubleWellStoppingTime1D():
         # done if position x in the target set
         done = np.where(next_states >= self.lb, True, False)
 
+        # rewards signal r_{n+1} = r(s_{n+1}, s_n, a_n)
         batch_size = states.shape[0]
         rewards = np.zeros((batch_size, 1))
-
-        # rewards signal r_{n+1} = r(s_{n+1}, s_n, a_n)
         rewards[idx] = np.where(
             done[idx],
-            - (self.f(states[idx]) + 0.5 * np.power(actions[idx], 2)) * self.dt \
-            - self.g(next_states[idx]),
-            - (self.f(states[idx]) + 0.5 * np.power(actions[idx], 2)) * self.dt,
+            - 0.5 * np.power(actions[idx], 2) * self.dt - self.f(states[idx]) * self.dt -
+            self.g(next_states[idx]),
+            - 0.5 * np.power(actions[idx], 2) * self.dt - self.f(states[idx]) * self.dt,
         )
 
-        # rewards signal r_n = r(s_n, a_n)
-        #rewards[idx] = np.where(
-        #    done[idx],
-        #    - self.g(states[idx]),
-        #    - (self.f(states[idx]) + 0.5 * np.power(actions[idx], 2)) * self.dt,
-        #)
-
-        return next_states, rewards, done, dbt
+        return next_states, rewards, done
 
     def step_torch(self, state, action):
 
@@ -191,7 +193,7 @@ class DoubleWellStoppingTime1D():
         # sde step
         sigma = self.sigma_tensor
         next_state = state \
-                   + (- self.gradient(state) + sigma * action) * dt \
+                   + (- self.gradient_torch(state) + sigma * action) * dt \
                    + sigma * dbt
 
         # reward signal r_n = r(s_n, a_n)
@@ -224,107 +226,87 @@ class DoubleWellStoppingTime1D():
 
         return idx
 
-    def discretize_state_space(self, h_state):
-
-        # discretize state space
-        self.state_space_h = np.around(
-            np.arange(
-                self.state_space_low,
-                self.state_space_high + h_state,
-                h_state,
-            ),
-            decimals=3,
-        )
-        self.n_states = self.state_space_h.shape[0]
-        self.h_state = h_state
-
-        # get initial state index 
-        self.get_idx_state_init()
-
-        # get target set indices
-        self.get_idx_target_set()
-
-    def discretize_action_space(self, h_action):
-
-        # discretize action space
-        self.action_space_h = np.arange(
-            self.action_space_low,
-            self.action_space_high + h_action,
-            h_action,
-        )
-        self.n_actions = self.action_space_h.shape[0]
-        self.h_action = h_action
-
-        # get null action index
-        self.get_idx_null_action()
-
     def get_state_idx(self, state):
-
-        # array convertion
-        state = np.asarray(state)
-
-        # scalar input
-        if state.ndim == 0:
-            state = state[np.newaxis, np.newaxis]
-
-        # array input
-        elif state.ndim == 1:
-            state = state[np.newaxis]
-
         idx = np.floor(
             (np.clip(
                 state,
                 self.state_space_low,
                 self.state_space_high - 2 * self.h_state
             ) + self.state_space_high) / self.h_state).astype(int)
-        idx = idx[:, 0]
+        idx = tuple([idx[:, i] for i in range(self.d)])
         return idx
 
-    def get_state_idx_min(self, state):
-        return np.argmin(np.abs(self.state_space_h - state), axis=1)
+    def discretize_state_space(self, h_state):
 
-    def get_action_idx(self, action):
-        # array convertion
-        action = np.asarray(action)
+        # slice according to the state space bounds and discretization step
+        slice_i = slice(self.state_space_low, self.state_space_high + h_state, h_state)
 
-        # scalar input
-        if action.ndim == 0:
-            action = action[np.newaxis, np.newaxis]
+        # get state space grid
+        m_grid = np.mgrid[[slice_i, slice_i]]
+        self.state_space_h = np.moveaxis(m_grid, 0, -1)
 
-        # array input
-        elif action.ndim == 1:
-            action = action[np.newaxis]
+        # number of states and discretization step
+        self.n_states_i1 = self.state_space_h.shape[0]
+        self.n_states_i2 = self.state_space_h.shape[1]
+        self.n_states = self.state_space_h.shape[0] * self.state_space_h.shape[1]
+        self.h_state = h_state
 
-        return np.argmin(np.abs(self.action_space_h - action), axis=1)
+        # get initial state index 
+        self.get_idx_state_init()
 
     def get_idx_state_init(self):
         self.idx_state_init = self.get_state_idx(self.state_init)
 
-    def get_idx_target_set(self):
-        self.idx_lb = self.get_state_idx(np.array([[self.lb]]))[0]
-        self.idx_rb = self.get_state_idx(np.array([[self.rb]]))[0]
-        self.idx_ts = np.where(self.state_space_h >= self.lb)[0]
-        self.idx_not_ts = np.where(self.state_space_h < self.lb)[0]
+    def get_action_idx(self, action):
+        idx = np.floor(
+            (np.clip(
+                action,
+                self.action_space_low,
+                self.action_space_high - 2 * self.h_action
+            ) + self.action_space_high) / self.h_action).astype(int)
+        idx = tuple([idx[:, i] for i in range(self.d)])
+        return idx
+
+    def discretize_action_space(self, h_action):
+
+        # slice according to the action space bounds and discretization step
+        slice_i = slice(self.action_space_low, self.action_space_high + h_action, h_action)
+
+        # get state space grid
+        m_grid = np.mgrid[[slice_i, slice_i]]
+        self.action_space_h = np.moveaxis(m_grid, 0, -1)
+
+        # number of states and discretization step
+        self.n_actions_i1 = self.action_space_h.shape[0]
+        self.n_actions_i2 = self.action_space_h.shape[1]
+        self.n_actions = self.action_space_h.shape[0] * self.action_space_h.shape[1]
+        self.h_action = h_action
+
+        # get null action index
+        self.get_idx_null_action()
 
     def get_idx_null_action(self):
         self.idx_null_action = self.get_action_idx(np.zeros((1, self.d)))
 
-    def get_greedy_actions(self, q_table):
+    def discretize_state_action_space(self, h_state, h_action):
 
-        # compute greedy action by following the q-table
-        idx_actions = np.argmax(q_table, axis=1)
-        greedy_actions = self.action_space_h[idx_actions]
+        # slice according to the action space bounds and discretization step
+        slice_i_state = slice(self.state_space_low, self.state_space_high + h_state, h_state)
+        slice_i_action = slice(self.action_space_low, self.action_space_high + h_action, h_action)
 
-        # set actions in the target set to 0
-        greedy_actions[self.idx_ts] = 0.
-        return greedy_actions
+        # get state space grid
+        m_grid = np.mgrid[[slice_i_state, slice_i_state, slice_i_action, slice_i_action]]
+        self.state_action_space_h = np.moveaxis(m_grid, 0, -1)
+
+        # number of states and discretization step
+        self.n_states_actions = np.prod(self.state_action_space_h.shape[:-1])
 
     def get_hjb_solver(self, h_hjb=0.001):
-        from sde_hjb_solver.controlled_sde_1d import DoubleWellStoppingTime1D as SDE1D
-        from sde_hjb_solver.hjb_solver_1d_st import SolverHJB1D
+        from sde_hjb_solver.controlled_sde_2d import DoubleWellStoppingTime2D as SDE2D
+        from sde_hjb_solver.hjb_solver_2d_st import SolverHJB2D
 
         # initialize controlled sde object
-        sde = SDE1D(
+        sde = SDE2D(
             beta=self.beta,
             alpha=self.alpha,
             domain=(-2,  2),
@@ -332,7 +314,7 @@ class DoubleWellStoppingTime1D():
         )
 
         # initialize hjb solver object
-        sol_hjb = SolverHJB1D(sde, h=1e-2)
+        sol_hjb = SolverHJB2D(sde, h=1e-1)
 
         # load  hjb solver
         sol_hjb.load()
@@ -348,3 +330,31 @@ class DoubleWellStoppingTime1D():
             sol_hjb.u_opt = sol_hjb.u_opt[::k]
 
         return sol_hjb
+
+#    def get_hjb_solver_old(self, h_hjb=0.01):
+#
+#        # initialize Langevin sde
+#        sde = LangevinSDE(
+#            problem_name='langevin_stop-t',
+#            potential_name='nd_2well',
+#            d=self.d,
+#            alpha=self.alpha * np.ones(self.d),
+#            beta=self.beta,
+#            domain=np.full((self.d, 2), [-2, 2]),
+#        )
+#
+#        # load  hjb solver
+#        sol_hjb = SolverHJB(sde, h=h_hjb)
+#        sol_hjb.load()
+#
+#        # if hjb solver has different discretization step coarse solution
+#        if sol_hjb.sde.h < self.h_state:
+#
+#            # discretization step ratio
+#            k = int(self.h_state / sol_hjb.sde.h)
+#            assert self.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
+#
+#            sol_hjb.value_function = sol_hjb.value_function[::k]
+#            sol_hjb.u_opt = sol_hjb.u_opt[::k]
+#
+#        return sol_hjb

@@ -104,7 +104,7 @@ def sample_loss_vectorized(env, model, K):
 def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
               batch_size=1000, lr=1e-3, n_iterations=100, test_batch_size=1000,
               test_freq_iterations=100, backup_freq_iterations=None, seed=None,
-              control_hjb=None, load=False, live_plot=False):
+              policy_opt=None, load=False, live_plot=False):
 
     # get dir path
     rel_dir_path = get_reinforce_det_dir_path(
@@ -191,7 +191,7 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
     # test initial model
     test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
             = test_policy_vectorized(env, model, batch_size=test_batch_size,
-                                     control_hjb=control_hjb)
+                                     policy_opt=policy_opt)
     test_mean_returns = np.append(test_mean_returns, test_mean_ret)
     test_var_returns = np.append(test_var_returns, test_var_ret)
     test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
@@ -209,9 +209,9 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
 
     # initialize live figures
     if live_plot and env.d == 1:
-        policy_line = initialize_1d_figures(env, model, control_hjb)
+        policy_line = initialize_1d_figures(env, model, policy_opt)
     elif live_plot and env.d == 2:
-        Q_policy = initialize_2d_figures(env, model, control_hjb)
+        Q_policy = initialize_2d_figures(env, model, policy_opt)
 
     for i in np.arange(n_iterations):
 
@@ -250,7 +250,7 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
 
             test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
                     = test_policy_vectorized(env, model, batch_size=test_batch_size,
-                                             control_hjb=control_hjb)
+                                             policy_opt=policy_opt)
             test_mean_returns = np.append(test_mean_returns, test_mean_ret)
             test_var_returns = np.append(test_var_returns, test_var_ret)
             test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
@@ -287,7 +287,7 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
             save_data(data, rel_dir_path)
 
         # update figure
-        if live_plot and i % 10 == 0:
+        if live_plot and i % 1 == 0:
 
             if env.d == 1:
                 update_1d_figures(env, model, policy_line)
@@ -308,18 +308,18 @@ def reinforce(env, gamma=0.99, d_hidden_layer=256, n_layers=3, action_limit=5,
     save_data(data, rel_dir_path)
     return data
 
-def initialize_1d_figures(env, model, control_hjb):
+def initialize_1d_figures(env, model, policy_opt):
 
     # hjb control
-    if control_hjb is None:
-        control_hjb_plot = np.empty_like(env.state_space_h)
-        control_hjb_plot.fill(np.nan)
+    if policy_opt is None:
+        policy_opt_plot = np.empty_like(env.state_space_h)
+        policy_opt_plot.fill(np.nan)
     else:
-        control_hjb_plot = control_hjb
+        policy_opt_plot = policy_opt
 
     state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
     initial_policy = compute_det_policy_actions(env, model, state_space_h).squeeze()
-    policy_line = initialize_det_policy_1d_figure(env, initial_policy, control_hjb_plot)
+    policy_line = initialize_det_policy_1d_figure(env, initial_policy, policy_opt_plot)
 
     return policy_line
 

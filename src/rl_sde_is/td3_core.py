@@ -291,7 +291,7 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     # test initial actor model
     test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
             = test_policy_vectorized(env, actor, batch_size=test_batch_size,
-                                     control_hjb=policy_opt)
+                                     policy_opt=policy_opt)
     test_mean_returns = np.append(test_mean_returns, test_mean_ret)
     test_var_returns = np.append(test_var_returns, test_var_ret)
     test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
@@ -331,7 +331,6 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
 
     # sample trajectories
     for ep in range(n_episodes):
-        print(ep)
 
         # start timer
         ct_initial = time.time()
@@ -364,7 +363,6 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
 
             # env step
             next_state, r, done, _ = env.step(state, action)
-            #print(k, state, action, r, next_state)
 
             # store tuple
             replay_buffer.store(state, action, r, next_state, done)

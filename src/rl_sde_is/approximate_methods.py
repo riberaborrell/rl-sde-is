@@ -24,13 +24,13 @@ def get_epsilon_greedy_discrete_action(env, model, state, epsilon):
         with torch.no_grad():
             state_tensor = torch.tensor(state, dtype=torch.float32)
             q_values = model.forward(state_tensor).numpy()
-            idx_action = np.argmax(q_values)
+            idx_action = np.argmax(q_values, axis=1)
+            action = env.action_space_h[[idx_action]]
 
     # pick random action (exploration)
     else:
         idx_action = np.random.randint(env.n_actions)
-
-    action = env.action_space_h[[idx_action]]
+        action = env.action_space_h[[[idx_action]]]
 
     return idx_action, action
 
@@ -188,7 +188,7 @@ def test_policy(env, model, batch_size=10):
 
     return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)
 
-def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=None):
+def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, policy_opt=None):
 
     # preallocate returns and time steps
     total_rewards = np.zeros(batch_size)
@@ -196,7 +196,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
     ep_lens = np.empty(batch_size)
 
     # preallocate u l2 error array
-    if control_hjb is not None:
+    if policy_opt is not None:
         ep_policy_l2_error_fht = np.empty(batch_size)
         ep_policy_l2_error_t = np.zeros(batch_size)
 
@@ -222,11 +222,11 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
 
         # hjb control
         idx_states = env.get_state_idx(states)
-        actions_hjb = control_hjb[idx_states]
+        actions_opt = policy_opt[idx_states]
 
         # computer running u l2 error
-        if control_hjb is not None:
-            ep_policy_l2_error_t += (np.linalg.norm(actions - actions_hjb, axis=1) ** 2) * env.dt
+        if policy_opt is not None:
+            ep_policy_l2_error_t += (np.linalg.norm(actions - actions_opt, axis=1) ** 2) * env.dt
 
         # get indices of episodes which are new to the target set
         idx = env.get_idx_new_in_ts(done, already_done)
@@ -241,7 +241,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
             ep_lens[idx] = k
 
             # fix l2 error
-            if control_hjb is not None:
+            if policy_opt is not None:
                 ep_policy_l2_error_fht[idx] = ep_policy_l2_error_t[idx]
 
         # stop if xt_traj in target set
@@ -251,7 +251,7 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, control_hjb=N
         # update states
         states = next_states
 
-    if control_hjb is not None:
+    if policy_opt is not None:
         return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens), np.mean(ep_policy_l2_error_fht)
     else:
         return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)

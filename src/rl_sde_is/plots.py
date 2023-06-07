@@ -613,30 +613,6 @@ def plot_det_policy_2d(env, policy, policy_hjb):
 
     plt.show()
 
-def initialize_det_policy_1d_figure(env, policy, policy_opt):
-
-    # initialize figure
-    fig, ax = plt.subplots(figsize=(5, 4))
-
-    # turn interactive mode on
-    plt.ion()
-
-    ax.set_title(TITLES_FIG['policy'], fontsize=10)
-    ax.set_xlabel('States', fontsize=8)
-    ax.set_xlim(env.state_space_low, env.state_space_high)
-    ax.set_ylim(env.action_space_low, env.action_space_high)
-    det_policy_line = ax.plot(env.state_space_h, policy)[0]
-    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
-
-    plt.legend()
-    plt.show()
-
-    return det_policy_line
-
-def update_det_policy_1d_figure(env, policy, line):
-    line.set_data(env.state_space_h, policy)
-    plt.pause(0.1)
-
 def initialize_stoch_policy_1d_figure(env, policy, policy_opt):
 
     # initialize figure
@@ -659,6 +635,30 @@ def initialize_stoch_policy_1d_figure(env, policy, policy_opt):
 
 def update_stoch_policy_1d_figure(env, policy, sc):
     sc.set_offsets(np.c_[env.state_space_h, policy])
+    plt.pause(0.1)
+
+def initialize_det_policy_1d_figure(env, policy, policy_opt):
+
+    # initialize figure
+    fig, ax = plt.subplots(figsize=(5, 4))
+
+    # turn interactive mode on
+    plt.ion()
+
+    ax.set_title(TITLES_FIG['policy'], fontsize=10)
+    ax.set_xlabel('States', fontsize=8)
+    ax.set_xlim(env.state_space_low, env.state_space_high)
+    ax.set_ylim(env.action_space_low, env.action_space_high)
+    det_policy_line = ax.plot(env.state_space_h, policy)[0]
+    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+
+    plt.legend()
+    plt.show()
+
+    return det_policy_line
+
+def update_det_policy_1d_figure(env, policy, line):
+    line.set_data(env.state_space_h, policy)
     plt.pause(0.1)
 
 def coarse_quiver_arrows(U, V, X=None, Y=None, l=25):
@@ -705,11 +705,15 @@ def initialize_det_policy_2d_figure(env, policy, policy_hjb):
         U,
         V,
         C,
-        norm=norm,
-        cmap=cm.viridis,
         angles='xy',
+        pivot='tail',
+        #scale=1,
         scale_units='xy',
+        #units='width',
+        units='xy',
         width=0.005,
+        #norm=norm,
+        cmap=cm.viridis,
     )
 
     # add space for color bar
@@ -730,6 +734,7 @@ def update_det_policy_2d_figure(env, policy, Q_policy):
 
     # update plots
     Q_policy.set_UVC(U, V, C)
+    Q_policy.set_clim(vmin=C.min(), vmax=C.max())
 
     # update figure frequency
     plt.pause(0.1)
@@ -876,6 +881,35 @@ def update_value_function_1d_figure(env, value_function, line):
     line.set_data(env.state_space_h, value_function)
     plt.pause(0.1)
 
+def initialize_advantage_function_1d_figure(env, a_table, policy_opt):
+
+    # initialize figure
+    fig, ax = plt.subplots()
+
+    # turn interactive mode on
+    plt.ion()
+
+    # a table
+    ax.set_title(TITLES_FIG['a-value-function'])
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+    im_a_table = ax.imshow(
+        a_table.T,
+        origin='lower',
+        extent=get_state_action_1d_extent(env),
+        cmap=cm.plasma,
+        #aspect='auto',
+    )
+    plt.show()
+    return im_a_table
+
+def update_advantage_function_1d_figure(env, a_table, im):
+
+    im.set_data(a_table.T)
+
+    # update figure frequency
+    plt.pause(0.1)
+
 def initialize_q_learning_figures(env, q_table, v_table, a_table,
                                   policy, value_function_opt, policy_opt):
 
@@ -893,10 +927,12 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     ax1.set_ylabel('Actions')
     im_q_table = ax1.imshow(
         q_table.T,
-        origin='lower',
-        extent=get_state_action_1d_extent(env),
         cmap=cm.viridis,
         #aspect='auto',
+        vmin=q_table.min(),
+        vmax=q_table.max(),
+        origin='lower',
+        extent=get_state_action_1d_extent(env),
     )
 
     # value function
@@ -911,10 +947,12 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     ax3.set_ylabel('Actions')
     im_a_table = ax3.imshow(
         a_table.T,
-        origin='lower',
-        extent=get_state_action_1d_extent(env),
         cmap=cm.plasma,
         #aspect='auto',
+        vmin=a_table.min(),
+        vmax=a_table.max(),
+        origin='lower',
+        extent=get_state_action_1d_extent(env),
     )
 
     # control
@@ -923,6 +961,10 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     ax4.set_ylabel('Actions')
     line_control = ax4.plot(env.state_space_h, policy)[0]
     ax4.plot(env.state_space_h, policy_opt)
+
+    # colorbars                                                                 
+    plt.colorbar(im_q_table, ax=ax1)
+    plt.colorbar(im_a_table, ax=ax3)
 
     plt.show()
     return (im_q_table, line_value_function, im_a_table, line_control)
@@ -934,8 +976,10 @@ def update_q_learning_figures(env, q_table, v_table, a_table, policy, tuples):
 
     # update plots
     im_q_table.set_data(q_table.T)
+    im_q_table.set_clim(vmin=q_table.min(), vmax=q_table.max())
     line_value_function.set_data(env.state_space_h, v_table)
     im_a_table.set_data(a_table.T)
+    im_a_table.set_clim(vmin=a_table.min(), vmax=a_table.max())
     line_policy.set_data(env.state_space_h, policy)
 
     # update figure frequency
@@ -984,10 +1028,12 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax1.set_ylim(env.action_space_low, env.action_space_high)
     im_q_table = ax1.imshow(
         q_table.T,
-        origin='lower',
-        extent=get_state_action_1d_extent(env),
         cmap=cm.viridis,
         aspect='auto',
+        vmin=q_table.min(),
+        vmax=q_table.max(),
+        origin='lower',
+        extent=get_state_action_1d_extent(env),
     )
 
     # value function
@@ -1006,10 +1052,12 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax3.set_ylim(env.action_space_low, env.action_space_high)
     im_a_table = ax3.imshow(
         a_table.T,
-        origin='lower',
-        extent=get_state_action_1d_extent(env),
         cmap=cm.plasma,
         aspect='auto',
+        vmin=a_table.min(),
+        vmax=a_table.max(),
+        origin='lower',
+        extent=get_state_action_1d_extent(env),
     )
 
     # control
@@ -1021,6 +1069,10 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     line_policy_actor = ax4.plot(env.state_space_h, policy_actor)[0]
     line_policy_critic = ax4.plot(env.state_space_h, policy_critic)[0]
     ax4.plot(env.state_space_h, policy_opt)
+
+    # colorbars                                                                 
+    plt.colorbar(im_q_table, ax=ax1)
+    plt.colorbar(im_a_table, ax=ax3)
 
     plt.show()
     return (im_q_table, line_value_f_actor_critic, line_value_f_critic, im_a_table,
@@ -1035,9 +1087,11 @@ def update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_crit
 
     # update plots
     im_q_table.set_data(q_table.T)
+    im_q_table.set_clim(vmin=q_table.min(), vmax=q_table.max())
     line_value_f_actor_critic.set_data(env.state_space_h, v_table_actor_critic)
     line_value_f_critic.set_data(env.state_space_h, v_table_critic)
     im_a_table.set_data(a_table.T)
+    im_a_table.set_clim(vmin=a_table.min(), vmax=a_table.max())
     line_policy_actor.set_data(env.state_space_h, policy_actor)
     line_policy_critic.set_data(env.state_space_h, policy_critic)
 
@@ -1150,12 +1204,12 @@ def plot_replay_buffer_1d(env, buf_states, buf_actions, buf_max_size, vmax=None)
 
     image = ax.imshow(
         H.T,
+        aspect='auto',
+        interpolation='nearest',
         vmin=0,
         vmax=vmax,
-        interpolation='nearest',
         origin='lower',
         extent=get_state_action_1d_extent(env),
-        aspect='auto',
     )
     plt.show()
 
@@ -1177,6 +1231,7 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
     y_edges = env.action_space_h[::5]
 
     H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
+    H /= n_points
 
     # frequency table
     ax.set_title('Histogram Replay Buffer (State-action)', fontsize=10)
@@ -1185,8 +1240,6 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
 
     image = ax.imshow(
         H.T,
-        vmin=0,
-        vmax=replay_buffer.max_size / 100,
         interpolation='nearest',
         origin='lower',
         extent=get_state_action_1d_extent(env),
@@ -1207,9 +1260,11 @@ def update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig):
     actions = replay_buffer.act_buf[:replay_buffer.size, 0]
 
     H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
+    H /= n_points
 
     # update image
     image.set_data(H.T)
+    image.set_clim(vmin=H.min(), vmax=H.max())
 
     # pause interval 
     plt.pause(0.1)

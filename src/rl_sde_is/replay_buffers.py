@@ -40,6 +40,7 @@ class ContinuousReplayBuffer:
         self.ptr = 0
         self.size = 0
         self.max_size = size
+        self.is_full = False
 
     def store(self, state, action, rew, next_state, done):
         self.state_buf[self.ptr] = state
@@ -49,6 +50,9 @@ class ContinuousReplayBuffer:
         self.done_buf[self.ptr] = done
         self.ptr = (self.ptr+1) % self.max_size
         self.size = min(self.size+1, self.max_size)
+        if not self.is_full and self.size == self.max_size:
+            self.is_full = True
+            print('Replay buffer is full!')
 
     def sample_batch(self, batch_size=32):
         idxs = np.random.randint(0, self.size, size=batch_size)

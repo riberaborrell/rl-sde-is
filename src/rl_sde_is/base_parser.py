@@ -73,15 +73,15 @@ def get_base_parser():
         '--lr-actor',
         dest='lr_actor',
         type=float,
-        default=0.01,
-        help='Set learning rate for the actor network. Default: 0.01',
+        default=0.0001,
+        help='Set learning rate for the actor network. Default: 0.0001',
     )
     parser.add_argument(
         '--lr-critic',
         dest='lr_critic',
         type=float,
-        default=0.01,
-        help='Set learning rate for the critic network. Default: 0.01',
+        default=0.0001,
+        help='Set learning rate for the critic network. Default: 0.0001',
     )
     parser.add_argument(
         '--lam',
@@ -225,8 +225,8 @@ def get_base_parser():
         '--batch-size',
         dest='batch_size',
         type=int,
-        default=10,
-        help='Set number of trajectories in each batch. Default: 10',
+        default=1000,
+        help='Set number of trajectories in each batch. Default: 1000',
     )
     parser.add_argument(
         '--test-batch-size',
@@ -234,6 +234,13 @@ def get_base_parser():
         type=int,
         default=10,
         help='Set number of trajectories in each test batch. Default: 10',
+    )
+    parser.add_argument(
+        '--replay-size',
+        dest='replay_size',
+        type=int,
+        default=int(1e6),
+        help='Set number of data slices in the replay buffer. Default: 10^6',
     )
     parser.add_argument(
         '--h-state',

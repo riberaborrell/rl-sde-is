@@ -1,6 +1,6 @@
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
 from rl_sde_is.plots import *
 from rl_sde_is.td3_core import *
 
@@ -13,7 +13,7 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
+    env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # set action space bounds
     env.action_space_low = -5
@@ -24,12 +24,11 @@ def main():
         env.is_state_init_sampled = True
 
     # discretize state and action space (plot purposes only)
-    env.discretize_state_space(h_state=0.05)
-    env.discretize_action_space(h_action=0.05)
+    env.discretize_state_space(h_state=0.1)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
-    control_hjb = np.expand_dims(sol_hjb.u_opt, axis=1)
+    control_hjb = sol_hjb.u_opt
 
     # run td3
     data = td3_episodic(
@@ -41,11 +40,11 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        start_steps=int(1e4),
+        start_steps=int(1e5),
         replay_size=args.replay_size,
-        update_after=int(1e4),
+        update_after=int(1e5),
         n_steps_episode_lim=args.n_steps_lim,
-        update_every=100,
+        update_every=2,
         expl_noise_init=args.expl_noise_init,
         expl_noise_decay=1.,
         policy_delay=args.policy_delay,
@@ -73,31 +72,10 @@ def main():
     if args.plot_episode is not None:
         load_backup_models(data, ep=args.plot_episode)
 
-    # compute tables following q-value model
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
-
-    # compute value function and actions following the policy model
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
-
-    # load initial models
-    load_backup_models(data, ep=0)
-
-    # compute tables following q-value model
-    _, v_table_critic_init, _, policy_critic_init = compute_tables_critic(env, critic1)
-
-    # compute value function and actions following the policy model
-    v_table_actor_critic_init, policy_actor_init = compute_tables_actor_critic(env, actor, critic1)
-
-
-    plot_q_value_function_1d(env, q_table)
-    plot_value_function_1d_actor_critic(env, v_table_critic_init, v_table_critic,
-                                        v_table_actor_critic, sol_hjb.value_function)
-    plot_advantage_function_1d(env, a_table, policy_critic)
-    plot_det_policy_1d_actor_critic(env, policy_actor_init, policy_critic_init, policy_actor,
-                                    policy_critic, sol_hjb.u_opt)
-
-    # plot replay buffer
-    plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0], data['replay_size'])
+    # compute actor policy
+    states = torch.FloatTensor(env.state_space_h)
+    policy = compute_det_policy_actions(env, actor, states)
+    plot_det_policy_2d(env, policy, control_hjb)
 
     # plot moving averages for each episode
     returns = data['returns']
