@@ -68,6 +68,7 @@ class DoubleWellStoppingTime1D():
             return np.full((batch_size, self.d), self.state_init)
         else:
             return np.full((batch_size, self.d), np.random.uniform(self.state_space_low, self.lb, (self.d,)))
+            #return np.full((batch_size, self.d), np.random.uniform(self.state_space_low, self.state_space_high, (self.d,)))
 
     def sample_state(self, batch_size=1):
             return np.random.uniform(self.state_space_low, self.state_space_high, (batch_size, self.d))
@@ -82,46 +83,42 @@ class DoubleWellStoppingTime1D():
              - stats.norm.cdf(next_state - h, mu, std_dev)
         return prob
 
-    def reward_signal_state_action(self, state, action):
-        done = self.is_done(state)
+    def reward_signal_state_action(self, state, action, done):
         reward = np.where(
             done,
             - self.g(state),
             - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt,
         )
-        return reward, done
+        return reward
 
-    def reward_signal_state_action_next_state(self, state, action, next_state):
-        done = self.is_done(next_state)
+    def reward_signal_state_action_next_state(self, state, action, next_state, done):
         reward = np.where(
             done,
             - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt \
             - self.g(next_state),
             - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt,
         )
-        return reward, done
+        return reward
 
-    def reward_signal_state_action_torch(self, state, action):
-        done = self.is_done_torch(state)
+    def reward_signal_state_action_torch(self, state, action, done):
         reward = torch.where(
             done,
             - self.g_torch(state),
             - (self.f_torch(state) + 0.5 * torch.linalg.norm(action, axis=1)**2) * self.dt_tensor,
         )
-        return reward, done
+        return reward
 
-    def reward_signal_state_action_next_state_torch(self, state, action, next_state):
-        done = self.is_done_torch(next_state)
+    def reward_signal_state_action_next_state_torch(self, state, action, next_state, done):
         reward = torch.where(
             done,
             - (self.f_torch(state) + 0.5 * torch.linalg.norm(action, axis=1)**2) * self.dt_tensor \
             - self.g_torch(next_state),
             - (self.f_torch(state) + 0.5 * torch.linalg.norm(action, axis=1)**2) * self.dt_tensor,
         )
-        return reward, done
+        return reward
 
 
-    def step(self, state, action):
+    def step(self, state, action, reward_type='state-action'):
 
         # batch_size
         batch_size = state.shape[0]
@@ -135,10 +132,14 @@ class DoubleWellStoppingTime1D():
                    + self.sigma * dbt
 
         # reward signal r_n = r(s_n, a_n)
-        r, done = self.reward_signal_state_action(state, action)
+        if reward_type == 'state-action':
+            done = self.is_done(state)
+            r = self.reward_signal_state_action(state, action, done)
 
         # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
-        #r, done = self.reward_signal_state_action_next_state(state, action, next_state)
+        elif reward_type == 'state-action-next-state':
+            done = self.is_done(next_state)
+            r = self.reward_signal_state_action_next_state(state, action, next_state, done)
 
         return next_state, r, done, dbt
 
@@ -179,7 +180,7 @@ class DoubleWellStoppingTime1D():
 
         return next_states, rewards, done, dbt
 
-    def step_torch(self, state, action):
+    def step_torch(self, state, action, reward_type='state-action'):
 
         # batch_size
         batch_size = state.shape[0]
@@ -195,10 +196,14 @@ class DoubleWellStoppingTime1D():
                    + sigma * dbt
 
         # reward signal r_n = r(s_n, a_n)
-        r, done = self.reward_signal_state_action_torch(state, action)
+        if reward_type == 'state-action':
+            done = self.is_done_torch(state)
+            r = self.reward_signal_state_action_torch(state, action, done)
 
         # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
-        #r, done = self.reward_signal_state_action_next_state_torch(state, action, next_state)
+        elif reward_type == 'state-action-next-state':
+            done = self.is_done_torch(next_state)
+            r = self.reward_signal_state_action_next_state_torch(state, action, next_state, done)
 
         return next_state, r, done, dbt
 

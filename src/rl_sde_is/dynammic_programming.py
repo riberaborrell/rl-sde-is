@@ -29,7 +29,8 @@ def compute_r_table(env):
 
     for idx_action in range(env.n_actions):
         action = env.action_space_h[[idx_action]].reshape(1, env.d)
-        r_table[:, idx_action], _ = env.reward_signal_state_action(states, action)
+        done = env.is_done(states)
+        r_table[:, idx_action] = env.reward_signal_state_action(states, action, done)
 
     return r_table
 
