@@ -288,18 +288,24 @@ class DoubleWellStoppingTime2D():
     def get_idx_null_action(self):
         self.idx_null_action = self.get_action_idx(np.zeros((1, self.d)))
 
-    def discretize_state_action_space(self, h_state, h_action):
+    def discretize_state_action_space(self):
 
-        # slice according to the action space bounds and discretization step
-        slice_i_state = slice(self.state_space_low, self.state_space_high + h_state, h_state)
-        slice_i_action = slice(self.action_space_low, self.action_space_high + h_action, h_action)
+        # slice according to the state space and action space bounds and discretization step
+        slice_i_state = slice(self.state_space_low, self.state_space_high + self.h_state, self.h_state)
+        slice_i_action = slice(self.action_space_low, self.action_space_high + self.h_action, self.h_action)
 
-        # get state space grid
-        m_grid = np.mgrid[[slice_i_state, slice_i_state, slice_i_action, slice_i_action]]
-        self.state_action_space_h = np.moveaxis(m_grid, 0, -1)
+        # number of state-actions pairs in the grid
+        self.n_states_actions = self.n_states * self.n_actions
 
-        # number of states and discretization step
-        self.n_states_actions = np.prod(self.state_action_space_h.shape[:-1])
+        # get state action space grid
+        m_grid = np.mgrid[[
+            slice_i_state,
+            slice_i_state,
+            slice_i_action,
+            slice_i_action,
+        ]]
+        self.state_action_space_h_flat \
+            = np.moveaxis(m_grid, 0, -1).reshape(self.n_states_actions, self.d * self.d)
 
     def get_hjb_solver(self, h_hjb=0.001):
         from sde_hjb_solver.controlled_sde_2d import DoubleWellStoppingTime2D as SDE2D

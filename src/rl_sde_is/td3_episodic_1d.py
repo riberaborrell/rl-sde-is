@@ -74,30 +74,30 @@ def main():
         load_backup_models(data, ep=args.plot_episode)
 
     # compute tables following q-value model
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic_1d(env, critic1)
 
     # compute value function and actions following the policy model
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic_1d(env, actor, critic1)
 
     # load initial models
     load_backup_models(data, ep=0)
 
     # compute tables following q-value model
-    _, v_table_critic_init, _, policy_critic_init = compute_tables_critic(env, critic1)
+    _, v_table_critic_init, _, policy_critic_init = compute_tables_critic_1d(env, critic1)
 
     # compute value function and actions following the policy model
-    v_table_actor_critic_init, policy_actor_init = compute_tables_actor_critic(env, actor, critic1)
+    v_table_actor_critic_init, policy_actor_init = compute_tables_actor_critic_1d(env, actor, critic1)
 
 
     plot_q_value_function_1d(env, q_table)
     plot_value_function_1d_actor_critic(env, v_table_critic_init, v_table_critic,
-                                        v_table_actor_critic, sol_hjb.value_function)
+                                        v_table_actor_critic, -sol_hjb.value_function)
     plot_advantage_function_1d(env, a_table, policy_critic)
     plot_det_policy_1d_actor_critic(env, policy_actor_init, policy_critic_init, policy_actor,
                                     policy_critic, sol_hjb.u_opt)
 
     # plot replay buffer
-    plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0], data['replay_size'])
+    plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0])
 
     # plot moving averages for each episode
     returns = data['returns']

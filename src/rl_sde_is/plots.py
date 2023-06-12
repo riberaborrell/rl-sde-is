@@ -10,16 +10,16 @@ def get_state_action_1d_extent(env):
         1d action space in the y-axis
     '''
 
-    extent = env.state_space_h[0], env.state_space_h[-1], \
-             env.action_space_h[0], env.action_space_h[-1]
+    extent = env.state_space_h[0] - env.h_state/2, env.state_space_h[-1] + env.h_state/2, \
+             env.action_space_h[0] - env.h_action/2, env.action_space_h[-1] + env.h_action/2
     return extent
 
 def get_state_2d_extent(env):
     ''' set extent bounds for 2d state space
     '''
 
-    extent = env.state_space_h[0, 0, 0], env.state_space_h[-1, -1, 0], \
-             env.state_space_h[0, 0, 1], env.state_space_h[-1, -1, 1]
+    extent = env.state_space_h[0, 0, 0] - env.h_state/2, env.state_space_h[-1, -1, 0] + env.h_state/2, \
+             env.state_space_h[0, 0, 1] - env.h_state/2, env.state_space_h[-1, -1, 1] + env.h_state/2
     return extent
 
 def plot_episode_states_1d(env, ep_states, loc=None):
@@ -707,12 +707,11 @@ def initialize_det_policy_2d_figure(env, policy, policy_hjb):
         C,
         angles='xy',
         pivot='tail',
-        #scale=1,
+        scale=1,
         scale_units='xy',
-        #units='width',
         units='xy',
-        width=0.005,
-        #norm=norm,
+        width=0.01,
+        norm=norm,
         cmap=cm.viridis,
     )
 
@@ -928,7 +927,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     im_q_table = ax1.imshow(
         q_table.T,
         cmap=cm.viridis,
-        #aspect='auto',
+        aspect='auto',
         vmin=q_table.min(),
         vmax=q_table.max(),
         origin='lower',
@@ -948,7 +947,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     im_a_table = ax3.imshow(
         a_table.T,
         cmap=cm.plasma,
-        #aspect='auto',
+        aspect='auto',
         vmin=a_table.min(),
         vmax=a_table.max(),
         origin='lower',
@@ -959,6 +958,8 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     ax4.set_title(TITLES_FIG['policy'])
     ax4.set_xlabel('States')
     ax4.set_ylabel('Actions')
+    ax4.set_xlim(env.state_space_h[0], env.state_space_h[-1])
+    ax4.set_ylim(env.action_space_h[0], env.action_space_h[-1])
     line_control = ax4.plot(env.state_space_h, policy)[0]
     ax4.plot(env.state_space_h, policy_opt)
 
@@ -989,23 +990,29 @@ def initialize_frequency_figure(env, n_table):
 
     # initialize figure
     fig, ax = plt.subplots()
-
-    # frequency table
     ax.set_title('Frequency')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
     im_n_table = ax.imshow(
         n_table.T,
+        aspect='auto',
+        #interpolation='nearest',
+        vmin=n_table.min(),
+        vmax=n_table.max(),
         origin='lower',
         extent=get_state_action_1d_extent(env),
-        #cmap=cm.plasma,
-        #aspect='auto',
+        cmap=cm.plasma,
     )
     plt.show()
     return im_n_table
 
 def update_frequency_figure(env, n_table, im_n_table):
+
+    # update image
     im_n_table.set_data(n_table.T)
+    im_n_table.set_clim(vmin=n_table.min(), vmax=n_table.max())
+
+    # pause interval
     plt.pause(0.1)
 
 def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
@@ -1182,19 +1189,17 @@ def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_op
         # draw
         fig.canvas.draw()
 
-def plot_replay_buffer_1d(env, buf_states, buf_actions, buf_max_size, vmax=None):
+def plot_replay_buffer_1d(env, buf_states, buf_actions):
 
     # get state and actions in buffer
     n_points = buf_states.shape[0]
-
-    if vmax is None:
-        vmax = n_points / 100
 
     # edges
     x_edges = env.state_space_h[::1]
     y_edges = env.action_space_h[::1]
 
     H, _, _ = np.histogram2d(buf_states, buf_actions, bins=(x_edges, y_edges))
+    H /= n_points
 
     # initialize figure
     fig, ax = plt.subplots()
@@ -1206,10 +1211,39 @@ def plot_replay_buffer_1d(env, buf_states, buf_actions, buf_max_size, vmax=None)
         H.T,
         aspect='auto',
         interpolation='nearest',
-        vmin=0,
-        vmax=vmax,
+        vmin=H.min(),
+        vmax=H.max(),
         origin='lower',
         extent=get_state_action_1d_extent(env),
+    )
+    plt.show()
+
+def plot_replay_buffer_states_2d(env, buf_states):
+
+    # get state and actions in buffer
+    n_points = buf_states.shape[0]
+
+    # edges
+    x_edges = env.state_space_h[:, 0, 0]
+    y_edges = env.state_space_h[:, 0, 0]
+
+    H, _, _ = np.histogram2d(buf_states[:, 0], buf_states[:, 1], bins=(x_edges, y_edges))
+    H /= n_points
+
+    # initialize figure
+    fig, ax = plt.subplots()
+    ax.set_title('Histogram Replay Buffer (State-action)')
+    ax.set_xlabel(r'$s_1$')
+    ax.set_ylabel(r'$s_2$')
+
+    image = ax.imshow(
+        H.T,
+        aspect='auto',
+        interpolation='nearest',
+        vmin=H.min(),
+        vmax=H.max(),
+        origin='lower',
+        extent=get_state_2d_extent(env),
     )
     plt.show()
 

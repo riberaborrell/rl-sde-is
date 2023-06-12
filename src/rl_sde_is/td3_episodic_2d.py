@@ -25,6 +25,7 @@ def main():
 
     # discretize state and action space (plot purposes only)
     env.discretize_state_space(h_state=0.1)
+    env.discretize_action_space(h_action=0.1)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
@@ -40,9 +41,9 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        start_steps=int(1e5),
+        start_steps=int(1e4),
         replay_size=args.replay_size,
-        update_after=int(1e5),
+        update_after=int(1e4),
         n_steps_episode_lim=args.n_steps_lim,
         update_every=2,
         expl_noise_init=args.expl_noise_init,
@@ -76,6 +77,18 @@ def main():
     states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, actor, states)
     plot_det_policy_2d(env, policy, control_hjb)
+
+    # compute tables
+    q_table, v_table, a_table, greed_actions = compute_tables_critic_2d(env, critic1)
+    plot_value_function_2d(env, v_table, -sol_hjb.value_function)
+    plot_det_policy_2d(env, greed_actions, control_hjb)
+
+    # plot states in replay buffer
+    plot_replay_buffer_states_2d(
+            env,
+            data['replay_states'],
+    )
+
 
     # plot moving averages for each episode
     returns = data['returns']
