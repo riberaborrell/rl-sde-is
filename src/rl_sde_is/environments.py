@@ -229,6 +229,22 @@ class DoubleWellStoppingTime1D():
 
         return idx
 
+    def set_action_space_bounds(self):
+
+        if self.alpha == 1. and self.beta == 1:
+            a = 3
+        elif self.alpha == 5. and self.beta == 1:
+            a = 8
+        elif self.alpha == 1. and self.beta == 4:
+            a = 5
+        elif self.alpha == 10. and self.beta == 1:
+            a = 20
+        else:
+            return
+
+        self.action_space_low = - a
+        self.action_space_high = a
+
     def discretize_state_space(self, h_state):
 
         # discretize state space
@@ -323,6 +339,23 @@ class DoubleWellStoppingTime1D():
         # set actions in the target set to 0
         greedy_actions[self.idx_ts] = 0.
         return greedy_actions
+
+    def discretize_state_action_space(self):
+
+        # slice according to the state space and action space bounds and discretization step
+        slice_i_state = slice(self.state_space_low, self.state_space_high + self.h_state, self.h_state)
+        slice_i_action = slice(self.action_space_low, self.action_space_high + self.h_action, self.h_action)
+
+        # number of state-actions pairs in the grid
+        self.n_states_actions = self.n_states * self.n_actions
+
+        # get state action space grid
+        m_grid = np.mgrid[[
+            slice_i_state,
+            slice_i_action,
+        ]]
+        self.state_action_space_h_flat \
+            = np.moveaxis(m_grid, 0, -1).reshape(self.n_states_actions, self.d + self.d)
 
     def get_hjb_solver(self, h_hjb=0.001):
         from sde_hjb_solver.controlled_sde_1d import DoubleWellStoppingTime1D as SDE1D

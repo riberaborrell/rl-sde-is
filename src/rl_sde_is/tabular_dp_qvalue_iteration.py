@@ -114,6 +114,9 @@ def main():
     # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
+    # set action space bounds
+    env.set_action_space_bounds()
+
     # discretize state and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
