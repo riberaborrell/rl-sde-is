@@ -46,7 +46,7 @@ class DoubleWellStoppingTime1D():
         return 4 * self.alpha * state * (state**2 - 1)
 
     def is_done(self, state):
-        return np.where(state[:, 0] >= self.lb, True, False)
+        return np.where((state[:, 0] >= self.lb) & (state[:, 0] <= self.rb), True, False)
 
     def is_done_torch(self, state):
         return torch.where(state[:, 0] >= self.lb, True, False)
@@ -76,11 +76,21 @@ class DoubleWellStoppingTime1D():
     def sample_action(self, batch_size=1):
             return np.random.uniform(self.action_space_low, self.action_space_high, (batch_size, self.d))
 
-    def state_action_transition_function(self, next_state, state, action, h):
+    def state_action_transition_function(self, next_states, state, action, h):
+
+        # compute mean and standard deviation
         mu = state + (- self.gradient(state) + self.sigma * action) * self.dt
         std_dev = self.sigma * np.sqrt(self.dt)
-        prob = stats.norm.cdf(next_state + h, mu, std_dev) \
-             - stats.norm.cdf(next_state - h, mu, std_dev)
+
+        # compute probabilities
+        prob = stats.norm.cdf(next_states + h, mu, std_dev) \
+             - stats.norm.cdf(next_states - h, mu, std_dev)
+
+        # add tail probabilities
+        prob_left_tail = stats.norm.cdf(next_states[0] - h, mu, std_dev)
+        prob_right_tail = 1 - stats.norm.cdf(next_states[-1] + h, mu, std_dev)
+        prob[0] += prob_left_tail
+        prob[-1] += prob_right_tail
         return prob
 
     def reward_signal_state_action(self, state, action, done):
@@ -322,10 +332,11 @@ class DoubleWellStoppingTime1D():
         self.idx_state_init = self.get_state_idx(self.state_init)
 
     def get_idx_target_set(self):
+        self.is_in_ts = (self.state_space_h >= self.lb) & (self.state_space_h <= self.rb)
         self.idx_lb = self.get_state_idx(np.array([[self.lb]]))[0]
         self.idx_rb = self.get_state_idx(np.array([[self.rb]]))[0]
-        self.idx_ts = np.where(self.state_space_h >= self.lb)[0]
-        self.idx_not_ts = np.where(self.state_space_h < self.lb)[0]
+        self.idx_ts = np.where(self.is_in_ts)[0]
+        self.idx_not_ts = np.where(np.invert(self.is_in_ts))[0]
 
     def get_idx_null_action(self):
         self.idx_null_action = self.get_action_idx(np.zeros((1, self.d)))

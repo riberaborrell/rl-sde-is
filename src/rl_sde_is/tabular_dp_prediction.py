@@ -1,7 +1,6 @@
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.dynammic_programming import compute_p_tensor_batch, compute_r_table
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 from tabular_methods import *
@@ -11,6 +10,52 @@ def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
+
+def value_table_update(env, r_table, p_tensor, policy, v_table, gamma):
+
+    # copy value function table
+    v_table_i = v_table.copy()
+
+    # loop over state indices
+    for state_idx in range(env.n_states):
+
+        # check if is in target set
+        d = 1 if  state_idx in env.idx_ts else 0
+
+        # choose action following policy
+        action_idx = policy[state_idx]
+
+        # update v table
+        v_table[state_idx] = r_table[state_idx, action_idx]
+
+        # loop over next state indices
+        for next_state_idx in range(env.n_states):
+
+            # update v table
+            v_table[state_idx] += (1 - d) * gamma \
+                               * p_tensor[next_state_idx, state_idx, action_idx] \
+                               * v_table_i[next_state_idx]
+
+def value_table_update_semi_vect(env, r_table, p_tensor, policy, v_table, gamma):
+    v_table_i = v_table.copy()
+    d = np.where(env.is_in_ts, 1, 0)
+    for state_idx in range(env.n_states):
+        action_idx = policy[state_idx]
+        v_table[state_idx] = r_table[state_idx, action_idx] \
+                           + gamma * (1 - d[state_idx]) * np.dot(
+                                p_tensor[:, state_idx, action_idx].squeeze(),
+                                v_table_i,
+                           )
+
+def value_table_update_vect(env, r_table, p_tensor, policy, v_table, gamma):
+    actions_idx = policy.squeeze()
+    d = np.where(env.is_in_ts, 1, 0)
+    v_table = r_table[np.arange(env.n_states), actions_idx] \
+            + gamma * (1 - d) * np.matmul(
+                p_tensor[:, np.arange(env.n_states), actions_idx].T,
+                v_table
+            )
+    return v_table
 
 def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
                       policy=None, value_function_opt=None, load=False, live_plot=False):
@@ -29,18 +74,16 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
         data = load_data(rel_dir_path)
         return data
 
-    # compute p tensor and r table
-    p_tensor = compute_p_tensor_batch(env)
-    r_table = compute_r_table(env)
+    # load dp tables
+    tables_data = load_data(get_dynamic_programming_tables_dir_path(env))
+    r_table = tables_data['r_table']
+    p_tensor = tables_data['p_tensor']
 
     # initialize value function table
     v_table = - np.random.rand(env.n_states)
 
-    # set values for the target set
-    v_table[env.idx_ts] = 0
-
     # get index initial state
-    idx_state_init = env.get_state_idx(env.state_init).item()
+    state_init_idx = env.get_state_idx(env.state_init).item()
 
     # preallocate value function rms errors
     n_test_iterations = n_iterations // test_freq_iterations + 1
@@ -56,23 +99,10 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     # for each iteration
     for i in np.arange(n_iterations):
 
-        # copy value function table
-        v_table_i = v_table.copy()
+        #value_table_update(env, r_table, p_tensor, policy, v_table, gamma)
+        #value_table_update_semi_vect(env, r_table, p_tensor, policy, v_table, gamma)
+        v_table = value_table_update_vect(env, r_table, p_tensor, policy, v_table, gamma)
 
-        for idx_state in range(env.idx_lb):
-            idx_action = policy[idx_state]
-
-            #v_table[idx_state] = r_table[idx_state, idx_action]
-            #for idx_next_state in range(env.n_states):
-            #    v_table[idx_state] += gamma \
-            #                       * p_tensor[idx_next_state, idx_state, idx_action] \
-            #                       * v_table[idx_next_state]
-
-            v_table[idx_state] = r_table[idx_state, idx_action] \
-                               + gamma * np.dot(
-                                   p_tensor[np.arange(env.n_states), idx_state, idx_action],
-                                   v_table_i[np.arange(env.n_states)],
-                               )
         # test
         if (i + 1) % test_freq_iterations == 0:
 
@@ -82,7 +112,7 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
             # logs
             msg = 'it: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}' \
-                  ''.format(i, v_table[idx_state_init], v_rms_errors[j])
+                  ''.format(i+1, v_table[state_init_idx], v_rms_errors[j])
             print(msg)
 
             # update live figure
@@ -104,6 +134,9 @@ def main():
     # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
+    # set action space bounds
+    env.set_action_space_bounds()
+
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
@@ -113,8 +146,8 @@ def main():
 
     # set deterministic policy from the hjb control
     policy = np.array([
-        env.get_action_idx(sol_hjb.u_opt[idx_state])
-        for idx_state, _ in enumerate(env.state_space_h)
+        env.get_action_idx(sol_hjb.u_opt[state_idx])
+        for state_idx, _ in enumerate(env.state_space_h)
     ])
 
     # run dynammic programming policy evaluation of the optimal policy

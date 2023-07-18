@@ -54,7 +54,6 @@ def load_data(rel_dir_path):
         print(e)
         sys.exit()
 
-
 def save_model(model, rel_dir_path, file_name):
     torch.save(
         model.state_dict(),
@@ -138,6 +137,16 @@ def get_agent_dir_path(env, **kwargs):
               + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
+
+def get_dynamic_programming_tables_dir_path(env):
+    '''
+    '''
+    # set parameters string
+    param_str = 'h-state{:.0e}_'.format(env.h_state) \
+              + 'h-action{:.0e}_'.format(env.h_action) \
+              + 'dt{:.0e}_'.format(env.dt)
+
+    return get_rel_dir_path(env, 'dp-tables', param_str)
 
 def get_dynamic_programming_dir_path(env, **kwargs):
     '''

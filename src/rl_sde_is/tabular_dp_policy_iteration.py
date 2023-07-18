@@ -1,16 +1,54 @@
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.dynammic_programming import compute_p_tensor_batch, compute_r_table
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 from rl_sde_is.tabular_methods import *
+from rl_sde_is.tabular_dp_value_iteration import v_table_update_vect
 from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
+
+def policy_update_semi_vect(env, r_table, p_tensor, v_table, policy_indices, gamma):
+
+    d = np.where(env.is_in_ts, 1, 0)
+
+    # loop over states not in the target set
+    for state_idx in range(env.idx_lb):
+
+        # preallocate values
+        values = np.zeros(env.n_actions)
+
+        # loop over all actions
+        for action_idx in range(env.n_actions):
+
+            values[action_idx] = r_table[state_idx, action_idx] \
+                               + gamma * np.dot(
+                                   p_tensor[np.arange(env.n_states), state_idx, action_idx],
+                                   v_table[np.arange(env.n_states)],
+                               )
+
+        # Bellman optimality equation
+        policy_indices[state_idx] = np.argmax(values)
+
+def policy_update_vect(env, r_table, p_tensor, v_table, gamma):
+
+    d = np.where(env.is_in_ts, 1, 0)[:, None]
+    values = r_table \
+           + (1 - d) * gamma * np.matmul(
+                np.swapaxes(p_tensor, 0, 2),
+                v_table,
+            ).transpose()
+
+    # Bellman optimality equation
+    policy_indices = np.argmax(values, axis=1)
+    policy_indices[env.idx_ts] = env.idx_null_action
+    return policy_indices
+
+
 
 def policy_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
                      value_function_opt=None, policy_opt=None, load=False, live_plot=False):
@@ -29,21 +67,21 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
         data = load_data(rel_dir_path)
         return data
 
-    # compute p tensor and r table
-    p_tensor = compute_p_tensor_batch(env)
-    r_table = compute_r_table(env)
+    # load dp tables
+    tables_data = load_data(get_dynamic_programming_tables_dir_path(env))
+    r_table = tables_data['r_table']
+    p_tensor = tables_data['p_tensor']
 
     # initialize value function table and policy (array storing the indices of the actions)
-    v_table = np.zeros(env.n_states)
+    v_table = - np.random.rand(env.n_states)
     policy_indices = np.random.randint(env.n_actions, size=env.n_states)
     policy = env.action_space_h[policy_indices]
 
     # set values for the target set
-    v_table[env.idx_ts] = 0
     policy_indices[env.idx_ts] = env.idx_null_action
 
     # get index initial state
-    idx_state_init = env.get_state_idx(env.state_init).item()
+    state_idx_init = env.get_state_idx(env.state_init).item()
 
     # preallocate value function rms errors
     n_test_iterations = n_iterations // test_freq_iterations + 1
@@ -61,43 +99,13 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     # in each value iteration and policy update
     for i in np.arange(n_iterations):
 
-        # value iteration
-
-        # copy value function table
-        v_table_i = v_table.copy()
-
-        # loop over states not in the target set
-        for idx_state in range(env.idx_lb):
-
-            idx_action = policy_indices[idx_state]
-
-            # Bellman expectation equation
-            v_table[idx_state] = r_table[idx_state, idx_action] \
-                               + gamma * np.dot(
-                                   p_tensor[np.arange(env.n_states), idx_state, idx_action],
-                                   v_table_i[np.arange(env.n_states)],
-                               )
+        # value function update
+        v_table = v_table_update_vect(env, r_table, p_tensor, v_table, gamma)
 
         # policy update
+        #policy_update_semi_vect(env, r_table, p_tensor, v_table, policy_indices, gamma)
+        policy_indices = policy_update_vect(env, r_table, p_tensor, v_table, gamma)
 
-        # loop over states not in the target set
-        for idx_state in range(env.idx_lb):
-
-            # preallocate values
-            values = np.zeros(env.n_actions)
-
-            # loop over all actions
-            for idx_action in range(env.n_actions):
-
-                values[idx_action] = r_table[idx_state, idx_action] \
-                                   + gamma \
-                                   * np.dot(
-                                       p_tensor[np.arange(env.n_states), idx_state, idx_action],
-                                       v_table_i[np.arange(env.n_states)],
-                                   )
-
-            # Bellman optimality equation
-            policy_indices[idx_state] = np.argmax(values)
 
         # test
         if (i + 1) % test_freq_iterations == 0:
@@ -111,7 +119,7 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
             p_rms_errors[j] = compute_rms_error(policy_opt, policy)
 
             # logs
-            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[idx_state_init])
+            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[state_idx_init])
             print(msg)
 
             # update live figures
@@ -138,6 +146,9 @@ def main():
 
     # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
+
+    # set action space bounds
+    env.set_action_space_bounds()
 
     # discretize observation and action space
     env.discretize_state_space(args.h_state)

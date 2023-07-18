@@ -12,12 +12,43 @@ def get_parser():
     parser.description = ''
     return parser
 
+def q_table_update_semi_vect(env, r_table, p_tensor, q_table, gamma):
+
+    # copy value function table
+    q_table_i = q_table.copy()
+
+    d = np.where(env.is_in_ts, 1, 0)
+
+    # loop over states not in the target set 
+    #for idx_state in env.idx_not_ts:
+    for state_idx in range(env.n_states):
+
+        # loop over all actions
+        for action_idx in range(env.n_actions):
+            value = r_table[state_idx, action_idx] \
+                   + (1 - d[state_idx]) * gamma \
+                   * np.dot(
+                        p_tensor[np.arange(env.n_states), state_idx, action_idx],
+                        np.max(q_table_i, axis=1),
+                    )
+
+            q_table[state_idx, action_idx] = value
+
+def q_table_update_vect(env, r_table, p_tensor, q_table, gamma):
+
+    d = np.where(env.is_in_ts, 1, 0)[:, None]
+    q_table = r_table \
+            + (1 - d) * gamma * np.matmul(
+                np.swapaxes(p_tensor, 0, 2), np.max(q_table, axis=1)
+            ).transpose()
+
+    return q_table
+
 def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
                      value_function_opt=None, policy_opt=None, load=False, live_plot=False):
 
     ''' Dynamic programming q-value iteration.
     '''
-
     # get dir path
     rel_dir_path = get_dynamic_programming_dir_path(
         env,
@@ -30,6 +61,11 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
         data = load_data(rel_dir_path)
         return data
 
+    # load dp tables
+    tables_data = load_data(get_dynamic_programming_tables_dir_path(env))
+    r_table = tables_data['r_table']
+    p_tensor = tables_data['p_tensor']
+
     # compute p tensor and r table
     p_tensor = compute_p_tensor_batch(env)
     r_table = compute_r_table(env)
@@ -37,11 +73,8 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     # initialize value function table
     q_table = - np.random.rand(env.n_states, env.n_actions)
 
-    # set values for the target set and null action
-    q_table[env.idx_ts] = 0
-
     # get index x_init
-    idx_state_init = env.get_state_idx(env.state_init).item()
+    state_init_idx = env.get_state_idx(env.state_init).item()
 
     # preallocate value function rms errors
     n_test_iterations = n_iterations // test_freq_iterations + 1
@@ -62,22 +95,9 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     # for each iteration
     for i in np.arange(n_iterations):
 
-        # copy value function table
-        q_table_i = q_table.copy()
 
-        # loop over states not in the target set 
-        for idx_state in env.idx_not_ts:
-
-            # loop over all actions
-            for idx_action in range(env.n_actions):
-                value = r_table[idx_state, idx_action] \
-                      + gamma \
-                      * np.dot(
-                          p_tensor[np.arange(env.n_states), idx_state, idx_action],
-                          np.max(q_table_i, axis=1),
-                        )
-
-                q_table[idx_state, idx_action] = value
+        #q_table_update_semi_vect(env, r_table, p_tensor, q_table, gamma)
+        q_table = q_table_update_vect(env, r_table, p_tensor, q_table, gamma)
 
         # test
         if (i + 1) % test_freq_iterations == 0:
@@ -91,7 +111,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
             p_rms_errors[j] = compute_rms_error(policy_opt, policy)
 
             # logs
-            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, np.max(q_table[idx_state_init]))
+            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i+1, np.max(q_table[state_init_idx]))
             print(msg)
 
             # update live figures
