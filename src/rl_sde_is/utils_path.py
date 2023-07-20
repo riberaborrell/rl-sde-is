@@ -144,7 +144,7 @@ def get_dynamic_programming_tables_dir_path(env):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
-              + 'dt{:.0e}_'.format(env.dt)
+              + 'dt{:.0e}'.format(env.dt)
 
     return get_rel_dir_path(env, 'dp-tables', param_str)
 

@@ -290,7 +290,7 @@ def plot_det_policy_l2_error_episodes(l2_errors, episodes=None, ylim=None):
 def plot_reward_table(env, r_table):
 
     fig, ax = plt.subplots()
-    ax.set_title('Reward Table')
+    ax.set_title(r'$r(s, a)$')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
@@ -299,13 +299,23 @@ def plot_reward_table(env, r_table):
         origin='lower',
         extent=get_state_action_1d_extent(env),
         cmap=cm.coolwarm,
+        aspect='auto',
     )
 
     # add space for colour bar
-    fig.subplots_adjust(right=0.85)
-    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
-    fig.colorbar(im, cax=cbar_ax)
+    #fig.subplots_adjust(right=0.85)
+    #cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    fig.colorbar(im)#, cax=cbar_ax)
 
+    plt.show()
+
+def plot_reward_following_policy(env, rewards):
+
+    fig, ax = plt.subplots()
+    ax.set_title('$r(s, \mu(s))$')
+    ax.set_xlabel('States')
+    ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
+    ax.plot(env.state_space_h, rewards)
     plt.show()
 
 def plot_frequency(env, n_table):
@@ -388,7 +398,7 @@ def plot_value_function_1d(env, value_function, value_function_opt, loc=None):
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
 
     plt.plot(env.state_space_h, value_function)
-    plt.plot(env.state_space_h, value_function_opt, label=r'hjb', linestyle=':')
+    plt.plot(env.state_space_h, value_function_opt, label=r'hjb', ls=':', c='black')
     plt.legend(loc=loc)
     plt.show()
 
@@ -549,6 +559,60 @@ def plot_det_policies_1d_black_and_white(env, policies, policy_opt):
     #ax.set_ylim(-3, 3)
     plt.show()
 
+def initialize_det_policy_1d_figure(env, policy, policy_opt):
+
+    # initialize figure
+    fig, ax = plt.subplots(figsize=(5, 4))
+
+    # turn interactive mode on
+    plt.ion()
+
+    ax.set_title(TITLES_FIG['policy'], fontsize=10)
+    ax.set_xlabel('States', fontsize=8)
+    ax.set_xlim(env.state_space_low, env.state_space_high)
+    ax.set_ylim(env.action_space_low, env.action_space_high)
+    det_policy_line = ax.plot(env.state_space_h, policy)[0]
+    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+
+    plt.legend()
+    plt.show()
+
+    return det_policy_line
+
+def update_det_policy_1d_figure(env, policy, line):
+    line.set_data(env.state_space_h, policy)
+    plt.pause(0.1)
+
+def canvas_det_policy_1d_figure(env, policies, policy_opt):
+
+    # initialize figure
+    fig, ax = plt.subplots(figsize=(5, 4))
+    plt.show()
+    fig.canvas.draw()
+
+    for i, policy in enumerate(policies):
+
+        # update title
+        fig.suptitle('iteration: {:d}'.format(i), fontsize='x-large')
+
+        ax.cla()
+        ax.set_title(TITLES_FIG['policy'], fontsize=10)
+        ax.set_xlabel('States', fontsize=8)
+        ax.set_xlim(env.state_space_low, env.state_space_high)
+        ax.set_ylim(env.action_space_low, env.action_space_high)
+        ax.plot(env.state_space_h, policy)[0]
+        ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+
+        #plt.legend()
+        #plt.show()
+
+        # pause
+        plt.pause(0.01)
+
+        # draw
+        fig.canvas.draw()
+
+
 def plot_det_policy_1d_actor_critic(env, policy_actor_initial, policy_critic_initial, policy_actor,
                                     policy_critic, policy_opt, ylim=None, loc=None):
     fig, ax = plt.subplots()
@@ -637,29 +701,6 @@ def update_stoch_policy_1d_figure(env, policy, sc):
     sc.set_offsets(np.c_[env.state_space_h, policy])
     plt.pause(0.1)
 
-def initialize_det_policy_1d_figure(env, policy, policy_opt):
-
-    # initialize figure
-    fig, ax = plt.subplots(figsize=(5, 4))
-
-    # turn interactive mode on
-    plt.ion()
-
-    ax.set_title(TITLES_FIG['policy'], fontsize=10)
-    ax.set_xlabel('States', fontsize=8)
-    ax.set_xlim(env.state_space_low, env.state_space_high)
-    ax.set_ylim(env.action_space_low, env.action_space_high)
-    det_policy_line = ax.plot(env.state_space_h, policy)[0]
-    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
-
-    plt.legend()
-    plt.show()
-
-    return det_policy_line
-
-def update_det_policy_1d_figure(env, policy, line):
-    line.set_data(env.state_space_h, policy)
-    plt.pause(0.1)
 
 def coarse_quiver_arrows(U, V, X=None, Y=None, l=25):
     kx = U.shape[0] // 25
@@ -856,7 +897,7 @@ def update_return_and_time_steps_figures(env, returns, time_steps, lines):
     # update figure frequency
     plt.pause(0.1)
 
-def initialize_value_function_1d_figure(env, value_function, value_function_opt):
+def initialize_value_function_1d_figure(env, value_function, value_function_opt=None):
 
     # initialize figure
     fig, ax = plt.subplots()
@@ -869,7 +910,8 @@ def initialize_value_function_1d_figure(env, value_function, value_function_opt)
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
 
     det_v_function_line = ax.plot(env.state_space_h, value_function)[0]
-    ax.plot(env.state_space_h, value_function_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+    if value_function_opt is not None:
+        ax.plot(env.state_space_h, value_function_opt, label=r'hjb', color=COLORS_FIG['hjb'])
 
     plt.legend()
     plt.show()
@@ -878,9 +920,37 @@ def initialize_value_function_1d_figure(env, value_function, value_function_opt)
 
 def update_value_function_1d_figure(env, value_function, line):
     line.set_data(env.state_space_h, value_function)
+    #line.set_clim(vmin=value_function.min(), vmax=value_function.max())
     plt.pause(0.1)
 
-def initialize_advantage_function_1d_figure(env, a_table, policy_opt):
+def initialize_qvalue_function_1d_figure(env, q_table):
+
+    # initialize figure
+    fig, ax = plt.subplots()
+
+    # turn interactive mode on
+    plt.ion()
+
+    # a table
+    ax.set_title(TITLES_FIG['q-value-function'])
+    ax.set_xlabel('States')
+    ax.set_ylabel('Actions')
+    im_q_table = ax.imshow(
+        q_table.T,
+        cmap=cm.viridis,
+        vmin=q_table.min(),
+        vmax=q_table.max(),
+        aspect='auto',
+        origin='lower',
+        extent=get_state_action_1d_extent(env),
+    )
+    # colorbar
+    plt.colorbar(im_q_table, ax=ax)
+
+    plt.show()
+    return im_q_table
+
+def initialize_advantage_function_1d_figure(env, a_table, policy_opt=None):
 
     # initialize figure
     fig, ax = plt.subplots()
@@ -894,17 +964,26 @@ def initialize_advantage_function_1d_figure(env, a_table, policy_opt):
     ax.set_ylabel('Actions')
     im_a_table = ax.imshow(
         a_table.T,
+        cmap=cm.plasma,
+        vmin=a_table.min(),
+        vmax=a_table.max(),
+        aspect='auto',
         origin='lower',
         extent=get_state_action_1d_extent(env),
-        cmap=cm.plasma,
-        #aspect='auto',
     )
+    if policy_opt is not None:
+        ax.plot(env.state_space_h, policy_opt, color='grey', linestyle=':')
+    \
+    # colorbar
+    plt.colorbar(im_a_table, ax=ax)
+
     plt.show()
     return im_a_table
 
-def update_advantage_function_1d_figure(env, a_table, im):
+def update_imshow_figure(env, X, im):
 
-    im.set_data(a_table.T)
+    im.set_data(X.T)
+    im.set_clim(vmin=X.min(), vmax=X.max())
 
     # update figure frequency
     plt.pause(0.1)
@@ -927,9 +1006,9 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     im_q_table = ax1.imshow(
         q_table.T,
         cmap=cm.viridis,
-        aspect='auto',
         vmin=q_table.min(),
         vmax=q_table.max(),
+        aspect='auto',
         origin='lower',
         extent=get_state_action_1d_extent(env),
     )
