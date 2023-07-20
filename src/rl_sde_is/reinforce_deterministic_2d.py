@@ -10,18 +10,12 @@ from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
 from rl_sde_is.plots import *
-from rl_sde_is.reinforce_deterministic_vectorized import *
+from rl_sde_is.reinforce_deterministic_core import *
 from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     return parser
-
-def load_backup_model(data, it=0):
-    try:
-        load_model(data['model'], data['rel_dir_path'], file_name='model_n-it{}'.format(it))
-    except FileNotFoundError as e:
-        print('there is no backup for iteration {:d}'.format(it))
 
 def get_policy(env, data, it=None):
     model = data['model']
@@ -65,6 +59,7 @@ def main():
         test_batch_size=args.test_batch_size,
         policy_opt=sol_hjb.u_opt,
         load=args.load,
+        test=args.test,
         live_plot=args.live_plot,
     )
 

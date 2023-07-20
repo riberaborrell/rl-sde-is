@@ -312,6 +312,12 @@ def get_base_parser():
         help='Type of return estimator. Default: "total rewards"',
     )
     parser.add_argument(
+        '--test',
+        dest='test',
+        action='store_true',
+        help='Test policy. Default: False',
+    )
+    parser.add_argument(
         '--load',
         dest='load',
         action='store_true',

@@ -10,18 +10,12 @@ from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
-from rl_sde_is.reinforce_deterministic_vectorized import *
+from rl_sde_is.reinforce_deterministic_core import *
 from rl_sde_is.utils_path import *
 
 def get_parser():
     parser = get_base_parser()
     return parser
-
-def load_backup_model(data, it=0):
-    try:
-        load_model(data['model'], data['rel_dir_path'], file_name='model_n-it{}'.format(it))
-    except FileNotFoundError as e:
-        print('there is no backup for iteration {:d}'.format(it))
 
 def get_policy(env, data, it=None):
     model = data['model']
@@ -75,8 +69,7 @@ def main():
         env.is_state_init_sampled = True
 
     # set action space bounds
-    env.action_space_low = 0
-    env.action_space_high = 5
+    env.set_action_space_bounds()
 
     # discretized state space (for plot purposes only)
     env.discretize_state_space(h_state=0.05)
@@ -99,6 +92,7 @@ def main():
         test_batch_size=args.test_batch_size,
         policy_opt=control_hjb,
         load=args.load,
+        test=args.test,
         live_plot=args.live_plot,
     )
 
@@ -122,7 +116,8 @@ def main():
     plot_loss_epochs(data['losses'])
 
     # plot policy l2 error
-    plot_det_policy_l2_error_epochs(data['test_policy_l2_errors'])
+    if 'test_policy_l2_errors' in data:
+        plot_det_policy_l2_error_epochs(data['test_policy_l2_errors'])
 
 if __name__ == "__main__":
     main()
