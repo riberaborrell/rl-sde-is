@@ -311,6 +311,22 @@ def get_reinforce_det_dir_path(env, **kwargs):
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
+def get_dpg_dir_path(env, **kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = get_initial_point_str(env) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
+              + 'K{:.0e}_'.format(kwargs['batch_size']) \
+              + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
+              + 'lr-type-{}_'.format(kwargs['lr_type']) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_rel_dir_path(env, kwargs['agent'], param_str)
+
 def get_ddpg_dir_path(env, **kwargs):
     '''
     '''

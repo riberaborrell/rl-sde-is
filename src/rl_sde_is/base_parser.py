@@ -63,6 +63,13 @@ def get_base_parser():
         help='the step size / learning rate parameter is constant.',
     )
     parser.add_argument(
+        '--lr-type',
+        dest='lr_type',
+        choices=['constant', 'adaptive'],
+        default='constant',
+        help='Type of learning rate. Default: constant',
+    )
+    parser.add_argument(
         '--lr',
         dest='lr',
         type=float,
