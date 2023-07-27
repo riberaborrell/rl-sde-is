@@ -12,7 +12,7 @@ from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.models import mlp
 from rl_sde_is.plots import *
-from rl_sde_is.replay_buffers import ContinuousReplayBuffer as ReplayBuffer
+from rl_sde_is.replay_buffers import ReplayBuffer
 from rl_sde_is.utils_path import *
 
 class DeterministicPolicy(nn.Module):
@@ -59,10 +59,10 @@ def update_parameters(actor, actor_target, actor_optimizer,
                       noise_clip=0., action_limit=5, target_noise=0., polyak=0.995):
 
     # unpack tuples in batch
-    states = torch.tensor(batch['state'])
-    next_states = torch.tensor(batch['next_state'])
-    actions = torch.tensor(batch['act'])
-    rewards = torch.tensor(batch['rew'])
+    states = torch.tensor(batch['states'])
+    actions = torch.tensor(batch['actions'])
+    rewards = torch.tensor(batch['rewards'])
+    next_states = torch.tensor(batch['next_states'])
     done = torch.tensor(batch['done'])
 
     # get batch size
@@ -108,7 +108,8 @@ def update_parameters(actor, actor_target, actor_optimizer,
 
     # 2) run 1 gradient descent step for mu (actor)
 
-     # Possibly update pi and target networks
+    # Possibly update pi and target networks
+
     if timer % policy_delay == 0:
 
         # freeze q-networks to save computational effort 
@@ -159,7 +160,7 @@ def get_action(env, actor, state, noise_scale=0):
     return action
 
 
-def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
+def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
                  n_episodes=100, n_steps_episode_lim=1000,
                  start_steps=0, expl_noise_init=0.1, expl_noise_decay=1., replay_size=50000,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
@@ -248,8 +249,8 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
         'expl_noise_init': expl_noise_init,
         'expl_noise_decay': expl_noise_decay,
         'replay_size': replay_size,
-        'replay_states': replay_buffer.state_buf[:replay_buffer.size],
-        'replay_actions': replay_buffer.act_buf[:replay_buffer.size],
+        'replay_states': replay_buffer.states[:replay_buffer.size],
+        'replay_actions': replay_buffer.actions[:replay_buffer.size],
         'batch_size' : batch_size,
         'lr_actor' : lr_actor,
         'lr_critic' : lr_critic,
@@ -465,16 +466,16 @@ def td3_episodic(env, gamma=0.99, d_hidden_layer=32, n_layers=3, action_limit=5,
     return data
 
 def initialize_1d_figures(env, actor, critic1, value_function_opt, policy_opt):
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic_1d(env, critic1)
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic_1d(env, actor, critic1)
     lines = initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                             a_table, policy_actor, policy_critic,
                                             value_function_opt, policy_opt)
     return lines
 
 def update_1d_figures(env, actor, critic1, lines):
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic1)
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic1)
+    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic_1d(env, critic1)
+    v_table_actor_critic, policy_actor = compute_tables_actor_critic_1d(env, actor, critic1)
     update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic,
                                 a_table, policy_actor, policy_critic, lines)
 

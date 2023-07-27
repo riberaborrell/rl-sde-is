@@ -99,7 +99,7 @@ def load_backup_model(data, it=0):
         print('there is no backup for iteration {:d}'.format(it))
 
 
-def reinforce(env, gamma=1.00, d_hidden_layer=256, n_layers=3,
+def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
               batch_size=1000, lr=1e-3, n_iterations=100, seed=None,
               test_batch_size=1000, test_freq_iterations=100, backup_freq_iterations=None,
               policy_opt=None, load=False, test=False, live_plot=False):
