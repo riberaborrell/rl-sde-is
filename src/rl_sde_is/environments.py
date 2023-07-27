@@ -70,6 +70,11 @@ class DoubleWellStoppingTime1D():
             return np.full((batch_size, self.d), np.random.uniform(self.state_space_low, self.lb, (self.d,)))
             #return np.full((batch_size, self.d), np.random.uniform(self.state_space_low, self.state_space_high, (self.d,)))
 
+    def reset_done(self, states, done):
+        if done.any():
+            idx = np.where(done)[0]
+            states[idx] = self.reset(batch_size=done.sum())
+
     def sample_state(self, batch_size=1):
             return np.random.uniform(self.state_space_low, self.state_space_high, (batch_size, self.d))
 
@@ -290,6 +295,8 @@ class DoubleWellStoppingTime1D():
         self.get_idx_null_action()
 
     def get_state_idx(self, state):
+        ''' get index of the corresponding discretized state
+        '''
 
         # array convertion
         state = np.asarray(state)
@@ -302,19 +309,21 @@ class DoubleWellStoppingTime1D():
         elif state.ndim == 1:
             state = state[np.newaxis]
 
-        idx = np.floor(
-            (np.clip(
-                state,
-                self.state_space_low,
-                self.state_space_high - 2 * self.h_state
-            ) + self.state_space_high) / self.h_state).astype(int)
-        idx = idx[:, 0]
-        return idx
+        return self.get_state_idx_truncate(state)
+        #return self.get_state_idx_min(state)
+
+    def get_state_idx_truncate(self, state):
+        state = np.clip(state, self.state_space_low, self.state_space_high)
+        idx = np.floor((state - self.state_space_low) / self.h_state).astype(int)
+        return idx[:, 0]
 
     def get_state_idx_min(self, state):
         return np.argmin(np.abs(self.state_space_h - state), axis=1)
 
     def get_action_idx(self, action):
+        ''' get index of the corresponding discretized action
+        '''
+
         # array convertion
         action = np.asarray(action)
 
@@ -326,6 +335,15 @@ class DoubleWellStoppingTime1D():
         elif action.ndim == 1:
             action = action[np.newaxis]
 
+        return self.get_action_idx_truncate(action)
+        #return self.get_action_idx_min(action)
+
+    def get_action_idx_truncate(self, action):
+        action = np.clip(action, self.action_space_low, self.action_space_high)
+        idx = np.floor((action - self.action_space_low) / self.h_action).astype(int)
+        return idx[:, 0]
+
+    def get_action_idx_min(self, action):
         return np.argmin(np.abs(self.action_space_h - action), axis=1)
 
     def get_idx_state_init(self):
@@ -397,3 +415,6 @@ class DoubleWellStoppingTime1D():
             sol_hjb.u_opt = sol_hjb.u_opt[::k]
 
         return sol_hjb
+
+    def get_det_policy_indices_from_hjb(self, policy_opt):
+        return self.get_action_idx(np.expand_dims(policy_opt, axis=1))

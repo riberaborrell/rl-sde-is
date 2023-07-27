@@ -39,11 +39,9 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
     # initialize value function table
     v_table = - np.random.rand(env.n_states)
 
-    # set values for the target set
-    v_table[env.idx_ts] = 0
-
     # get index initial state
-    idx_state_init = env.get_state_idx(env.state_init).item()
+    state_init_idx = env.get_state_idx(env.state_init).item()
+    #state_init_idx = env.get_state_idx(env.state_init)
 
     # preallocate value function rms errors
     n_test_episodes = n_episodes // test_freq_episodes + 1
@@ -60,7 +58,7 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
         state = env.reset()
 
         # get index of the state
-        idx_state = env.get_state_idx(state)
+        state_idx = env.get_state_idx(state)
 
         # reset trajectory rewards
         rewards = np.empty(0)
@@ -76,24 +74,24 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
                 break
 
             # choose action following the given policy
-            idx_action = policy[idx_state]
-            action = env.action_space_h[idx_action]
+            action_idx = policy[state_idx]
+            action = np.expand_dims(env.action_space_h[action_idx], axis=1)
 
             # step dynamics forward
-            new_state, r, done, _ = env.step(state, action)
-            idx_new_state = env.get_state_idx(new_state)
+            next_state, r, done, _ = env.step(state, action)
+            next_state_idx = env.get_state_idx(next_state)
 
             # update v values
-            v_table[idx_state] += lr * (
-                r + gamma * v_table[idx_new_state] - v_table[idx_state]
-            )
+            d = np.where(done, 1., 0.)
+            target = r + gamma * (1 - d) * v_table[next_state_idx]
+            v_table[state_idx] += lr * (target - v_table[state_idx])
 
             # save reward
             rewards = np.append(rewards, r)
 
             # update state and action
-            state = new_state
-            idx_state = idx_new_state
+            state = next_state
+            state_idx = next_state_idx
 
         # test
         if (ep + 1) % test_freq_episodes == 0:
@@ -105,7 +103,7 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
             # logs
             msg = 'ep: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}'.format(
                     ep,
-                    v_table[idx_state_init],
+                    v_table[state_init_idx],
                     v_rms_errors[ep_test],
                 )
             print(msg)
@@ -139,6 +137,7 @@ def main():
         env.is_state_init_sampled = True
 
     # discretize observation and action space
+    env.set_action_space_bounds()
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
@@ -146,10 +145,7 @@ def main():
     sol_hjb = env.get_hjb_solver()
 
     # set deterministic policy from the hjb control
-    policy = np.array([
-        env.get_action_idx(sol_hjb.u_opt[idx_state])
-        for idx_state, _ in enumerate(env.state_space_h)
-    ])
+    policy = env.get_det_policy_indices_from_hjb(sol_hjb.u_opt)
 
     # run temporal difference learning agent following optimal policy
     data = td_prediction(

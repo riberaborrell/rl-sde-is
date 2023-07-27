@@ -145,10 +145,7 @@ def main():
     sol_hjb = env.get_hjb_solver()
 
     # set deterministic policy from the hjb control
-    policy = np.array([
-        env.get_action_idx(sol_hjb.u_opt[state_idx])
-        for state_idx, _ in enumerate(env.state_space_h)
-    ])
+    policy = env.get_det_policy_indices_from_hjb(sol_hjb.u_opt)
 
     # run dynammic programming policy evaluation of the optimal policy
     data = policy_evaluation(

@@ -227,14 +227,35 @@ class DoubleWellStoppingTime2D():
         return idx
 
     def get_state_idx(self, state):
-        idx = np.floor(
-            (np.clip(
-                state,
-                self.state_space_low,
-                self.state_space_high - 2 * self.h_state
-            ) + self.state_space_high) / self.h_state).astype(int)
+        ''' get index of the corresponding discretized state
+        '''
+        # array input
+        if state.ndim == 1:
+            state = state[np.newaxis]
+
+        return self.get_state_idx_truncate(state)
+
+    def get_state_idx_truncate(self, state):
+        state = np.clip(state, self.state_space_low, self.state_space_high)
+        idx = np.floor((state - self.state_space_low) / self.h_state).astype(int)
         idx = tuple([idx[:, i] for i in range(self.d)])
         return idx
+
+    def set_action_space_bounds(self):
+
+        if self.alpha[0] == 1. and self.beta == 1:
+            a = 3
+        elif self.alpha[0] == 5. and self.beta == 1:
+            a = 8
+        elif self.alpha[0] == 1. and self.beta == 4:
+            a = 5
+        elif self.alpha[0] == 10. and self.beta == 1:
+            a = 20
+        else:
+            return
+
+        self.action_space_low = - a
+        self.action_space_high = a
 
     def discretize_state_space(self, h_state):
 
@@ -258,12 +279,17 @@ class DoubleWellStoppingTime2D():
         self.idx_state_init = self.get_state_idx(self.state_init)
 
     def get_action_idx(self, action):
-        idx = np.floor(
-            (np.clip(
-                action,
-                self.action_space_low,
-                self.action_space_high - 2 * self.h_action
-            ) + self.action_space_high) / self.h_action).astype(int)
+        ''' get index of the corresponding discretized action
+        '''
+        # array input
+        if action.ndim == 1:
+            action = action[np.newaxis]
+
+        return self.get_action_idx_truncate(action)
+
+    def get_action_idx_truncate(self, action):
+        action = np.clip(action, self.action_space_low, self.action_space_high)
+        idx = np.floor((action - self.action_space_low) / self.h_action).astype(int)
         idx = tuple([idx[:, i] for i in range(self.d)])
         return idx
 
@@ -337,30 +363,6 @@ class DoubleWellStoppingTime2D():
 
         return sol_hjb
 
-#    def get_hjb_solver_old(self, h_hjb=0.01):
-#
-#        # initialize Langevin sde
-#        sde = LangevinSDE(
-#            problem_name='langevin_stop-t',
-#            potential_name='nd_2well',
-#            d=self.d,
-#            alpha=self.alpha * np.ones(self.d),
-#            beta=self.beta,
-#            domain=np.full((self.d, 2), [-2, 2]),
-#        )
-#
-#        # load  hjb solver
-#        sol_hjb = SolverHJB(sde, h=h_hjb)
-#        sol_hjb.load()
-#
-#        # if hjb solver has different discretization step coarse solution
-#        if sol_hjb.sde.h < self.h_state:
-#
-#            # discretization step ratio
-#            k = int(self.h_state / sol_hjb.sde.h)
-#            assert self.state_space_h.shape == sol_hjb.u_opt[::k, 0].shape, ''
-#
-#            sol_hjb.value_function = sol_hjb.value_function[::k]
-#            sol_hjb.u_opt = sol_hjb.u_opt[::k]
-#
-#        return sol_hjb
+    def get_det_policy_indices_from_hjb(self, policy_opt):
+        policy_opt_flat = policy_opt.reshape(self.n_states, self.d)
+        return np.vstack(self.get_action_idx(policy_opt_flat)).T
