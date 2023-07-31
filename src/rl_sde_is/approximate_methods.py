@@ -217,9 +217,9 @@ def compute_v_value_critic_1d(env, critic, state):
         q_values = critic.forward(inputs).numpy()
     return np.max(q_values)
 
-def load_dp_qvalue_iteration_data(env):
+def load_dp_tables_data(env):
     from rl_sde_is.environments import DoubleWellStoppingTime1D
-    from rl_sde_is.tabular_dp_qvalue_iteration import qvalue_iteration
+    from rl_sde_is.tabular_dp_tables import dynammic_programming_tables
 
     # initialize environment
     env_dp = DoubleWellStoppingTime1D(alpha=env.alpha, beta=env.beta, dt=env.dt)
@@ -228,16 +228,12 @@ def load_dp_qvalue_iteration_data(env):
     env_dp.set_action_space_bounds()
 
     # discretize state and action space
-    env_dp.discretize_state_space(1e-1)
-    env_dp.discretize_action_space(1e-2)
+    env_dp.discretize_state_space(1e-2)
+    env_dp.discretize_action_space(5e-2)
     env_dp.discretize_state_action_space()
 
     # run dynamic programming q-value iteration
-    data = qvalue_iteration(
-        env_dp,
-        n_iterations=int(1e4),
-        load=True,
-    )
+    data = dynammic_programming_tables(env_dp, load=True)
 
     return env_dp, data
 
@@ -248,7 +244,7 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
                                 update_imshow_figure
 
     # load q value table from dynamic programming
-    env_dp, data = load_dp_qvalue_iteration_data(env)
+    env_dp, data = load_dp_tables_data(env)
 
     # load critic if already trained
     if load and 'q_function_approx' in data:
@@ -313,7 +309,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
                                 update_imshow_figure
 
     # load q value table from dynamic programming
-    env_dp, data = load_dp_qvalue_iteration_data(env)
+    env_dp, data = load_dp_tables_data(env)
 
     # load critic if already trained
     if load and 'q_function_approx' in data:
@@ -323,7 +319,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
     q_table_dp = data['q_table']
 
     # initialize figures
-    q_table, _, a_table, _ = compute_tables_critic_1d(env, critic)
+    q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
     im_q = initialize_qvalue_function_1d_figure(env, q_table)
     im_a = initialize_advantage_function_1d_figure(env, a_table, policy_opt)
 
@@ -379,7 +375,7 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
                                 update_imshow_figure
 
     # load q value table from dynamic programming
-    env_dp, data = load_dp_qvalue_iteration_data(env)
+    env_dp, data = load_dp_tables_data(env)
 
     # load critics if already trained
     if load and 'v_function_approx' in data and 'a_function_approx' in data:

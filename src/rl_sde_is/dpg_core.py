@@ -88,7 +88,6 @@ def dpg(env, gamma=1.00, d_hidden_layer=32, n_layers=3, n_steps_episode_lim=int(
         test_freq_iterations=100, test_batch_size=1000, backup_freq_iterations=None,
         value_function_opt=None, policy_opt=None, load=False, l2_error=True, live_plot=False):
 
-    action_limit = 5
 
     # get dir path
     rel_dir_path = get_dpg_dir_path(
@@ -130,7 +129,6 @@ def dpg(env, gamma=1.00, d_hidden_layer=32, n_layers=3, n_steps_episode_lim=int(
         hidden_sizes=actor_hidden_sizes,
         activation=nn.Tanh(),
     )
-    actor_target = deepcopy(actor)
 
     # initialize critic representations
     critic_hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
@@ -151,7 +149,6 @@ def dpg(env, gamma=1.00, d_hidden_layer=32, n_layers=3, n_steps_episode_lim=int(
         'gamma' : gamma,
         'd_hidden_layer': d_hidden_layer,
         'n_layers': n_layers,
-        'action_limit': action_limit,
         'n_steps_episode_lim': n_steps_episode_lim,
         'batch_size' : batch_size,
         'lr_actor' : lr_actor,
@@ -310,7 +307,7 @@ def load_backup_models(data, it=0):
     critic = data['critic']
     rel_dir_path = data['rel_dir_path']
     try:
-        load_model(actor, rel_dir_path, file_name='actor_n-it{}'.format(ep))
+        load_model(actor, rel_dir_path, file_name='actor_n-it{}'.format(it))
     except FileNotFoundError as e:
-        print('there is no backup after episode {:d}'.format(ep))
+        print('there is no backup after iteration {:d}'.format(it))
 

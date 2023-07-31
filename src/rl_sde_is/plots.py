@@ -47,7 +47,7 @@ def plot_episode_states_1d(env, ep_states, loc=None):
     ax.text(1.12, 2.2, r'Target set', size=13, rotation=0.)
     ax.fill(target_set_x, target_set_y, alpha=0.4, fc='tab:orange', ec='none')
     ax.plot(env.state_space_h, potential, label=r'Potential $V_\alpha$')
-    ax.scatter(ep_states[::1], ep_pot[::1], alpha=.1, color='black', marker='o', s=100)
+    ax.scatter(ep_states[::1], ep_pot[::1], alpha=.1, c='black', marker='o', s=100)
     plt.legend(loc=loc)
     plt.show()
 
@@ -80,7 +80,7 @@ def plot_episode_states_2d(env, ep_states):
         extent=get_state_2d_extent(env),
         cmap=cm.coolwarm,
     )
-    ax.scatter(ep_states[:, 0], ep_states[:, 1], alpha=.1, color='black', marker='o', s=100)
+    ax.scatter(ep_states[:, 0], ep_states[:, 1], alpha=.1, c='black', marker='o', s=100)
     plt.show()
 
 
@@ -246,7 +246,7 @@ def plot_det_policy_l2_error_epochs(l2_errors, ylim=None):
     ax.set_title(TITLES_FIG['policy-l2-error'])
     ax.set_xlabel('Epochs')
     #ax.set_xlim(0, l2_errors.shape[0])
-    ax.semilogy(l2_errors)
+    ax.semilogy(l2_errors, lw=2.)
     if ylim is not None:
         ax.set_ylim(ylim)
     plt.show()
@@ -256,7 +256,7 @@ def plot_det_policy_l2_error_ct_epochs(cts, l2_errors, ylim=None):
     ax.set_title(TITLES_FIG['policy-l2-error'])
     ax.set_xlabel('CT(s)')
     #ax.set_xlim(0, l2_errors.shape[0])
-    ax.semilogy(cts, l2_errors)
+    ax.semilogy(cts, l2_errors, lw=2.)
     if ylim is not None:
         ax.set_ylim(ylim)
     plt.show()
@@ -267,7 +267,7 @@ def plot_det_policy_l2_error_iterations(l2_errors, iterations=None, ylim=None):
     ax.set_xlabel('Gradient steps')
     #ax.set_xlim(0, l2_errors.shape[0])
     if iterations is not None:
-        plt.semilogy(iterations, l2_errors)
+        plt.semilogy(iterations, l2_errors, lw=2.)
     else:
         plt.semilogy(l2_errors)
     if ylim is not None:
@@ -280,9 +280,9 @@ def plot_det_policy_l2_error_episodes(l2_errors, episodes=None, ylim=None):
     ax.set_xlabel('Episodes')
     #ax.set_xlim(0, l2_errors.shape[0])
     if episodes is not None:
-        plt.semilogy(episodes, l2_errors)
+        plt.semilogy(episodes, l2_errors, lw=2.)
     else:
-        plt.semilogy(l2_errors)
+        plt.semilogy(l2_errors, lw=2.)
     if ylim is not None:
         ax.set_ylim(ylim)
     plt.show()
@@ -339,7 +339,7 @@ def plot_frequency(env, n_table):
 
     plt.show()
 
-def plot_q_value_function_1d(env, q_table):
+def plot_q_value_function_1d(env, q_table, vmin=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['q-value-function'])
@@ -348,6 +348,7 @@ def plot_q_value_function_1d(env, q_table):
 
     im = fig.axes[0].imshow(
         q_table.T,
+        vmin=vmin,
         vmax=0,
         origin='lower',
         extent=get_state_action_1d_extent(env),
@@ -362,14 +363,20 @@ def plot_q_value_function_1d(env, q_table):
 
     plt.show()
 
-def plot_advantage_function_1d(env, a_table, policy_critic=None, vmin=None):
+def plot_advantage_function_1d(env, a_table, policy_opt=None, policy_critic=None, vmin=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['a-value-function'])
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
-    im = fig.axes[0].imshow(
+    if policy_critic is not None:
+        ax.plot(env.state_space_h, policy_critic, c='grey', ls='--', label=r'$argmax_a Q(s, a)$')
+
+    if policy_opt is not None:
+        ax.plot(env.state_space_h, policy_opt, ls=':', c='black', label=r'hjb')
+
+    im = ax.imshow(
         a_table.T,
         vmin=vmin,
         vmax=0,
@@ -384,22 +391,20 @@ def plot_advantage_function_1d(env, a_table, policy_critic=None, vmin=None):
     cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
     fig.colorbar(im, cax=cbar_ax)
 
-    if policy_critic is not None:
-        x = env.state_space_h
-        ax.plot(x, policy_critic, c='grey', linestyle='--')
+    ax.legend()
 
     plt.show()
 
-def plot_value_function_1d(env, value_function, value_function_opt, loc=None):
+def plot_value_function_1d(env, value_function, value_function_opt=None, loc=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['value-function'])
     ax.set_xlabel('States')
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
-
-    plt.plot(env.state_space_h, value_function)
-    plt.plot(env.state_space_h, value_function_opt, label=r'hjb', ls=':', c='black')
-    plt.legend(loc=loc)
+    ax.plot(env.state_space_h, value_function)
+    if value_function_opt is not None:
+        ax.plot(env.state_space_h, value_function_opt, label=r'hjb', ls=':', c='black')
+    ax.legend(loc=loc)
     plt.show()
 
 def plot_value_function_2d(env, value_function, value_function_opt):
@@ -443,7 +448,7 @@ def plot_value_function_1d_actor_critic(env, value_function_critic_initial, valu
     ax.plot(x, value_function_actor_critic,
              label=r'actor-critic: $ V_{\theta, \omega}(s) = Q_\omega(s, \mu_\theta(s))$',
             c='tab:purple')
-    ax.plot(x, value_function_opt, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
+    ax.plot(x, value_function_opt, label=r'hjb', c=COLORS_FIG['hjb'], ls=':')
     ax.legend(loc=loc)
     plt.show()
 
@@ -513,7 +518,7 @@ def plot_det_policy_1d(env, policy, policy_opt, loc=None):
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
 
     ax.plot(env.state_space_h, policy)
-    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'], linestyle=':')
+    ax.plot(env.state_space_h, policy_opt, label=r'hjb', c=COLORS_FIG['hjb'], ls=':')
     ax.legend(loc=loc)
     plt.show()
 
@@ -537,8 +542,8 @@ def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
 
     x = env.state_space_h
     for i in range(n_policies):
-        ax.plot(x, policies[i], color=colors[i], label=labels[i])
-    ax.plot(x, policy_opt, color=colors[i+1], linestyle=':', label=labels[i+1])
+        ax.plot(x, policies[i], c=colors[i], lw=2., label=labels[i])
+    ax.plot(x, policy_opt, c=colors[i+1], ls=':', lw=2., label=labels[i+1])
 
     if labels[0]:
         plt.legend(loc=loc)
@@ -572,7 +577,7 @@ def initialize_det_policy_1d_figure(env, policy, policy_opt):
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.action_space_low, env.action_space_high)
     det_policy_line = ax.plot(env.state_space_h, policy)[0]
-    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+    ax.plot(env.state_space_h, policy_opt, label=r'hjb', c=COLORS_FIG['hjb'])
 
     plt.legend()
     plt.show()
@@ -601,7 +606,7 @@ def canvas_det_policy_1d_figure(env, policies, policy_opt):
         ax.set_xlim(env.state_space_low, env.state_space_high)
         ax.set_ylim(env.action_space_low, env.action_space_high)
         ax.plot(env.state_space_h, policy)[0]
-        ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+        ax.plot(env.state_space_h, policy_opt, label=r'hjb', c=COLORS_FIG['hjb'])
 
         #plt.legend()
         #plt.show()
@@ -628,7 +633,7 @@ def plot_det_policy_1d_actor_critic(env, policy_actor_initial, policy_critic_ini
     ax.plot(x, policy_actor, label=r'actor: $\mu_\theta(s)$', c='tab:green')
     ax.plot(x, policy_critic, label=r'critic: $\mu_\omega(s) = argmax_a Q_\omega(s, a)$',
             c='tab:orange')
-    ax.plot(x, policy_opt, label=r'hjb', color='black', linestyle=':')
+    ax.plot(x, policy_opt, label=r'hjb', c='black', ls=':')
     ax.legend(loc=loc)
     plt.show()
 
@@ -690,7 +695,7 @@ def initialize_stoch_policy_1d_figure(env, policy, policy_opt):
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.action_space_low, env.action_space_high)
     sc = ax.scatter(env.state_space_h, policy)
-    ax.plot(env.state_space_h, policy_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+    ax.plot(env.state_space_h, policy_opt, label=r'hjb', c=COLORS_FIG['hjb'])
 
     plt.legend()
     plt.show()
@@ -911,7 +916,7 @@ def initialize_value_function_1d_figure(env, value_function, value_function_opt=
 
     det_v_function_line = ax.plot(env.state_space_h, value_function)[0]
     if value_function_opt is not None:
-        ax.plot(env.state_space_h, value_function_opt, label=r'hjb', color=COLORS_FIG['hjb'])
+        ax.plot(env.state_space_h, value_function_opt, label=r'hjb', c=COLORS_FIG['hjb'])
 
     plt.legend()
     plt.show()
@@ -972,7 +977,7 @@ def initialize_advantage_function_1d_figure(env, a_table, policy_opt=None):
         extent=get_state_action_1d_extent(env),
     )
     if policy_opt is not None:
-        ax.plot(env.state_space_h, policy_opt, color='grey', linestyle=':')
+        ax.plot(env.state_space_h, policy_opt, c='grey', ls=':')
     \
     # colorbar
     plt.colorbar(im_a_table, ax=ax)
@@ -1260,7 +1265,7 @@ def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_op
         ax4.set_ylim(env.action_space_low, env.action_space_high)
         ax4.plot(env.state_space_h, policy_actor)
         ax4.plot(env.state_space_h, policy_critic)
-        ax4.plot(env.state_space_h, policy_opt, color='black', linestyle=':')
+        ax4.plot(env.state_space_h, policy_opt, c='black', ls=':')
 
         # pause
         plt.pause(0.01)
@@ -1336,8 +1341,8 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
 
     # get state and actions in buffer
     n_points = replay_buffer.size
-    states = replay_buffer.state_buf[:replay_buffer.size, 0]
-    actions = replay_buffer.act_buf[:replay_buffer.size, 0]
+    states = replay_buffer.states[:replay_buffer.size, 0]
+    actions = replay_buffer.actions[:replay_buffer.size, 0]
 
     # edges
     x_edges = env.state_space_h[::5]
@@ -1369,8 +1374,8 @@ def update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig):
 
     # get state and actions in buffer
     n_points = replay_buffer.size
-    states = replay_buffer.state_buf[:replay_buffer.size, 0]
-    actions = replay_buffer.act_buf[:replay_buffer.size, 0]
+    states = replay_buffer.states[:replay_buffer.size, 0]
+    actions = replay_buffer.actions[:replay_buffer.size, 0]
 
     H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
     H /= n_points

@@ -7,10 +7,10 @@ def compute_r_table(env):
 
     # all discretized states
     states = np.expand_dims(env.state_space_h, axis=-1)
+    done = env.is_done(states)
 
     for action_idx in range(env.n_actions):
         action = env.action_space_h[[action_idx]].reshape(1, env.d)
-        done = env.is_done(states)
         r_table[:, action_idx] = env.reward_signal_state_action(states, action, done)
 
     return r_table
@@ -34,4 +34,3 @@ def compute_p_tensor_batch(env):
                 = env.state_action_transition_function(env.state_space_h, state, action, env.h_state /2 )
 
     return p_tensor
-
