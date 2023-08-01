@@ -510,7 +510,7 @@ def plot_mu_and_simga_gaussian_stoch_policy_1d(env, mu, sigma_sq):
     ax.set_xlabel('State space')
     plt.show()
 
-def plot_det_policy_1d(env, policy, policy_opt, loc=None):
+def plot_det_policy_1d(env, policy, policy_opt=None, loc=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['policy'])
@@ -518,7 +518,8 @@ def plot_det_policy_1d(env, policy, policy_opt, loc=None):
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
 
     ax.plot(env.state_space_h, policy)
-    ax.plot(env.state_space_h, policy_opt, label=r'hjb', c=COLORS_FIG['hjb'], ls=':')
+    if policy_opt is not None:
+        ax.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'hjb')
     ax.legend(loc=loc)
     plt.show()
 
@@ -564,7 +565,7 @@ def plot_det_policies_1d_black_and_white(env, policies, policy_opt):
     #ax.set_ylim(-3, 3)
     plt.show()
 
-def initialize_det_policy_1d_figure(env, policy, policy_opt):
+def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=None):
 
     # initialize figure
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -577,7 +578,10 @@ def initialize_det_policy_1d_figure(env, policy, policy_opt):
     ax.set_xlim(env.state_space_low, env.state_space_high)
     ax.set_ylim(env.action_space_low, env.action_space_high)
     det_policy_line = ax.plot(env.state_space_h, policy)[0]
-    ax.plot(env.state_space_h, policy_opt, label=r'hjb', c=COLORS_FIG['hjb'])
+    if policy_opt is not None:
+        ax.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'hjb')
+    if policy_critic is not None:
+        ax.plot(env.state_space_h, policy_critic, c='grey', ls='--', label=r'$argmax_a Q(s, a)$')
 
     plt.legend()
     plt.show()
@@ -619,7 +623,7 @@ def canvas_det_policy_1d_figure(env, policies, policy_opt):
 
 
 def plot_det_policy_1d_actor_critic(env, policy_actor_initial, policy_critic_initial, policy_actor,
-                                    policy_critic, policy_opt, ylim=None, loc=None):
+                                    policy_critic, policy_opt=None, ylim=None, loc=None):
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel('States')
@@ -633,7 +637,8 @@ def plot_det_policy_1d_actor_critic(env, policy_actor_initial, policy_critic_ini
     ax.plot(x, policy_actor, label=r'actor: $\mu_\theta(s)$', c='tab:green')
     ax.plot(x, policy_critic, label=r'critic: $\mu_\omega(s) = argmax_a Q_\omega(s, a)$',
             c='tab:orange')
-    ax.plot(x, policy_opt, label=r'hjb', c='black', ls=':')
+    if policy_opt is not None:
+        ax.plot(x, policy_opt, c='black', ls=':', label=r'hjb')
     ax.legend(loc=loc)
     plt.show()
 
@@ -916,7 +921,7 @@ def initialize_value_function_1d_figure(env, value_function, value_function_opt=
 
     det_v_function_line = ax.plot(env.state_space_h, value_function)[0]
     if value_function_opt is not None:
-        ax.plot(env.state_space_h, value_function_opt, label=r'hjb', c=COLORS_FIG['hjb'])
+        ax.plot(env.state_space_h, value_function_opt, c=COLORS_FIG['hjb'], ls=':', label=r'hjb')
 
     plt.legend()
     plt.show()

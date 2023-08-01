@@ -219,7 +219,7 @@ def compute_v_value_critic_1d(env, critic, state):
 
 def load_dp_tables_data(env):
     from rl_sde_is.environments import DoubleWellStoppingTime1D
-    from rl_sde_is.tabular_dp_tables import dynammic_programming_tables
+    from rl_sde_is.tabular_dp_tables import dynamic_programming_tables
 
     # initialize environment
     env_dp = DoubleWellStoppingTime1D(alpha=env.alpha, beta=env.beta, dt=env.dt)
@@ -228,12 +228,12 @@ def load_dp_tables_data(env):
     env_dp.set_action_space_bounds()
 
     # discretize state and action space
-    env_dp.discretize_state_space(1e-2)
-    env_dp.discretize_action_space(5e-2)
+    env_dp.discretize_state_space(5e-2)
+    env_dp.discretize_action_space(1e-2)
     env_dp.discretize_state_action_space()
 
     # run dynamic programming q-value iteration
-    data = dynammic_programming_tables(env_dp, load=True)
+    data = dynamic_programming_tables(env_dp, load=True)
 
     return env_dp, data
 

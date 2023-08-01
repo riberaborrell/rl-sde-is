@@ -1,7 +1,6 @@
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.dynammic_programming import compute_p_tensor_batch, compute_r_table
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 from rl_sde_is.tabular_methods import *
@@ -65,10 +64,6 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     tables_data = load_data(get_dynamic_programming_tables_dir_path(env))
     r_table = tables_data['r_table']
     p_tensor = tables_data['p_tensor']
-
-    # compute p tensor and r table
-    p_tensor = compute_p_tensor_batch(env)
-    r_table = compute_r_table(env)
 
     # initialize value function table
     q_table = - np.random.rand(env.n_states, env.n_actions)

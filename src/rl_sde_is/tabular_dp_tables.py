@@ -1,7 +1,7 @@
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.dynammic_programming import compute_p_tensor_batch, compute_r_table
+from rl_sde_is.dynamic_programming import compute_p_tensor_batch, compute_r_table
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.tabular_methods import compute_tables
 from rl_sde_is.plots import *
@@ -41,7 +41,7 @@ def compute_optimal_q_table(env, r_table, p_tensor, value_function_opt, policy_o
     ) + r_table
     return q_table
 
-def dynammic_programming_tables(env, value_function_opt=None, policy_opt=None, load=False):
+def dynamic_programming_tables(env, value_function_opt=None, policy_opt=None, load=False):
 
     # get dir path
     rel_dir_path = get_dynamic_programming_tables_dir_path(env)
@@ -89,7 +89,7 @@ def main():
     policy_opt = sol_hjb.u_opt
 
     # compute dp tables
-    data = dynammic_programming_tables(env, value_function_opt, policy_opt, load=args.load)
+    data = dynamic_programming_tables(env, value_function_opt, policy_opt, load=args.load)
 
     # plot
     if not args.plot:
