@@ -33,22 +33,17 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_epis
 
     # load results
     if load:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(rel_dir_path)
 
     # set seed
     if seed is not None:
         np.random.seed(seed)
 
-
     # initialize q-value function table
     q_table = - np.random.rand(env.n_states, env.n_actions)
 
     # set values for the target set
-    q_table[env.idx_ts] = 0
-
-    # get index initial state
-    idx_state_init = env.get_state_idx(env.state_init).item()
+    q_table[env.ts_idx] = 0
 
     # preallocate returns and time steps
     returns = np.empty(n_episodes)
@@ -95,10 +90,10 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_epis
             states = np.append(states, state)
 
             # get index of the state
-            idx_state = env.get_state_idx(state)
+            state_idx = env.get_state_idx(state)
 
             # choose action following epsilon greedy policy
-            _, action = get_epsilon_greedy_action(env, q_table, idx_state, epsilon)
+            _, action = get_epsilon_greedy_action(env, q_table, state_idx, epsilon)
 
             # step dynamics forward
             new_state, r, done, _ = env.step(state, action)
@@ -123,37 +118,37 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_epis
 
             # state and its index at step k
             state = states[k]
-            idx_state = env.get_state_idx(state)
+            state_idx = env.get_state_idx(state)
 
             # action and its index at step k
             action = actions[k]
-            idx_action = env.get_action_idx(action)
+            action_idx = env.get_action_idx(action)
 
             # state-action index
-            idx = (idx_state, idx_action)
+            idx = (state_idx, action_idx)
             g = ep_returns[k]
 
             # update frequency table
-            n_table[idx_state] += 1
+            n_table[state_idx] += 1
 
             # set learning rate
             #if not constant_lr:
             #    lr = 1 / n_table[idx]
 
             # update q table
-            q_table[idx] += (lr / n_table[idx_state]) * (g - q_table[idx])
+            q_table[idx] += (lr / n_table[state_idx]) * (g - q_table[idx])
 
         # get indices episodes to averaged
         if ep < n_avg_episodes:
-            idx_last_episodes = slice(0, ep + 1)
+            last_episodes_idx = slice(0, ep + 1)
         else:
-            idx_last_episodes = slice(ep + 1 - n_avg_episodes, ep + 1)
+            last_episodes_idx = slice(ep + 1 - n_avg_episodes, ep + 1)
 
         # save episode
         returns[ep] = ep_returns[0]
-        avg_returns[ep] = np.mean(returns[idx_last_episodes])
+        avg_returns[ep] = np.mean(returns[last_episodes_idx])
         time_steps[ep] = n_steps_trajectory
-        avg_time_steps[ep] = np.mean(time_steps[idx_last_episodes])
+        avg_time_steps[ep] = np.mean(time_steps[last_episodes_idx])
 
 
         # test
@@ -169,7 +164,7 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_epis
             msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
                     'run avg time steps: {:2.2f}, epsilon: {:.2f}'.format(
                     ep,
-                    np.max(q_table[idx_state_init]),
+                    np.max(q_table[env.state_init_idx.item()]),
                     avg_returns[ep],
                     avg_time_steps[ep],
                     epsilon,
@@ -213,12 +208,15 @@ def main():
     if args.explorable_starts:
         env.is_state_init_sampled = True
 
+    # set action space bounds
+    env.set_action_space_bounds()
+
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
     # set epsilons
-    epsilons = get_epsilons_constant(args.n_episodes, eps_init=0.)
+    epsilons = get_epsilons_constant(args.n_episodes, eps_init=0.01)
     #epsilons = get_epsilons_constant(args.n_episodes, eps_init=1.)
     #epsilons = get_epsilons_linear_decay(args.n_episodes, eps_min=0.01, exploration=0.5)
 

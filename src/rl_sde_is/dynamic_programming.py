@@ -22,11 +22,11 @@ def compute_p_tensor_batch(env):
     p_tensor[:, :, :] = np.nan
 
     # set values for the state in target set
-    p_tensor[env.idx_ts[:, np.newaxis], env.idx_ts, :] = 1 / env.is_in_ts.sum()
-    p_tensor[env.idx_not_ts[:, np.newaxis], env.idx_ts, :] = 0
+    p_tensor[env.ts_idx[:, np.newaxis], env.ts_idx, :] = 1 / env.is_in_ts.sum()
+    p_tensor[env.not_ts_idx[:, np.newaxis], env.ts_idx, :] = 0
 
     # compute rest of state action probabilities
-    for state_idx in env.idx_not_ts:
+    for state_idx in env.not_ts_idx:
         for action_idx in range(env.n_actions):
             state = env.state_space_h[state_idx]
             action = env.action_space_h[action_idx]

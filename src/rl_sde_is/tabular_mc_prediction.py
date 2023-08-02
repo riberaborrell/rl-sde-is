@@ -30,8 +30,7 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
 
     # load results
     if load:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(rel_dir_path)
 
     # set seed
     if seed is not None:
@@ -42,10 +41,7 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
     returns_table = [[] for i in range(env.n_states)]
 
     # set values for the target set
-    v_table[env.idx_ts] = 0
-
-    # get index initial state
-    idx_state_init = env.get_state_idx(env.state_init).item()
+    v_table[env.ts_idx] = 0
 
     # preallocate returns and time steps
     time_steps = np.empty(n_episodes, dtype=np.int32)
@@ -68,7 +64,7 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
         states = np.empty(0)
         rewards = np.empty(0)
 
-        idx_states = []
+        states_idx = []
 
         # terminal state flag
         done = False
@@ -84,12 +80,12 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
             states = np.append(states, state)
 
             # get index of the state
-            idx_state = env.get_state_idx(state)
-            idx_states.append(idx_state.item())
+            state_idx = env.get_state_idx(state)
+            states_idx.append(state_idx.item())
 
             # choose action following the given policy
-            idx_action = policy[idx_state]
-            action = env.action_space_h[idx_action]
+            action_idx = policy[state_idx]
+            action = np.expand_dims(env.action_space_h[action_idx], axis=1)
 
             # step dynamics forward
             new_state, r, done, _ = env.step(state, action)
@@ -110,16 +106,16 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
             ret = gamma * ret + rewards[k]
 
             # if state not in the previous time steps
-            if not idx_states[k] in idx_states[:k] or not first_visit:
+            if not states_idx[k] in states_idx[:k] or not first_visit:
 
                 # get current state index
-                idx_state = idx_states[k]
+                state_idx = states_idx[k]
 
                 # append return
-                returns_table[idx_state].append(ret)
+                returns_table[state_idx].append(ret)
 
                 # update v table
-                v_table[idx_state] = np.mean(returns_table[idx_state])
+                v_table[state_idx] = np.mean(returns_table[state_idx])
 
         # test
         if (ep + 1) % test_freq_episodes == 0:
@@ -131,7 +127,7 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
             # logs
             msg = 'ep: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}'.format(
                 ep,
-                v_table[idx_state_init],
+                v_table[env.state_init_idx.item()],
                 v_rms_errors[ep_test],
             )
             print(msg)
@@ -163,6 +159,9 @@ def main():
     if args.explorable_starts:
         env.is_state_init_sampled = True
 
+    # set action space bounds
+    env.set_action_space_bounds()
+
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
@@ -171,10 +170,7 @@ def main():
     sol_hjb = env.get_hjb_solver()
 
     # set deterministic policy from the hjb control
-    policy = np.array([
-        env.get_action_idx(sol_hjb.u_opt[idx_state])
-        for idx_state, _ in enumerate(env.state_space_h)
-    ])
+    policy = env.get_det_policy_indices_from_hjb(sol_hjb.u_opt)
 
     # run mc value function learning agent following optimal policy
     data = mc_prediction(
@@ -184,7 +180,7 @@ def main():
         n_steps_lim=args.n_steps_lim,
         n_episodes=args.n_episodes,
         test_freq_episodes=args.test_freq_episodes,
-        first_visit=True,
+        first_visit=False,
         seed=args.seed,
         value_function_opt=-sol_hjb.value_function,
         load=args.load,

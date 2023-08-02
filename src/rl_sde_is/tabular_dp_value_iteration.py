@@ -54,7 +54,7 @@ def v_table_update_vect(env, r_table, p_tensor, v_table, gamma):
 
 def value_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
                     value_function_opt=None, policy_opt=None, load=False, live_plot=False):
-    from rl_sde_is.tabular_dp_policy_iteration import policy_update_vect
+    from rl_sde_is.tabular_dp_policy_iteration import policy_update_semi_vect, policy_update_vect
 
     ''' Dynamic programming value iteration with synchronous back ups.
     '''
@@ -67,8 +67,7 @@ def value_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
     # load results
     if load:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(rel_dir_path)
 
     # load dp tables
     tables_data = load_data(get_dynamic_programming_tables_dir_path(env))
@@ -77,9 +76,6 @@ def value_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
     # initialize value function table
     v_table = - np.random.rand(env.n_states)
-
-    # get index initial state
-    state_idx_init = env.get_state_idx(env.state_init).item()
 
     # preallocate value function rms errors
     n_test_iterations = n_iterations // test_freq_iterations + 1
@@ -105,7 +101,7 @@ def value_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
             v_rms_errors[j] = compute_rms_error(value_function_opt, v_table)
 
             # logs
-            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[state_idx_init])
+            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[env.state_init_idx.item()])
             print(msg)
 
             # update live figures
@@ -113,7 +109,8 @@ def value_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
                 update_value_function_1d_figure(env, v_table, v_line)
 
     # policy computation.
-    policy_indices = policy_update_semi_vect(env, r_table, p_tensor, v_table,gamma)
+    #policy_indices = policy_update_semi_vect(env, r_table, p_tensor, v_table, gamma)
+    policy_indices = policy_update_vect(env, r_table, p_tensor, v_table, gamma)
 
     # compute policy actions
     policy = env.action_space_h[policy_indices]

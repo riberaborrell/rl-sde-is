@@ -17,7 +17,7 @@ def policy_update_semi_vect(env, r_table, p_tensor, v_table, policy_indices, gam
     d = np.where(env.is_in_ts, 1, 0)
 
     # loop over states not in the target set
-    for state_idx in range(env.idx_lb):
+    for state_idx in range(env.lb_idx):
 
         # preallocate values
         values = np.zeros(env.n_actions)
@@ -45,7 +45,7 @@ def policy_update_vect(env, r_table, p_tensor, v_table, gamma):
 
     # Bellman optimality equation
     policy_indices = np.argmax(values, axis=1)
-    policy_indices[env.idx_ts] = env.idx_null_action
+    policy_indices[env.ts_idx] = env.null_action_idx
     return policy_indices
 
 
@@ -64,8 +64,7 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
     # load results
     if load:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(rel_dir_path)
 
     # load dp tables
     tables_data = load_data(get_dynamic_programming_tables_dir_path(env))
@@ -78,10 +77,7 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     policy = env.action_space_h[policy_indices]
 
     # set values for the target set
-    policy_indices[env.idx_ts] = env.idx_null_action
-
-    # get index initial state
-    state_idx_init = env.get_state_idx(env.state_init).item()
+    policy_indices[env.ts_idx] = env.null_action_idx
 
     # preallocate value function rms errors
     n_test_iterations = n_iterations // test_freq_iterations + 1
@@ -94,7 +90,7 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
     if live_plot:
         v_line = initialize_value_function_1d_figure(env, v_table, value_function_opt)
-        p_line = initialize_det_policy_1d_figure(env, policy, policy_opt)
+        p_line = initialize_det_policy_1d_figure(env, policy, policy_opt=policy_opt)
 
     # in each value iteration and policy update
     for i in np.arange(n_iterations):
@@ -119,7 +115,7 @@ def policy_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
             p_rms_errors[j] = compute_rms_error(policy_opt, policy)
 
             # logs
-            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[state_idx_init])
+            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i, v_table[env.state_init_idx.item()])
             print(msg)
 
             # update live figures

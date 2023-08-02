@@ -19,7 +19,6 @@ def q_table_update_semi_vect(env, r_table, p_tensor, q_table, gamma):
     d = np.where(env.is_in_ts, 1, 0)
 
     # loop over states not in the target set 
-    #for idx_state in env.idx_not_ts:
     for state_idx in range(env.n_states):
 
         # loop over all actions
@@ -68,9 +67,6 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     # initialize value function table
     q_table = - np.random.rand(env.n_states, env.n_actions)
 
-    # get index x_init
-    state_init_idx = env.get_state_idx(env.state_init).item()
-
     # preallocate value function rms errors
     n_test_iterations = n_iterations // test_freq_iterations + 1
     v_rms_errors = np.empty(n_test_iterations)
@@ -106,7 +102,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
             p_rms_errors[j] = compute_rms_error(policy_opt, policy)
 
             # logs
-            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i+1, np.max(q_table[state_init_idx]))
+            msg = 'it: {:3d}, V(s_init): {:.3f}'.format(i+1, np.max(q_table[env.state_init_idx]))
             print(msg)
 
             # update live figures

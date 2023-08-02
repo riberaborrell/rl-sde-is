@@ -67,7 +67,7 @@ def sample_loss_vectorized(env, model, K):
         ).squeeze()
 
         # get indices of trajectories which are new to the target set
-        idx = env.get_idx_new_in_ts_torch(done, already_done)
+        idx = env.get_new_in_ts_idx_torch(done, already_done)
 
         if idx.shape[0] != 0:
 

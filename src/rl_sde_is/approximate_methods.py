@@ -12,20 +12,20 @@ def get_epsilon_greedy_discrete_action(env, model, state, epsilon):
         with torch.no_grad():
             state_tensor = torch.tensor(state, dtype=torch.float32)
             q_values = model.forward(state_tensor).numpy()
-            idx_action = np.argmax(q_values, axis=1)
-            action = env.action_space_h[[idx_action]]
+            action_idx = np.argmax(q_values, axis=1)
+            action = env.action_space_h[[action_idx]]
 
     # pick random action (exploration)
     else:
-        idx_action = np.random.randint(env.n_actions)
-        action = env.action_space_h[[[idx_action]]]
+        action_idx = np.random.randint(env.n_actions)
+        action = env.action_space_h[[[action_idx]]]
 
-    return idx_action, action
+    return action_idx, action
 
 def get_epsilon_greedy_discrete_action_vectorized(env, model, states, epsilon):
 
     batch_size = states.shape[0]
-    idx_actions = np.empty(batch_size, dtype=np.int32)
+    actions_idx = np.empty(batch_size, dtype=np.int32)
 
     #if np.random.rand() > epsilon:
     bools = np.random.rand(batch_size) > epsilon
@@ -36,12 +36,12 @@ def get_epsilon_greedy_discrete_action_vectorized(env, model, states, epsilon):
     with torch.no_grad():
         states_tensor = torch.tensor(states[idx], dtype=torch.float32)
         q_values = model.forward(states_tensor).numpy()
-        idx_actions[idx] = np.argmax(q_values, axis=1)
+        actions_idx[idx] = np.argmax(q_values, axis=1)
 
     # exploration
-    idx_actions[idx_c] = np.random.randint(0, env.n_actions, idx_c.shape[0])
+    actions_idx[idx_c] = np.random.randint(0, env.n_actions, idx_c.shape[0])
 
-    return idx_actions
+    return actions_idx
 
 def get_epsilon_greedy_continuous_action(env, model, state, epsilon):
 
@@ -65,9 +65,9 @@ def compute_value_advantage_and_greedy_actions(q_table):
     a_table = q_table - np.expand_dims(v_table, axis=1)
 
     # compute greedy action indices
-    idx_actions = np.argmax(q_table, axis=1)
+    actions_idx = np.argmax(q_table, axis=1)
 
-    return v_table, a_table, idx_actions
+    return v_table, a_table, actions_idx
 
 
 def compute_v_table_1d(env, model):
@@ -106,7 +106,7 @@ def compute_tables_discrete_actions_1d(env, model):
         q_table = model.forward(states).numpy()
 
     # compute value table, advantage table and greedy actions
-    v_table, a_table, idx_actions = compute_value_advantage_and_greedy_actions(q_table)
+    v_table, a_table, actions_idx = compute_value_advantage_and_greedy_actions(q_table)
 
     # compute greedy actions
     greedy_actions = env.get_greedy_actions(q_table)
@@ -130,10 +130,10 @@ def compute_tables_continuous_actions_1d(env, model):
         q_table = model.forward(inputs).numpy().reshape(env.n_states, env.n_actions)
 
     # compute value table, advantage table and greedy actions
-    v_table, a_table, idx_actions = compute_value_advantage_and_greedy_actions(q_table)
+    v_table, a_table, actions_idx = compute_value_advantage_and_greedy_actions(q_table)
 
     # compute greedy actions
-    greedy_actions = env.action_space_h[idx_actions]
+    greedy_actions = env.action_space_h[actions_idx]
 
     return q_table, v_table, a_table, greedy_actions
 
@@ -164,10 +164,10 @@ def compute_tables_critic_1d(env, critic):
         q_table = critic.forward(grid_states, grid_actions).numpy().reshape(env.n_states, env.n_actions)
 
     # compute value table, advantage table and greedy actions
-    v_table, a_table, idx_actions = compute_value_advantage_and_greedy_actions(q_table)
+    v_table, a_table, actions_idx = compute_value_advantage_and_greedy_actions(q_table)
 
     # compute greedy actions
-    greedy_actions = env.action_space_h[idx_actions]
+    greedy_actions = env.action_space_h[actions_idx]
 
     return q_table, v_table, a_table, greedy_actions
 
@@ -183,10 +183,10 @@ def compute_tables_critic_2d(env, critic):
         q_table = critic.forward(grid_states, grid_actions).numpy().reshape(env.n_states, env.n_actions)
 
     # compute value table, advantage table and greedy action indices
-    v_table, a_table, idx_actions = compute_value_advantage_and_greedy_actions(q_table)
+    v_table, a_table, actions_idx = compute_value_advantage_and_greedy_actions(q_table)
 
     # greedy actions
-    greedy_actions = env.action_space_h.reshape(env.n_actions, env.d)[idx_actions]
+    greedy_actions = env.action_space_h.reshape(env.n_actions, env.d)[actions_idx]
 
     # reshape
     q_table = q_table.reshape(env.n_states_i1, env.n_states_i2, env.n_actions_i1, env.n_actions_i2)
@@ -534,7 +534,7 @@ def sample_trajectories_buffer_vectorized(env, model, replay_buffer, batch_size,
                                        next_states[idx], done[idx])
 
         # get indices of episodes which are new to the target set
-        _ = env.get_idx_new_in_ts(done, already_done)
+        _ = env.get_new_in_ts_idx(done, already_done)
 
         # stop if all episodes already in target set
         if already_done.all() == True:
@@ -606,15 +606,15 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, policy_opt=No
         total_rewards += np.squeeze(rewards)
 
         # hjb control
-        idx_states = env.get_state_idx(states)
-        actions_opt = policy_opt[idx_states]
+        states_idx = env.get_state_idx(states)
+        actions_opt = policy_opt[states_idx]
 
         # computer running u l2 error
         if policy_opt is not None:
             ep_policy_l2_error_t += (np.linalg.norm(actions - actions_opt, axis=1) ** 2) * env.dt
 
         # get indices of episodes which are new to the target set
-        idx = env.get_idx_new_in_ts(done, already_done)
+        idx = env.get_new_in_ts_idx(done, already_done)
 
         # if there are episodes which are done
         if idx.shape[0] != 0:
@@ -667,7 +667,7 @@ def estimate_fht_vectorized(env, model, batch_size=int(1e5), k_max=10**5):
         next_states, _, done, _ = env.step(states, actions)
 
         # get indices of episodes which are new to the target set
-        idx = env.get_idx_new_in_ts(done, already_done)
+        idx = env.get_new_in_ts_idx(done, already_done)
 
         # if there are episodes which are done
         if idx.shape[0] != 0:

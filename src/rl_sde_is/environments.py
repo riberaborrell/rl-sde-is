@@ -222,7 +222,7 @@ class DoubleWellStoppingTime1D():
 
         return next_state, r, done, dbt
 
-    def get_idx_new_in_ts(self, is_in_target_set, been_in_target_set):
+    def get_new_in_ts_idx(self, is_in_target_set, been_in_target_set):
 
         idx = np.where(
                 (is_in_target_set == True) &
@@ -233,7 +233,7 @@ class DoubleWellStoppingTime1D():
 
         return idx
 
-    def get_idx_new_in_ts_torch(self, is_in_target_set, been_in_target_set):
+    def get_new_in_ts_idx_torch(self, is_in_target_set, been_in_target_set):
 
         idx = torch.where(
                 (is_in_target_set == True) &
@@ -275,10 +275,10 @@ class DoubleWellStoppingTime1D():
         self.h_state = h_state
 
         # get initial state index 
-        self.get_idx_state_init()
+        self.get_state_init_idx()
 
         # get target set indices
-        self.get_idx_target_set()
+        self.get_target_set_idx()
 
     def discretize_action_space(self, h_action):
 
@@ -292,7 +292,7 @@ class DoubleWellStoppingTime1D():
         self.h_action = h_action
 
         # get null action index
-        self.get_idx_null_action()
+        self.get_null_action_idx()
 
     def get_state_idx(self, state):
         ''' get index of the corresponding discretized state
@@ -346,27 +346,27 @@ class DoubleWellStoppingTime1D():
     def get_action_idx_min(self, action):
         return np.argmin(np.abs(self.action_space_h - action), axis=1)
 
-    def get_idx_state_init(self):
-        self.idx_state_init = self.get_state_idx(self.state_init)
+    def get_state_init_idx(self):
+        self.state_init_idx = self.get_state_idx(self.state_init)
 
-    def get_idx_target_set(self):
+    def get_target_set_idx(self):
         self.is_in_ts = (self.state_space_h >= self.lb) & (self.state_space_h <= self.rb)
-        self.idx_lb = self.get_state_idx(np.array([[self.lb]]))[0]
-        self.idx_rb = self.get_state_idx(np.array([[self.rb]]))[0]
-        self.idx_ts = np.where(self.is_in_ts)[0]
-        self.idx_not_ts = np.where(np.invert(self.is_in_ts))[0]
+        self.lb_idx = self.get_state_idx(np.array([[self.lb]]))[0]
+        self.rb_idx = self.get_state_idx(np.array([[self.rb]]))[0]
+        self.ts_idx = np.where(self.is_in_ts)[0]
+        self.not_ts_idx = np.where(np.invert(self.is_in_ts))[0]
 
-    def get_idx_null_action(self):
-        self.idx_null_action = self.get_action_idx(np.zeros((1, self.d)))
+    def get_null_action_idx(self):
+        self.null_action_idx = self.get_action_idx(np.zeros((1, self.d)))
 
     def get_greedy_actions(self, q_table):
 
         # compute greedy action by following the q-table
-        idx_actions = np.argmax(q_table, axis=1)
-        greedy_actions = self.action_space_h[idx_actions]
+        actions_idx = np.argmax(q_table, axis=1)
+        greedy_actions = self.action_space_h[actions_idx]
 
         # set actions in the target set to 0
-        greedy_actions[self.idx_ts] = 0.
+        greedy_actions[self.ts_idx] = 0.
         return greedy_actions
 
     def discretize_state_action_space(self):

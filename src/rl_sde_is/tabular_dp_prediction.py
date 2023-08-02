@@ -20,7 +20,7 @@ def value_table_update(env, r_table, p_tensor, policy, v_table, gamma):
     for state_idx in range(env.n_states):
 
         # check if is in target set
-        d = 1 if  state_idx in env.idx_ts else 0
+        d = 1 if  state_idx in env.ts_idx else 0
 
         # choose action following policy
         action_idx = policy[state_idx]
@@ -71,8 +71,7 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
     # load results
     if load:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(rel_dir_path)
 
     # load dp tables
     tables_data = load_data(get_dynamic_programming_tables_dir_path(env))
@@ -81,9 +80,6 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
     # initialize value function table
     v_table = - np.random.rand(env.n_states)
-
-    # get index initial state
-    state_init_idx = env.get_state_idx(env.state_init).item()
 
     # preallocate value function rms errors
     n_test_iterations = n_iterations // test_freq_iterations + 1
@@ -112,7 +108,7 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
             # logs
             msg = 'it: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}' \
-                  ''.format(i+1, v_table[state_init_idx], v_rms_errors[j])
+                  ''.format(i+1, v_table[env.state_init_idx.item()], v_rms_errors[j])
             print(msg)
 
             # update live figure

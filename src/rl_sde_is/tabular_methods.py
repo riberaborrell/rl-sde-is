@@ -2,36 +2,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-def get_epsilon_greedy_action(env, q_table, idx_state, epsilon):
+def get_epsilon_greedy_action(env, q_table, state_idx, epsilon):
 
     # pick greedy action (exploitation)
     if np.random.rand() > epsilon:
-        idx_action = np.argmax(q_table[idx_state])
+        action_idx = np.argmax(q_table[state_idx])
 
     # pick random action (exploration)
     else:
-        idx_action = np.random.choice(np.arange(env.n_actions))
+        action_idx = np.random.choice(np.arange(env.n_actions))
 
-    action = env.action_space_h[[[idx_action]]]
+    action = env.action_space_h[[[action_idx]]]
 
-    return idx_action, action
+    return action_idx, action
 
-def get_epsilon_greedy_actions_vectorized(env, q_table, idx_states, epsilon):
+def get_epsilon_greedy_actions_vectorized(env, q_table, states_idx, epsilon):
 
     # get batch size
-    batch_size = idx_states.shape[0]
+    batch_size = states_idx.shape[0]
 
     # pick greedy action (exploitation)
     if np.random.rand() > epsilon:
-        idx_actions = np.argmax(q_table[idx_states], axis=1)
+        actions_idx = np.argmax(q_table[states_idx], axis=1)
 
     # pick random action (exploration)
     else:
-        idx_actions = np.random.choice(np.arange(env.n_actions), batch_size)
+        actions_idx = np.random.choice(np.arange(env.n_actions), batch_size)
 
-    actions = env.action_space_h[idx_actions].reshape(batch_size, 1)
+    actions = env.action_space_h[actions_idx].reshape(batch_size, 1)
 
-    return idx_actions, actions
+    return actions_idx, actions
 
 def get_epsilons_constant(n_episodes, eps_init):
     return eps_init * np.ones(n_episodes)
@@ -63,7 +63,7 @@ def compute_tables(env, q_table):
 
     # compute greedy actions
     greedy_policy = env.get_greedy_actions(q_table)
-    greedy_policy[env.idx_ts] = env.idx_null_action
+    greedy_policy[env.ts_idx] = 0
 
     return v_table, a_table, greedy_policy
 

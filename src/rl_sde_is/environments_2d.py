@@ -204,7 +204,7 @@ class DoubleWellStoppingTime2D():
 
         return next_state, r, done, dbt
 
-    def get_idx_new_in_ts(self, is_in_target_set, been_in_target_set):
+    def get_new_in_ts_idx(self, is_in_target_set, been_in_target_set):
 
         idx = np.where(
                 (is_in_target_set == True) &
@@ -215,7 +215,7 @@ class DoubleWellStoppingTime2D():
 
         return idx
 
-    def get_idx_new_in_ts_torch(self, is_in_target_set, been_in_target_set):
+    def get_new_in_ts_idx_torch(self, is_in_target_set, been_in_target_set):
 
         idx = torch.where(
                 (is_in_target_set == True) &
@@ -273,10 +273,10 @@ class DoubleWellStoppingTime2D():
         self.h_state = h_state
 
         # get initial state index 
-        self.get_idx_state_init()
+        self.get_state_init_idx()
 
-    def get_idx_state_init(self):
-        self.idx_state_init = self.get_state_idx(self.state_init)
+    def get_state_init_idx(self):
+        self.state_init_idx = self.get_state_idx(self.state_init)
 
     def get_action_idx(self, action):
         ''' get index of the corresponding discretized action
@@ -309,10 +309,10 @@ class DoubleWellStoppingTime2D():
         self.h_action = h_action
 
         # get null action index
-        self.get_idx_null_action()
+        self.get_null_action_idx()
 
-    def get_idx_null_action(self):
-        self.idx_null_action = self.get_action_idx(np.zeros((1, self.d)))
+    def get_null_action_idx(self):
+        self.null_action_idx = self.get_action_idx(np.zeros((1, self.d)))
 
     def discretize_state_action_space(self):
 

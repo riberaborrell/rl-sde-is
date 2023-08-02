@@ -33,8 +33,7 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
 
     # load results
     if load:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(rel_dir_path)
 
     # set seed
     if seed is not None:
@@ -44,13 +43,10 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
     q_table = - np.random.rand(env.n_states, env.n_actions)
 
     # set values for the target set
-    q_table[env.idx_ts] = 0
+    q_table[env.ts_idx] = 0
 
     # initialize frequency table
     n_table = np.zeros((env.n_states, env.n_actions))
-
-    # get index initial state
-    idx_state_init = env.get_state_idx(env.state_init).item()
 
     # preallocate returns and time steps
     returns = np.empty(n_episodes)
@@ -68,7 +64,7 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
         v_table, a_table, policy = compute_tables(env, q_table)
         lines = initialize_q_learning_figures(env, q_table, v_table, a_table, policy,
                                               value_function_opt, policy_opt)
-        #im_n_table = initialize_frequency_figure(env, n_table)
+        im_n_table = initialize_frequency_figure(env, n_table)
 
     # for each episode
     for ep in np.arange(n_episodes):
@@ -80,9 +76,9 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
         state = env.reset()
 
         # choose action
-        idx_state = env.get_state_idx(state)
-        idx_action, action = get_epsilon_greedy_action(env, q_table, idx_state, epsilon)
-        idx = (idx_state, idx_action,)
+        state_idx = env.get_state_idx(state)
+        action_idx, action = get_epsilon_greedy_action(env, q_table, state_idx, epsilon)
+        idx = (state_idx, action_idx,)
 
         # reset trajectory rewards
         rewards = np.empty(0)
@@ -98,33 +94,32 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
                 break
 
             # step dynamics forward
-            new_state, r, done, _ = env.step(state, action)
-            idx_new_state = env.get_state_idx(new_state)
+            next_state, r, done, _ = env.step(state, action)
+            next_state_idx = env.get_state_idx(next_state)
 
             # get new action
-            idx_new_action, new_action \
-                    = get_epsilon_greedy_action(env, q_table, idx_new_state, epsilon)
-            idx_new = (idx_new_state, idx_new_action,)
+            next_action_idx, next_action \
+                    = get_epsilon_greedy_action(env, q_table, next_state_idx, epsilon)
+            next_idx = (next_state_idx, next_action_idx,)
 
             # update frequency table
             n_table[idx] += 1
 
-            # compute temporal difference error
-            td_error = r + gamma * q_table[idx_new] - q_table[idx]
-
-            # update q-value table
-            q_table[idx] = q_table[idx] + lr * td_error
+            # update q-values
+            d = np.where(done, 1., 0.)
+            target = r + gamma * (1 - d) * q_table[next_idx]
+            q_table[idx] += lr * (target - q_table[idx])
 
             # save reward
             rewards = np.append(rewards, r)
 
             # update state
-            state = new_state
+            state = next_state
 
             # update state and action
-            idx = idx_new
-            state = new_state
-            action = new_action
+            idx = next_idx
+            state = next_state
+            action = next_action
 
         # compute returns at each time step
         ep_returns = discount_cumsum(rewards, gamma)
@@ -154,7 +149,7 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
             msg = 'ep: {:3d}, V(s_init): {:.3f}, run avg return {:2.2f}, ' \
                     'run avg time steps: {:2.2f}, epsilon: {:.2f}'.format(
                     ep,
-                    np.max(q_table[idx_state_init]),
+                    np.max(q_table[env.state_init_idx]),
                     avg_returns[ep],
                     avg_time_steps[ep],
                     epsilon,
@@ -164,7 +159,7 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
             # update live figures
             if live_plot:
                 update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
-                #update_frequency_figure(env, n_table, im_n_table)
+                update_frequency_figure(env, n_table, im_n_table)
 
     data = {
         'gamma': gamma,
@@ -199,12 +194,16 @@ def main():
     if args.explorable_starts:
         env.is_state_init_sampled = True
 
+    # set action space bounds
+    env.action_space_low = -5
+    env.action_space_high = 5
+
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
 
     # set epsilons
-    epsilons = get_epsilons_constant(args.n_episodes, eps_init=0.5)
+    epsilons = get_epsilons_constant(args.n_episodes, eps_init=0.01)
     #epsilons = get_epsilons_constant(args.n_episodes, eps_init=1.)
     #epsilons = get_epsilons_linear_decay(args.n_episodes, eps_min=0.01, exploration=0.5)
 

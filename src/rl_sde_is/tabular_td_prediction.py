@@ -29,8 +29,7 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
 
     # load results
     if load:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(rel_dir_path)
 
     # set seed
     if seed is not None:
@@ -38,10 +37,6 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
 
     # initialize value function table
     v_table = - np.random.rand(env.n_states)
-
-    # get index initial state
-    state_init_idx = env.get_state_idx(env.state_init).item()
-    #state_init_idx = env.get_state_idx(env.state_init)
 
     # preallocate value function rms errors
     n_test_episodes = n_episodes // test_freq_episodes + 1
@@ -103,7 +98,7 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
             # logs
             msg = 'ep: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}'.format(
                     ep,
-                    v_table[state_init_idx],
+                    v_table[env.state_init_idx.item()],
                     v_rms_errors[ep_test],
                 )
             print(msg)
