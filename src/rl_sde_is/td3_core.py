@@ -437,8 +437,8 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
             data['test_var_returns'] = test_var_returns
             data['test_mean_lengths'] = test_mean_lengths
             data['test_policy_l2_errors'] = test_policy_l2_errors
-            data['replay_states'] = replay_buffer.state_buf[:replay_buffer.size]
-            data['replay_actions'] = replay_buffer.act_buf[:replay_buffer.size]
+            data['replay_states'] = replay_buffer.states[:replay_buffer.size]
+            data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
 
             save_data(data, rel_dir_path)
 
@@ -460,8 +460,8 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
     data['test_var_returns'] = test_var_returns
     data['test_mean_lengths'] = test_mean_lengths
     data['test_policy_l2_errors'] = test_policy_l2_errors
-    data['replay_states'] = replay_buffer.state_buf[:replay_buffer.size]
-    data['replay_actions'] = replay_buffer.act_buf[:replay_buffer.size]
+    data['replay_states'] = replay_buffer.states[:replay_buffer.size]
+    data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
     save_data(data, rel_dir_path)
     return data
 

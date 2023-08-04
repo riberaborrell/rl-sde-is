@@ -4,6 +4,28 @@ from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.plots import *
 from rl_sde_is.td3_core import *
 
+def get_policy(env, data, ep=None):
+    actor = data['actor']
+    if ep is not None:
+        load_backup_models(data, ep)
+        actor = data['actor']
+
+    state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
+    with torch.no_grad():
+        policy = actor.forward(state_space_h).numpy().squeeze()
+    return policy
+
+def get_policies(env, data, episodes):
+
+    Nx = env.n_states
+    policies = np.empty((0, Nx), dtype=np.float32)
+
+    for ep in episodes:
+        load_backup_models(data, ep)
+        policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
+
+    return policies
+
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
@@ -41,13 +63,13 @@ def main():
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
         seed=args.seed,
-        start_steps=int(1e4),
+        start_steps=int(1e3),
         replay_size=args.replay_size,
-        update_after=int(1e4),
+        update_after=int(1e3),
         n_steps_episode_lim=args.n_steps_lim,
         update_every=100,
         expl_noise_init=args.expl_noise_init,
-        expl_noise_decay=1.,
+        expl_noise_decay=args.decay,
         policy_delay=args.policy_delay,
         target_noise=args.target_noise,
         polyak=args.polyak,

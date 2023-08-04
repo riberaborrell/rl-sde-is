@@ -108,15 +108,15 @@ def get_base_parser():
         '--eps-init',
         dest='eps_init',
         type=float,
-        default=0.5,
-        help='Set probility of picking an action randomly. Default: 0.5',
+        default=0.01,
+        help='Set probility of picking an action randomly. Default: 0.01',
     )
     parser.add_argument(
-        '--eps-decay',
-        dest='eps_decay',
+        '--decay',
+        dest='decay',
         type=float,
-        default=0.98,
-        help='Set decay rate of epsilon. Default: 0.98',
+        default=1.,
+        help='Set decay rate. Default: 1.',
     )
     parser.add_argument(
         '--eps-min',
