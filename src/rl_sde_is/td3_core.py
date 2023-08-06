@@ -425,6 +425,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
             # load the model
             if load:
                 load_backup_models(data, ep=ep+1)
+                actor = data['actor']
 
             test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
                     = test_policy_vectorized(env, actor, batch_size=test_batch_size,

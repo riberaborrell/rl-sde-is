@@ -12,7 +12,7 @@ def get_parser():
     parser.description = ''
     return parser
 
-def qlearning(env, gamma=1., epsilons=None, lr=0.01,
+def qlearning(env, gamma=1., epsilons=None, eps_init=None, eps_decay=None, lr=0.01,
               n_episodes=1000, n_avg_episodes=10, n_steps_lim=1000, seed=None,
               value_function_opt=None, policy_opt=None, load=False, live_plot=False):
 
@@ -23,8 +23,9 @@ def qlearning(env, gamma=1., epsilons=None, lr=0.01,
         n_episodes=n_episodes,
         lr=lr,
         seed=seed,
-        eps_type='constant',
-        eps_init=1.0,
+        eps_type='exp-decay',
+        eps_init=eps_init,
+        eps_decay=eps_decay,
     )
 
     # load results
@@ -55,6 +56,7 @@ def qlearning(env, gamma=1., epsilons=None, lr=0.01,
     # initialize live figures
     if live_plot:
         v_table, a_table, policy = compute_tables(env, q_table)
+        im = initialize_frequency_figure(env, n_table)
         lines = initialize_q_learning_figures(env, q_table, v_table, a_table, policy,
                                               value_function_opt, policy_opt)
     # for each episode
@@ -139,6 +141,7 @@ def qlearning(env, gamma=1., epsilons=None, lr=0.01,
         # update live figures
         if live_plot and ep % n_avg_episodes == 0:
             v_table, a_table, policy = compute_tables(env, q_table)
+            update_frequency_figure(env, n_table, im)
             update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
 
 
@@ -177,8 +180,9 @@ def main():
     env.discretize_action_space(args.h_action)
 
     # set epsilons
-    epsilons = get_epsilons_constant(args.n_episodes, eps_init=args.eps_init)
+    #epsilons = get_epsilons_constant(args.n_episodes, eps_init=args.eps_init)
     #epsilons = get_epsilons_linear_decay(args.n_episodes, eps_min=0.01, exploration=0.5)
+    epsilons = get_epsilons_exp_decay(args.n_episodes, eps_init=args.eps_init, eps_decay=args.decay)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
@@ -188,6 +192,8 @@ def main():
         env,
         gamma=args.gamma,
         epsilons=epsilons,
+        eps_init=args.eps_init,
+        eps_decay=args.decay,
         lr=args.lr,
         n_episodes=args.n_episodes,
         n_avg_episodes=args.n_avg_episodes,
