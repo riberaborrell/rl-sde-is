@@ -1,9 +1,13 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import colors, cm, rc, rcParams
 from shapely.geometry import Polygon
 
 from rl_sde_is.utils_figures import TITLES_FIG, COLORS_FIG, COLORS_TAB20b
+
+# set matplotlib hyperparameters
+mpl.rcParams['lines.linewidth'] = 2.
 
 def get_state_action_1d_extent(env):
     ''' set extent bounds for 1d state space in the x-axis and
@@ -246,7 +250,7 @@ def plot_det_policy_l2_error_epochs(l2_errors, ylim=None):
     ax.set_title(TITLES_FIG['policy-l2-error'])
     ax.set_xlabel('Epochs')
     #ax.set_xlim(0, l2_errors.shape[0])
-    ax.semilogy(l2_errors, lw=2.)
+    ax.semilogy(l2_errors)
     if ylim is not None:
         ax.set_ylim(ylim)
     plt.show()
@@ -256,7 +260,7 @@ def plot_det_policy_l2_error_ct_epochs(cts, l2_errors, ylim=None):
     ax.set_title(TITLES_FIG['policy-l2-error'])
     ax.set_xlabel('CT(s)')
     #ax.set_xlim(0, l2_errors.shape[0])
-    ax.semilogy(cts, l2_errors, lw=2.)
+    ax.semilogy(cts, l2_errors)
     if ylim is not None:
         ax.set_ylim(ylim)
     plt.show()
@@ -267,7 +271,7 @@ def plot_det_policy_l2_error_iterations(l2_errors, iterations=None, ylim=None):
     ax.set_xlabel('Gradient steps')
     #ax.set_xlim(0, l2_errors.shape[0])
     if iterations is not None:
-        plt.semilogy(iterations, l2_errors, lw=2.)
+        plt.semilogy(iterations, l2_errors)
     else:
         plt.semilogy(l2_errors)
     if ylim is not None:
@@ -280,9 +284,9 @@ def plot_det_policy_l2_error_episodes(l2_errors, episodes=None, ylim=None):
     ax.set_xlabel('Episodes')
     #ax.set_xlim(0, l2_errors.shape[0])
     if episodes is not None:
-        plt.semilogy(episodes, l2_errors, lw=2.)
+        plt.semilogy(episodes, l2_errors)
     else:
-        plt.semilogy(l2_errors, lw=2.)
+        plt.semilogy(l2_errors)
     if ylim is not None:
         ax.set_ylim(ylim)
     plt.show()
@@ -339,7 +343,7 @@ def plot_frequency(env, n_table):
 
     plt.show()
 
-def plot_q_value_function_1d(env, q_table, vmin=None):
+def plot_q_value_function_1d(env, q_table, vmin=None, file_path=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['q-value-function'])
@@ -361,9 +365,13 @@ def plot_q_value_function_1d(env, q_table, vmin=None):
     cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
     fig.colorbar(im, cax=cbar_ax)
 
-    plt.show()
+    if file_path is not None:
+        plt.savefig(file_path, format='pdf')
+    else:
+        plt.show()
 
-def plot_advantage_function_1d(env, a_table, policy_opt=None, policy_critic=None, vmin=None):
+def plot_advantage_function_1d(env, a_table, policy_opt=None, policy_critic=None,
+                               vmin=None, file_path=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['a-value-function'])
@@ -393,7 +401,10 @@ def plot_advantage_function_1d(env, a_table, policy_opt=None, policy_critic=None
 
     ax.legend()
 
-    plt.show()
+    if file_path is not None:
+        plt.savefig(file_path, format='pdf')
+    else:
+        plt.show()
 
 def plot_value_function_1d(env, value_function, value_function_opt=None, loc=None):
 
@@ -407,7 +418,7 @@ def plot_value_function_1d(env, value_function, value_function_opt=None, loc=Non
     ax.legend(loc=loc)
     plt.show()
 
-def plot_value_function_2d(env, value_function, value_function_opt):
+def plot_value_function_2d(env, value_function, value_function_opt, file_path=None):
 
     fig, ax = plt.subplots()
     ax.set_title(r'Value function $V(s) = max_a Q_\omega(s, a)$')
@@ -428,7 +439,10 @@ def plot_value_function_2d(env, value_function, value_function_opt):
     cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
     fig.colorbar(im, cax=cbar_ax)
 
-    plt.show()
+    if file_path is not None:
+        plt.savefig(file_path, format='pdf')
+    else:
+        plt.show()
 
 
 def plot_value_function_1d_actor_critic(env, value_function_critic_initial, value_function_critic,
@@ -524,7 +538,7 @@ def plot_det_policy_1d(env, policy, policy_opt=None, loc=None):
     plt.show()
 
 def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
-                         ylim=None, loc='upper right'):
+                         ylim=None, loc='upper right', file_path=None):
 
     n_policies = policies.shape[0]
 
@@ -543,12 +557,16 @@ def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
 
     x = env.state_space_h
     for i in range(n_policies):
-        ax.plot(x, policies[i], c=colors[i], lw=2., label=labels[i])
-    ax.plot(x, policy_opt, c=colors[i+1], ls=':', lw=2., label=labels[i+1])
+        ax.plot(x, policies[i], c=colors[i], label=labels[i])
+    ax.plot(x, policy_opt, c=colors[i+1], ls=':', label=labels[i+1])
 
     if labels[0]:
         plt.legend(loc=loc)
-    plt.show()
+
+    if file_path is not None:
+        plt.savefig(file_path, format='pdf')
+    else:
+        plt.show()
 
 def plot_det_policies_1d_black_and_white(env, policies, policy_opt):
     n_policies = policies.shape[0]
@@ -642,7 +660,7 @@ def plot_det_policy_1d_actor_critic(env, policy_actor_initial, policy_critic_ini
     ax.legend(loc=loc)
     plt.show()
 
-def plot_det_policy_2d(env, policy, policy_hjb):
+def plot_det_policy_2d(env, policy, policy_hjb, file_path=None):
     X = env.state_space_h[:, :, 0]
     Y = env.state_space_h[:, :, 1]
     U = policy[:, :, 0]
@@ -685,7 +703,10 @@ def plot_det_policy_2d(env, policy, policy_hjb):
     cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
     fig.colorbar(Q, cax=cbar_ax)
 
-    plt.show()
+    if file_path is not None:
+        plt.savefig(file_path, format='pdf')
+    else:
+        plt.show()
 
 def initialize_stoch_policy_1d_figure(env, policy, policy_opt):
 
@@ -1278,7 +1299,7 @@ def canvas_actor_critic_1d_figures(env, data, backup_episodes, value_function_op
         # draw
         fig.canvas.draw()
 
-def plot_replay_buffer_1d(env, buf_states, buf_actions):
+def plot_replay_buffer_1d(env, buf_states, buf_actions, file_path=None):
 
     # get state and actions in buffer
     n_points = buf_states.shape[0]
@@ -1305,9 +1326,13 @@ def plot_replay_buffer_1d(env, buf_states, buf_actions):
         origin='lower',
         extent=get_state_action_1d_extent(env),
     )
-    plt.show()
 
-def plot_replay_buffer_states_2d(env, buf_states):
+    if file_path is not None:
+        plt.savefig(file_path, format='pdf')
+    else:
+        plt.show()
+
+def plot_replay_buffer_states_2d(env, buf_states, file_path=None):
 
     # get state and actions in buffer
     n_points = buf_states.shape[0]
@@ -1334,7 +1359,11 @@ def plot_replay_buffer_states_2d(env, buf_states):
         origin='lower',
         extent=get_state_2d_extent(env),
     )
-    plt.show()
+
+    if file_path is not None:
+        plt.savefig(file_path, format='pdf')
+    else:
+        plt.show()
 
 def initialize_replay_buffer_1d_figure(env, replay_buffer):
 
