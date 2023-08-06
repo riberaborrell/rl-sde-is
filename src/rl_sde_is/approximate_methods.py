@@ -573,7 +573,7 @@ def test_policy(env, model, batch_size=10):
 
     return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)
 
-def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, policy_opt=None):
+def test_policy_vectorized(env, model, batch_size=10, k_max=10**7, policy_opt=None):
 
     # preallocate returns and time steps
     total_rewards = np.zeros(batch_size)
@@ -636,12 +636,17 @@ def test_policy_vectorized(env, model, batch_size=10, k_max=10**5, policy_opt=No
         # update states
         states = next_states
 
+    if not already_done.all() and policy_opt is not None:
+        return np.nan, np.nan, np.nan, np.nan
+    elif not already_done.all():
+        return np.nan, np.nan, np.nan
+
     if policy_opt is not None:
         return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens), np.mean(ep_policy_l2_error_fht)
     else:
         return np.mean(ep_rets), np.var(ep_rets), np.mean(ep_lens)
 
-def estimate_fht_vectorized(env, model, batch_size=int(1e5), k_max=10**5):
+def estimate_fht_vectorized(env, model, batch_size=int(1e5), k_max=10**7):
 
     # preallocate time steps
     ep_fhts = np.empty(batch_size, dtype=np.int32)

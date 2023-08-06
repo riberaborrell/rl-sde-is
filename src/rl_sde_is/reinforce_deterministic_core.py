@@ -118,8 +118,7 @@ def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
 
     # load results
     if load and not test:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(rel_dir_path)
     elif load and test:
         data = load_data(rel_dir_path)
 
@@ -149,8 +148,8 @@ def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
     if not load:
         data = {
             'gamma': gamma,
-            'd_hidden_layer': d_hidden_layer,
             'n_layers': n_layers,
+            'd_hidden_layer': d_hidden_layer,
             'batch_size': batch_size,
             'lr': lr,
             'n_iterations': n_iterations,
@@ -218,10 +217,11 @@ def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
         print(msg)
 
     # initialize live figures
-    if live_plot and env.d == 1:
-        policy_line = initialize_1d_figures(env, model, policy_opt)
-    elif live_plot and env.d == 2:
-        Q_policy = initialize_2d_figures(env, model, policy_opt)
+    if not load and live_plot:
+        if env.d == 1:
+            policy_line = initialize_1d_figures(env, model, policy_opt)
+        elif env.d == 2:
+            Q_policy = initialize_2d_figures(env, model, policy_opt)
 
     for i in np.arange(n_iterations):
 
@@ -255,14 +255,13 @@ def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
             cts[i] = ct_final - ct_initial
 
             msg = 'it.: {:2d}, loss: {:.3e}, exp return: {:.3e}, var return: {:.1e}, ' \
-                  'ct: {:.3f}' \
-                  ''.format(
-                      i,
-                      losses[i],
-                      exp_returns[i],
-                      var_returns[i],
-                      cts[i] + 1,
-                  )
+                  'ct: {:.3f}'.format(
+                i,
+                losses[i],
+                exp_returns[i],
+                var_returns[i],
+                cts[i],
+            )
             print(msg)
 
         # test model
@@ -310,14 +309,13 @@ def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
             save_data(data, rel_dir_path)
 
         # update figure
-        if live_plot and i % 10 == 0:
-
+        if not load and live_plot and i % 10 == 0:
             if env.d == 1:
                 update_1d_figures(env, model, policy_line)
             elif env.d == 2:
                 update_2d_figures(env, model, Q_policy)
 
-    # add results
+    # add learning results
     if not load:
         data['returns'] = returns
         data['time_steps'] = time_steps
@@ -327,7 +325,7 @@ def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
         data['exp_time_steps'] = exp_time_steps
         data['cts'] = cts
 
-    # save test results
+    # add test results
     if test:
         data['test_mean_returns'] = test_mean_returns
         data['test_var_returns'] = test_var_returns
@@ -348,7 +346,7 @@ def initialize_1d_figures(env, model, policy_opt):
 
     state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
     initial_policy = compute_det_policy_actions(env, model, state_space_h).squeeze()
-    policy_line = initialize_det_policy_1d_figure(env, initial_policy, policy_opt_plot)
+    policy_line = initialize_det_policy_1d_figure(env, initial_policy, policy_opt=policy_opt_plot)
 
     return policy_line
 

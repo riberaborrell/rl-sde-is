@@ -45,7 +45,7 @@ def main():
         replay_size=args.replay_size,
         update_after=int(1e3),
         n_steps_episode_lim=args.n_steps_lim,
-        update_every=100,
+        update_every=10,
         expl_noise_init=args.expl_noise_init,
         expl_noise_decay=args.decay,
         policy_delay=args.policy_delay,
@@ -57,6 +57,7 @@ def main():
         value_function_opt=-sol_hjb.value_function,
         policy_opt=control_hjb,
         load=args.load,
+        test=args.test,
         live_plot=args.live_plot,
     )
 

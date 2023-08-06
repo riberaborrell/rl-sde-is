@@ -17,6 +17,7 @@ def get_data_dir():
     '''
     return DATA_ROOT_DIR
 
+
 def make_dir_path(dir_path):
     ''' Create directories of the given path if they do not already exist
     '''
@@ -36,6 +37,18 @@ def empty_dir(dir_path):
                     shutil.rmtree(file_path)
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
+
+def get_fig_notebooks_dir_path():
+    ''' returns the absolute path of the notebooks directory figures
+    '''
+
+    # get dir path
+    dir_path = os.path.join(get_data_dir(), 'notebooks')
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
 
 def save_data(data_dict, rel_dir_path):
     file_path = os.path.join(get_data_dir(), rel_dir_path, 'agent.npz')
@@ -231,7 +244,6 @@ def get_mc_learning_dir_path(env, **kwargs):
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
-#TODO: check
 def get_qlearning_dir_path(env, **kwargs):
     '''
     '''
@@ -242,7 +254,8 @@ def get_qlearning_dir_path(env, **kwargs):
               + get_initial_point_str(env) \
               + 'lr{:1.2f}_'.format(kwargs['lr']) \
               + get_eps_str(**kwargs) \
-              + 'K{:.0e}'.format(kwargs['n_episodes'])
+              + 'K{:.0e}'.format(kwargs['n_episodes']) \
+              + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)
 
@@ -352,6 +365,7 @@ def get_td3_dir_path(env, **kwargs):
     param_str = get_initial_point_str(env) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
+              + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + 'policy-delay{:d}_'.format(kwargs['policy_delay']) \
               + 'target-noise{:.1f}_'.format(kwargs['target_noise']) \

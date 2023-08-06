@@ -166,7 +166,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
                  update_after=5000, update_every=100, policy_delay=50, target_noise=0.2, polyak=0.95,
                  test_freq_episodes=100, test_batch_size=1000, backup_freq_episodes=None,
-                 value_function_opt=None, policy_opt=None, load=False, live_plot=False):
+                 value_function_opt=None, policy_opt=None, load=False, test=False,live_plot=False):
 
     # get dir path
     rel_dir_path = get_td3_dir_path(
@@ -182,13 +182,15 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
         lr_actor=lr_actor,
         lr_critic=lr_critic,
         n_episodes=n_episodes,
+        n_steps_lim=n_steps_episode_lim,
         seed=seed,
     )
 
     # load results
-    if load:
+    if load and not test:
+        return load_data(rel_dir_path)
+    elif load and test:
         data = load_data(rel_dir_path)
-        return data
 
     # set seed
     if seed is not None:
@@ -238,78 +240,84 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
                                  size=replay_size)
 
     # save algorithm parameters
-    data = {
-        'gamma' : gamma,
-        'd_hidden_layer': d_hidden_layer,
-        'n_layers': n_layers,
-        'action_limit': action_limit,
-        'n_episodes': n_episodes,
-        'n_steps_episode_lim': n_steps_episode_lim,
-        'start_steps': start_steps,
-        'expl_noise_init': expl_noise_init,
-        'expl_noise_decay': expl_noise_decay,
-        'replay_size': replay_size,
-        'replay_states': replay_buffer.states[:replay_buffer.size],
-        'replay_actions': replay_buffer.actions[:replay_buffer.size],
-        'batch_size' : batch_size,
-        'lr_actor' : lr_actor,
-        'lr_critic' : lr_critic,
-        'seed': seed,
-        'update_after': update_after,
-        'update_every': update_every,
-        'policy_delay': policy_delay,
-        'target_noise': target_noise,
-        'polyak': polyak,
-        'test_freq_episodes': test_freq_episodes,
-        'test_batch_size': test_batch_size,
-        'actor': actor,
-        'critic1': critic1,
-        'critic2': critic2,
-        'rel_dir_path': rel_dir_path,
-    }
+    if not load:
+        data = {
+            'gamma' : gamma,
+            'n_layers': n_layers,
+            'd_hidden_layer': d_hidden_layer,
+            'action_limit': action_limit,
+            'n_episodes': n_episodes,
+            'n_steps_episode_lim': n_steps_episode_lim,
+            'start_steps': start_steps,
+            'expl_noise_init': expl_noise_init,
+            'expl_noise_decay': expl_noise_decay,
+            'replay_size': replay_size,
+            'replay_states': replay_buffer.states[:replay_buffer.size],
+            'replay_actions': replay_buffer.actions[:replay_buffer.size],
+            'batch_size' : batch_size,
+            'lr_actor' : lr_actor,
+            'lr_critic' : lr_critic,
+            'seed': seed,
+            'update_after': update_after,
+            'update_every': update_every,
+            'policy_delay': policy_delay,
+            'target_noise': target_noise,
+            'polyak': polyak,
+            'actor': actor,
+            'critic1': critic1,
+            'critic2': critic2,
+            'rel_dir_path': rel_dir_path,
+        }
+
+    # save test parameters
+    if test:
+        data['test_freq_episodes'] = test_freq_episodes
+        data['test_batch_size'] = test_batch_size
+
     save_data(data, rel_dir_path)
 
-    # save models initial parameters
-    save_model(actor, rel_dir_path, 'actor_n-epi{}'.format(0))
-    save_model(critic1, rel_dir_path, 'critic1_n-epi{}'.format(0))
-    save_model(critic2, rel_dir_path, 'critic2_n-epi{}'.format(0))
+    if not load:
 
-    # preallocate arrays
+        # save models initial parameters
+        save_model(actor, rel_dir_path, 'actor_n-epi{}'.format(0))
+        save_model(critic1, rel_dir_path, 'critic1_n-epi{}'.format(0))
+        save_model(critic2, rel_dir_path, 'critic2_n-epi{}'.format(0))
 
-    # returns, time steps and ct per episode
-    returns = np.empty(n_episodes, dtype=np.float32)
-    returns.fill(np.nan)
-    time_steps = np.zeros(n_episodes, dtype=np.int32)
-    cts = np.empty(n_episodes, dtype=np.float32)
-    cts.fill(np.nan)
+        # preallocate arrays
 
-    # test mean, variance and mean length of the returns and l2 error after each epoch
-    test_mean_returns = np.empty((0), dtype=np.float32)
-    test_var_returns = np.empty((0), dtype=np.float32)
-    test_mean_lengths = np.empty((0), dtype=np.float32)
-    test_policy_l2_errors = np.empty((0), dtype=np.float32)
+        # returns, time steps and ct per episode
+        returns = np.empty(n_episodes, dtype=np.float32)
+        returns.fill(np.nan)
+        time_steps = np.zeros(n_episodes, dtype=np.int32)
+        cts = np.empty(n_episodes, dtype=np.float32)
+        cts.fill(np.nan)
 
-    # test initial actor model
-    test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
-            = test_policy_vectorized(env, actor, batch_size=test_batch_size,
-                                     policy_opt=policy_opt)
-    test_mean_returns = np.append(test_mean_returns, test_mean_ret)
-    test_var_returns = np.append(test_var_returns, test_var_ret)
-    test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
-    test_policy_l2_errors = np.append(test_policy_l2_errors, test_policy_l2_error)
+    if test:
 
-    msg = 'ep: {:3d}, test mean return: {:2.2f}, test var return: {:.2e}, ' \
-          'test mean time steps: {:2.2f}, test policy l2 error: {:.2e}'.format(
-              0,
-              test_mean_ret,
-              test_var_ret,
-              test_mean_len,
-              test_policy_l2_error,
-          )
-    print(msg)
+        # test mean, variance and mean length of the returns and l2 error after each epoch
+        test_mean_returns = np.empty((0), dtype=np.float32)
+        test_var_returns = np.empty((0), dtype=np.float32)
+        test_mean_lengths = np.empty((0), dtype=np.float32)
+        test_policy_l2_errors = np.empty((0), dtype=np.float32)
 
-    # get initial state
-    state_init = env.state_init.copy()
+        # test initial actor model
+        test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
+                = test_policy_vectorized(env, actor, batch_size=test_batch_size,
+                                         policy_opt=policy_opt)
+        test_mean_returns = np.append(test_mean_returns, test_mean_ret)
+        test_var_returns = np.append(test_var_returns, test_var_ret)
+        test_mean_lengths = np.append(test_mean_lengths, test_mean_len)
+        test_policy_l2_errors = np.append(test_policy_l2_errors, test_policy_l2_error)
+
+        msg = 'ep: {:3d}, test mean return: {:2.2f}, test var return: {:.2e}, ' \
+              'test mean time steps: {:2.2f}, test policy l2 error: {:.2e}'.format(
+                  0,
+                  test_mean_ret,
+                  test_var_ret,
+                  test_mean_len,
+                  test_policy_l2_error,
+              )
+        print(msg)
 
     # total number of time steps
     k_total = 0
@@ -320,88 +328,103 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
         for ep in np.arange(n_episodes)
     ])
 
-    # initialize figures if plot:
-    if live_plot and env.d == 1:
-        lines_actor_critic = initialize_1d_figures(env, actor, critic1, value_function_opt, policy_opt)
-        tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
-        lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
-    elif live_plot and env.d == 2:
-        Q_policy = initialize_2d_figures(env, actor, policy_opt)
-        lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
-
+    # initialize figures if plot
+    if not load and live_plot:
+        if env.d == 1:
+            lines_actor_critic = initialize_1d_figures(env, actor, critic1, value_function_opt, policy_opt)
+            tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
+            lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
+        elif env.d == 2:
+            Q_policy = initialize_2d_figures(env, actor, policy_opt)
+            lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
 
     # sample trajectories
     for ep in range(n_episodes):
 
-        # start timer
-        ct_initial = time.time()
+        # learn
+        if not load:
 
-        # initialization
-        state = env.reset()
+            # start timer
+            ct_initial = time.time()
 
-        # reset trajectory return
-        ep_return = 0
+            # initialization
+            state = env.reset()
 
-        # terminal state flag
-        done = False
+            # reset trajectory return
+            ep_return = 0
 
-        # sample trajectory
-        for k in np.arange(n_steps_episode_lim):
+            # terminal state flag
+            done = False
 
-            # interrupt if we are in a terminal state
-            if done:
-                break
+            # sample trajectory
+            for k in np.arange(n_steps_episode_lim):
 
-            # sample action
+                # interrupt if we are in a terminal state
+                if done:
+                    break
 
-            # sample action randomly
-            if k_total < start_steps:
-                action = env.sample_action(batch_size=1)
+                # sample action
 
-            # get action following the actor
-            else:
-                action = get_action(env, actor, state, expl_noises[ep])
+                # sample action randomly
+                if k_total < start_steps:
+                    action = env.sample_action(batch_size=1)
 
-            # env step
-            next_state, r, done, _ = env.step(state, action)
+                # get action following the actor
+                else:
+                    action = get_action(env, actor, state, expl_noises[ep])
 
-            # store tuple
-            replay_buffer.store(state, action, r, next_state, done)
+                # env step
+                next_state, r, done, _ = env.step(state, action)
 
-            # time to update
-            if k_total >= update_after and (k_total + 1) % update_every == 0:
+                # store tuple
+                replay_buffer.store(state, action, r, next_state, done)
 
-                for l in range(update_every):
+                # time to update
+                if k_total >= update_after and (k_total + 1) % update_every == 0:
 
-                    # sample minibatch of transition uniformlly from the replay buffer
-                    batch = replay_buffer.sample_batch(batch_size)
+                    for l in range(update_every):
 
-                    # update actor and critic parameters
-                    update_parameters(
-                        actor, actor_target, actor_optimizer,
-                        critic1, critic_target1, critic2, critic_target2, critic_optimizer,
-                        batch, gamma, policy_delay, l, target_noise=target_noise, polyak=polyak,
-                    )
+                        # sample minibatch of transition uniformlly from the replay buffer
+                        batch = replay_buffer.sample_batch(batch_size)
 
-            # save action and reward
-            ep_return += (gamma**k) * r
+                        # update actor and critic parameters
+                        update_parameters(
+                            actor, actor_target, actor_optimizer,
+                            critic1, critic_target1, critic2, critic_target2, critic_optimizer,
+                            batch, gamma, policy_delay, l, target_noise=target_noise, polyak=polyak,
+                        )
 
-            # update state
-            state = next_state
+                # save action and reward
+                ep_return += (gamma**k) * r
 
-            # update total steps counter
-            k_total += 1
+                # update state
+                state = next_state
 
-        # end timer
-        ct_final = time.time()
+                # update total steps counter
+                k_total += 1
 
-        # save episode
-        returns[ep] = ep_return
-        time_steps[ep] = k
-        cts[ep] = ct_final - ct_initial
+            # end timer
+            ct_final = time.time()
+
+            # save statistics
+            returns[ep] = ep_return
+            time_steps[ep] = k
+            cts[ep] = ct_final - ct_initial
+
+            msg = 'ep.: {:2d}, return: {:.3e}, time steps: {:.3e}, ct: {:.3f}'.format(
+                ep,
+                returns[ep],
+                time_steps[ep],
+                cts[ep],
+            )
+            print(msg)
 
         # test actor model
-        if (ep + 1) % test_freq_episodes == 0:
+        if test and (ep + 1) % test_freq_episodes == 0:
+
+            # load the model
+            if load:
+                load_backup_models(data, ep=ep+1)
 
             test_mean_ret, test_var_ret, test_mean_len, test_policy_l2_error \
                     = test_policy_vectorized(env, actor, batch_size=test_batch_size,
@@ -422,7 +445,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
             print(msg)
 
         # backup models and results
-        if backup_freq_episodes is not None and (ep + 1) % backup_freq_episodes == 0:
+        if not load and backup_freq_episodes is not None and (ep + 1) % backup_freq_episodes == 0:
 
             # save actor and critic models
             save_model(actor, rel_dir_path, 'actor_n-epi{}'.format(ep + 1))
@@ -433,17 +456,11 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
             data['returns'] = returns
             data['time_steps'] = time_steps
             data['cts'] = cts
-            data['test_mean_returns'] = test_mean_returns
-            data['test_var_returns'] = test_var_returns
-            data['test_mean_lengths'] = test_mean_lengths
-            data['test_policy_l2_errors'] = test_policy_l2_errors
-            data['replay_states'] = replay_buffer.states[:replay_buffer.size]
-            data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
 
             save_data(data, rel_dir_path)
 
         # update plots
-        if live_plot and (ep + 1) % 1 == 0:
+        if not load and live_plot and (ep + 1) % 1 == 0:
             if env.d == 1:
                 update_1d_figures(env, actor, critic1, lines_actor_critic)
                 update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
@@ -453,15 +470,21 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
                 update_2d_figures(env, actor, Q_policy)
                 update_return_and_time_steps_figures(env, returns[:ep], time_steps[:ep], lines_returns)
 
-    data['returns'] = returns
-    data['time_steps'] = time_steps
-    data['cts'] = cts
-    data['test_mean_returns'] = test_mean_returns
-    data['test_var_returns'] = test_var_returns
-    data['test_mean_lengths'] = test_mean_lengths
-    data['test_policy_l2_errors'] = test_policy_l2_errors
-    data['replay_states'] = replay_buffer.states[:replay_buffer.size]
-    data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
+    # add learning results
+    if not load:
+        data['returns'] = returns
+        data['time_steps'] = time_steps
+        data['cts'] = cts
+        data['replay_states'] = replay_buffer.states[:replay_buffer.size]
+        data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
+
+    # add test results
+    if test:
+        data['test_mean_returns'] = test_mean_returns
+        data['test_var_returns'] = test_var_returns
+        data['test_mean_lengths'] = test_mean_lengths
+        data['test_policy_l2_errors'] = test_policy_l2_errors
+
     save_data(data, rel_dir_path)
     return data
 
@@ -500,5 +523,5 @@ def load_backup_models(data, ep=0):
         load_model(critic1, rel_dir_path, file_name='critic1_n-epi{}'.format(ep))
         load_model(critic2, rel_dir_path, file_name='critic2_n-epi{}'.format(ep))
     except FileNotFoundError as e:
-        print('there is no backup after episode {:d}'.format(ep))
+        print('The episode {:d} has no backup '.format(ep))
 
