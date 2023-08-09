@@ -281,8 +281,8 @@ def get_base_parser():
         '--expl-noise-init',
         dest='expl_noise_init',
         type=float,
-        default=0.1,
-        help='Set initial exploration noise. Default: 0.1',
+        default=1.0,
+        help='Set initial exploration noise. Default: 1.0',
     )
     parser.add_argument(
         '--policy-delay',
@@ -296,7 +296,14 @@ def get_base_parser():
         dest='target_noise',
         type=float,
         default=0.2,
-        help='Set target noise for smoothing. Default: 0.2',
+        help='Set target noise for policy smoothing. Default: 0.2',
+    )
+    parser.add_argument(
+        '--action-limit',
+        dest='action_limit',
+        type=float,
+        default=10,
+        help='Set action limit for policy smoothing. Default: 10',
     )
     parser.add_argument(
         '--polyak',

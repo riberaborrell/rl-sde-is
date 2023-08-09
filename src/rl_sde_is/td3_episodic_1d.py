@@ -37,21 +37,21 @@ def main():
     # initialize environment
     env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
-    # set action space bounds
-    env.action_space_low = -5
-    env.action_space_high = 5
-
     # set explorable starts flag
     if args.explorable_starts:
         env.is_state_init_sampled = True
 
+    # set action space bounds
+    env.set_action_space_bounds()
+
     # discretize state and action space (plot purposes only)
-    env.discretize_state_space(h_state=0.05)
-    env.discretize_action_space(h_action=0.05)
+    env.discretize_state_space(h_state=0.1)
+    env.discretize_action_space(h_action=0.1)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
-    control_hjb = np.expand_dims(sol_hjb.u_opt, axis=1)
+    policy_opt = np.expand_dims(sol_hjb.u_opt, axis=1)
+    value_function_opt = -sol_hjb.value_function
 
     # run td3
     data = td3_episodic(
@@ -72,12 +72,13 @@ def main():
         expl_noise_decay=args.decay,
         policy_delay=args.policy_delay,
         target_noise=args.target_noise,
+        action_limit=args.action_limit,
         polyak=args.polyak,
         test_freq_episodes=args.test_freq_episodes,
         test_batch_size=args.test_batch_size,
         backup_freq_episodes=args.backup_freq_episodes,
-        value_function_opt=-sol_hjb.value_function,
-        policy_opt=control_hjb,
+        value_function_opt=value_function_opt,
+        policy_opt=policy_opt,
         load=args.load,
         test=args.test,
         live_plot=args.live_plot,
@@ -86,6 +87,7 @@ def main():
     # plots
     if not args.plot:
         return
+
 
     # get models
     actor = data['actor']
@@ -114,10 +116,10 @@ def main():
 
     plot_q_value_function_1d(env, q_table)
     plot_value_function_1d_actor_critic(env, v_table_critic_init, v_table_critic,
-                                        v_table_actor_critic, -sol_hjb.value_function)
+                                        v_table_actor_critic, value_function_opt)
     plot_advantage_function_1d(env, a_table, policy_critic)
     plot_det_policy_1d_actor_critic(env, policy_actor_init, policy_critic_init, policy_actor,
-                                    policy_critic, sol_hjb.u_opt)
+                                    policy_critic, policy_opt)
 
     # plot replay buffer
     plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0])

@@ -17,11 +17,10 @@ from rl_sde_is.utils_path import *
 
 class DeterministicPolicy(nn.Module):
 
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation, action_limit):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
         super().__init__()
         self.sizes = [state_dim] + list(hidden_sizes) + [action_dim]
         self.policy = mlp(self.sizes, activation)
-        self.action_limit = action_limit
         self.apply(self.init_last_layer_weights)
 
     def init_last_layer_weights(self, module):
@@ -32,8 +31,6 @@ class DeterministicPolicy(nn.Module):
 
     def forward(self, state):
         return self.policy.forward(state)
-        #action = self.policy.forward(state)
-        #return self.action_limit * torch.tanh(action)
 
 class QValueFunction(nn.Module):
 
@@ -56,7 +53,7 @@ class QValueFunction(nn.Module):
 def update_parameters(actor, actor_target, actor_optimizer,
                       critic1, critic_target1, critic2, critic_target2, critic_optimizer,
                       batch, gamma, policy_delay, timer,
-                      noise_clip=0., action_limit=5, target_noise=0., polyak=0.995):
+                      action_limit, target_noise, polyak):
 
     # unpack tuples in batch
     states = torch.tensor(batch['states'])
@@ -84,7 +81,6 @@ def update_parameters(actor, actor_target, actor_optimizer,
 
         # target policy smoothing
         epsilon = torch.randn_like(next_actions) * target_noise
-        #epsilon = torch.clamp(epsilon, -noise_clip, noise_clip)
         next_actions_smoothed = next_actions + epsilon
         next_actions_smoothed = torch.clamp(next_actions_smoothed, -action_limit, action_limit)
 
@@ -160,11 +156,11 @@ def get_action(env, actor, state, noise_scale=0):
     return action
 
 
-def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
+def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
                  n_episodes=100, n_steps_episode_lim=1000,
                  start_steps=0, expl_noise_init=0.1, expl_noise_decay=1., replay_size=50000,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
-                 update_after=5000, update_every=100, policy_delay=50, target_noise=0.2, polyak=0.95,
+                 update_after=5000, update_every=100, policy_delay=50, target_noise=0.2, polyak=0.95, action_limit=None,
                  test_freq_episodes=100, test_batch_size=1000, backup_freq_episodes=None,
                  value_function_opt=None, policy_opt=None, load=False, test=False,live_plot=False):
 
@@ -208,7 +204,6 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
         action_dim=d_action_space,
         hidden_sizes=actor_hidden_sizes,
         activation=nn.Tanh(),
-        action_limit=action_limit,
     )
     actor_target = deepcopy(actor)
 
@@ -233,7 +228,6 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
     actor_optimizer = optim.Adam(actor.parameters(), lr=lr_actor)
     critic_params = list(critic1.parameters()) + list(critic2.parameters())
     critic_optimizer = optim.Adam(critic_params, lr=lr_critic)
-    #critic_optimizer = optim.Adam(critic_params, lr=lr_critic, weight_decay=1e-2)
 
     # initialize replay buffer
     replay_buffer = ReplayBuffer(state_dim=d_state_space, action_dim=d_action_space,
@@ -245,7 +239,6 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
             'gamma' : gamma,
             'n_layers': n_layers,
             'd_hidden_layer': d_hidden_layer,
-            'action_limit': action_limit,
             'n_episodes': n_episodes,
             'n_steps_episode_lim': n_steps_episode_lim,
             'start_steps': start_steps,
@@ -262,6 +255,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
             'update_every': update_every,
             'policy_delay': policy_delay,
             'target_noise': target_noise,
+            'action_limit': action_limit,
             'polyak': polyak,
             'actor': actor,
             'critic1': critic1,
@@ -391,7 +385,8 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3, action_limit=5,
                         update_parameters(
                             actor, actor_target, actor_optimizer,
                             critic1, critic_target1, critic2, critic_target2, critic_optimizer,
-                            batch, gamma, policy_delay, l, target_noise=target_noise, polyak=polyak,
+                            batch, gamma, policy_delay, l,
+                            action_limit, target_noise, polyak,
                         )
 
                 # save action and reward

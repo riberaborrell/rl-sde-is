@@ -15,13 +15,13 @@ def main():
     # initialize environment
     env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
-    # set action space bounds
-    env.action_space_low = -5
-    env.action_space_high = 5
-
     # set explorable starts flag
     if args.explorable_starts:
         env.is_state_init_sampled = True
+
+    # set action space bounds
+    env.action_space_low = -5
+    env.action_space_high = 5
 
     # discretize state and action space (plot purposes only)
     env.discretize_state_space(h_state=0.1)
@@ -29,7 +29,8 @@ def main():
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
-    control_hjb = sol_hjb.u_opt
+    policy_opt = sol_hjb.u_opt
+    value_function_opt= - sol_hjb.value_function
 
     # run td3
     data = td3_episodic(
@@ -50,12 +51,13 @@ def main():
         expl_noise_decay=args.decay,
         policy_delay=args.policy_delay,
         target_noise=args.target_noise,
+        action_limit=args.action_limit,
         polyak=args.polyak,
         test_freq_episodes=args.test_freq_episodes,
         test_batch_size=args.test_batch_size,
         backup_freq_episodes=args.backup_freq_episodes,
-        value_function_opt=-sol_hjb.value_function,
-        policy_opt=control_hjb,
+        value_function_opt=value_function_opt,
+        policy_opt=policy_opt,
         load=args.load,
         test=args.test,
         live_plot=args.live_plot,
@@ -64,6 +66,7 @@ def main():
     # plots
     if not args.plot:
         return
+
 
     # get models
     actor = data['actor']
@@ -77,12 +80,12 @@ def main():
     # compute actor policy
     states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, actor, states)
-    plot_det_policy_2d(env, policy, control_hjb)
+    plot_det_policy_2d(env, policy, policy_opt)
 
     # compute tables
     q_table, v_table, a_table, greed_actions = compute_tables_critic_2d(env, critic1)
-    plot_value_function_2d(env, v_table, -sol_hjb.value_function)
-    plot_det_policy_2d(env, greed_actions, control_hjb)
+    plot_value_function_2d(env, v_table, value_function_opt)
+    plot_det_policy_2d(env, greed_actions, policy_opt)
 
     # plot states in replay buffer
     plot_replay_buffer_states_2d(
