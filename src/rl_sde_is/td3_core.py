@@ -143,7 +143,7 @@ def update_parameters(actor, actor_target, actor_optimizer,
 
         #return actor_loss.detach().item(), critic_loss.detach().item()
 
-def get_action(env, actor, state, noise_scale=0):
+def get_action(env, actor, state, noise_scale, action_limit):
 
     # forward pass
     action = actor.forward(torch.FloatTensor(state)).detach().numpy()
@@ -152,7 +152,7 @@ def get_action(env, actor, state, noise_scale=0):
     action += noise_scale * np.random.randn(env.action_space_dim)
 
     # clipp such that it lies in the valid action range
-    action = np.clip(action, env.action_space_low, env.action_space_high)
+    action = np.clip(action, -action_limit, action_limit)
     return action
 
 
@@ -365,7 +365,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
 
                 # get action following the actor
                 else:
-                    action = get_action(env, actor, state, expl_noises[ep])
+                    action = get_action(env, actor, state, expl_noises[ep], action_limit)
 
                 # env step
                 next_state, r, done, _ = env.step(state, action)
