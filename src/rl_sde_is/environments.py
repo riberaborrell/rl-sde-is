@@ -78,6 +78,9 @@ class DoubleWellStoppingTime1D():
     def sample_state(self, batch_size=1):
             return np.random.uniform(self.state_space_low, self.state_space_high, (batch_size, self.d))
 
+    def sample_state_ts(self, batch_size=1):
+            return np.random.uniform(self.lb, self.state_space_high, (batch_size, self.d))
+
     def sample_action(self, batch_size=1):
             return np.random.uniform(self.action_space_low, self.action_space_high, (batch_size, self.d))
 

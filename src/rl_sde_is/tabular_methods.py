@@ -43,8 +43,8 @@ def get_epsilons_linear_decay(n_episodes, eps_min, exploration=0.75):
             for ep in range(n_episodes)
     ])
 
-def get_epsilons_exp_decay(n_epsisodes, eps_init, eps_decay):
-    self.epsilons = np.array([
+def get_epsilons_exp_decay(n_episodes, eps_init, eps_decay):
+    return np.array([
         #self.eps_min + (self.eps_max - self.eps_min) * 10**(-self.eps_decay * ep)
         eps_init * (eps_decay ** ep)
         for ep in np.arange(n_episodes)

@@ -204,10 +204,11 @@ def compute_tables_actor_critic_1d(env, actor, critic):
 
     with torch.no_grad():
         actions = actor.forward(state_space_h)
-        v_table = critic.forward(state_space_h, actions)
-        #v_table = critic.forward(torch.hstack((state_space_h, actions)))
+        v_table = critic.forward(state_space_h, actions).numpy()
 
-    return v_table, actions
+    actor_policy = actions.numpy().squeeze()
+
+    return v_table, actor_policy
 
 def compute_v_value_critic_1d(env, critic, state):
     action_space_h = torch.FloatTensor(env.action_space_h).unsqueeze(dim=1)
