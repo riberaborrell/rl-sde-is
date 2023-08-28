@@ -124,23 +124,6 @@ def main():
     # plot replay buffer
     plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0])
 
-    # plot moving averages for each episode
-    returns = data['returns']
-    run_mean_returns = compute_running_mean(returns, 10)
-    run_var_returns = compute_running_variance(returns, 10)
-    time_steps = data['time_steps']
-    run_mean_time_steps = compute_running_mean(time_steps, 10)
-    plot_run_mean_returns_with_error_episodes(run_mean_returns, run_var_returns)
-    plot_time_steps_episodes(time_steps, run_mean_time_steps)
-
-    # plot expected values for each epoch
-    test_mean_returns = data['test_mean_returns']
-    test_var_returns = data['test_var_returns']
-    test_mean_lengths = data['test_mean_lengths']
-    test_policy_l2_errors = data['test_policy_l2_errors']
-    plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns)
-    plot_det_policy_l2_error_epochs(test_policy_l2_errors)
-
 
 if __name__ == '__main__':
     main()
