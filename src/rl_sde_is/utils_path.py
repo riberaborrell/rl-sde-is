@@ -146,7 +146,7 @@ def get_agent_dir_path(env, **kwargs):
     # set parameters string
     param_str = get_initial_point_str(env) \
               + 'dt{:.0e}_'.format(env.dt) \
-              + 'n-episodes{:.0e}_'.format(kwargs['n_episodes']) \
+              + 'K{:.0e}'.format(kwargs['batch_size']) \
               + get_seed_str(**kwargs)
 
     return get_rel_dir_path(env, kwargs['agent'], param_str)

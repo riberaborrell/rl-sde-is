@@ -3,6 +3,13 @@ import argparse
 def get_base_parser():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument(
+        '--agent-type',
+        dest='agent_type',
+        choices=['random', 'not-controlled', 'hjb', 'trained'],
+        default='random',
+        help='Type of agent. Default: random',
+    )
+    parser.add_argument(
         '--d',
         dest='d',
         type=int,

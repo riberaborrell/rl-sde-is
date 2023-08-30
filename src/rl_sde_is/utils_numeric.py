@@ -1,6 +1,33 @@
 import numpy as np
 import torch
 
+def compute_running_mean(array, run_window=10):
+    ''' computes the running mean / moving average of the array along the given running window.
+    '''
+    return np.array([
+        np.mean(array[i-run_window:i+1]) if i > run_window
+        else np.mean(array[:i+1]) for i in range(len(array))
+    ])
+
+def compute_running_variance(array, run_window=10):
+    ''' computes the running variance of the array along the given running window.
+    '''
+    return np.array([
+        np.var(array[i-run_window:i+1]) if i > run_window
+        else np.var(array[:i+1]) for i in range(len(array))
+    ])
+
+def cumsum_list(x):
+    x = np.array(x)
+    return x[::-1].cumsum()[::-1]
+
+def cumsum_numpy(x):
+    return x[::-1].cumsum()[::-1]
+
+def cumsum_torch(x):
+    return torch.flip(torch.cumsum(torch.flip(x, [0]), 0), [0])
+    #return torch.cumsum(x.flip(dims=(0,)), dim=0).flip(dims=(0,))
+
 def discount_cumsum(x, gamma):
     n = len(x)
     x = np.array(x)
@@ -10,10 +37,16 @@ def discount_cumsum(x, gamma):
         z[j] = sum(x[j:] * y[:n-j])
     return z
 
-def cumsum_torch(x):
-    return torch.cumsum(x.flip(dims=(0,)), dim=0).flip(dims=(0,))
-
 def discount_cumsum_torch(x, gamma):
+    n = x.shape[0]
+    y = gamma**torch.arange(n)
+    z = torch.zeros_like(x, dtype=torch.float32)
+    for j in range(n):
+        z[j] = sum(x[j:] * y[:n-j])
+    return z
+
+
+def discount_cumsum_torch_scipy(x, gamma):
     import scipy
     """
     magic from rllab for computing discounted cumulative sums of vectors.

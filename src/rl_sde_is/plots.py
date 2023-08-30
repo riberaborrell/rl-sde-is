@@ -211,6 +211,16 @@ def plot_time_steps_epochs(time_steps):
     #plt.legend()
     plt.show()
 
+def plot_time_steps_histogram(time_steps):
+    n_steps_max = np.max(time_steps)
+    x = np.arange(1, n_steps_max+1, 10)
+    fig, ax = plt.subplots()
+    ax.set_xlabel('m')
+    counts, bins = np.histogram(time_steps, bins=x, density=True)
+    ax.hist(bins[:-1], bins, weights=counts, alpha=0.5, label=r'Histogram')
+    #ax.legend(fontsize=12)
+    plt.show()
+
 def plot_value_rms_error(x, y, xlabel=None, ylim=None):
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['value-rms-error'])
