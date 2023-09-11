@@ -334,7 +334,7 @@ class DoubleWellStoppingTime2D():
             = np.moveaxis(m_grid, 0, -1).reshape(self.n_states_actions, self.d * self.d)
 
     def get_hjb_solver(self, h_hjb=0.001):
-        from sde_hjb_solver.controlled_sde_2d import DoubleWellStoppingTime2D as SDE2D
+        from sde_hjb_solver.controlled_sde_2d import DoubleWellFHT2D as SDE2D
         from sde_hjb_solver.hjb_solver_2d_st import SolverHJB2D
 
         # initialize controlled sde object

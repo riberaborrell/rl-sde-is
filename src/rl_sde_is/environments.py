@@ -390,7 +390,7 @@ class DoubleWellStoppingTime1D():
             = np.moveaxis(m_grid, 0, -1).reshape(self.n_states_actions, self.d + self.d)
 
     def get_hjb_solver(self, h_hjb=0.001):
-        from sde_hjb_solver.controlled_sde_1d import DoubleWellStoppingTime1D as SDE1D
+        from sde_hjb_solver.controlled_sde_1d import DoubleWellFHT1D as SDE1D
         from sde_hjb_solver.hjb_solver_1d_st import SolverHJB1D
 
         # initialize controlled sde object
