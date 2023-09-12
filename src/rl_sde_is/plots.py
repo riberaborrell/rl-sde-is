@@ -1012,7 +1012,15 @@ def initialize_qvalue_function_1d_figure(env, q_table):
     plt.show()
     return im_q_table
 
-def initialize_advantage_function_1d_figure(env, a_table, policy_opt=None):
+def update_imshow_figure(env, X, im):
+
+    im.set_data(X.T)
+    im.set_clim(vmin=X.min(), vmax=X.max())
+
+    # update figure frequency
+    plt.pause(0.1)
+
+def initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy_critic):
 
     # initialize figure
     fig, ax = plt.subplots()
@@ -1024,7 +1032,7 @@ def initialize_advantage_function_1d_figure(env, a_table, policy_opt=None):
     ax.set_title(TITLES_FIG['a-value-function'])
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
-    im_a_table = ax.imshow(
+    im = ax.imshow(
         a_table.T,
         cmap=cm.plasma,
         vmin=a_table.min(),
@@ -1033,25 +1041,26 @@ def initialize_advantage_function_1d_figure(env, a_table, policy_opt=None):
         origin='lower',
         extent=get_state_action_1d_extent(env),
     )
-    if policy_opt is not None:
-        ax.plot(env.state_space_h, policy_opt, c='grey', ls=':')
+    ax.plot(env.state_space_h, policy_opt, c='black', ls=':')
+    line = ax.plot(env.state_space_h, policy_critic, c='grey', ls='--')[0]
     \
     # colorbar
-    plt.colorbar(im_a_table, ax=ax)
+    plt.colorbar(im, ax=ax)
 
     plt.show()
-    return im_a_table
+    return im, line
 
-def update_imshow_figure(env, X, im):
+def update_advantage_function_1d_figure(env, a_table, policy_critic, im, line):
 
-    im.set_data(X.T)
-    im.set_clim(vmin=X.min(), vmax=X.max())
+    im.set_data(a_table.T)
+    im.set_clim(vmin=a_table.min(), vmax=a_table.max())
+    line.set_data(env.state_space_h, policy_critic)
 
     # update figure frequency
     plt.pause(0.1)
 
-def initialize_q_learning_figures(env, q_table, v_table, a_table,
-                                  policy, value_function_opt, policy_opt):
+def initialize_tabular_figures(env, q_table, v_table, a_table,
+                               policy, value_function_opt, policy_opt):
 
     # initialize figure with multiple subplots
     fig, axes = plt.subplots(nrows=2, ncols=2)
@@ -1062,7 +1071,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     plt.ion()
 
     # q table
-    ax1.set_title(TITLES_FIG['q-value-function'])
+    ax1.set_title(r'Q-value function $Q(s, a)$')
     ax1.set_xlabel('States')
     ax1.set_ylabel('Actions')
     im_q_table = ax1.imshow(
@@ -1076,13 +1085,13 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     )
 
     # value function
-    ax2.set_title('Value function')
+    ax2.set_title('Value function $V(s)$')
     ax2.set_xlabel('States')
     line_value_function = ax2.plot(env.state_space_h, v_table)[0]
-    ax2.plot(env.state_space_h, value_function_opt)
+    ax2.plot(env.state_space_h, value_function_opt, c='black', ls=':')
 
     # a table
-    ax3.set_title(TITLES_FIG['a-value-function'])
+    ax3.set_title(r'Advantage function $A(s, a)$')
     ax3.set_xlabel('States')
     ax3.set_ylabel('Actions')
     im_a_table = ax3.imshow(
@@ -1096,13 +1105,13 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     )
 
     # control
-    ax4.set_title(TITLES_FIG['policy'])
+    ax4.set_title(r'Deterministic policy $\mu(s)$')
     ax4.set_xlabel('States')
     ax4.set_ylabel('Actions')
     ax4.set_xlim(env.state_space_h[0], env.state_space_h[-1])
     ax4.set_ylim(env.action_space_h[0], env.action_space_h[-1])
     line_control = ax4.plot(env.state_space_h, policy)[0]
-    ax4.plot(env.state_space_h, policy_opt)
+    ax4.plot(env.state_space_h, policy_opt, c='black', ls=':')
 
     # colorbars                                                                 
     plt.colorbar(im_q_table, ax=ax1)
@@ -1111,7 +1120,7 @@ def initialize_q_learning_figures(env, q_table, v_table, a_table,
     plt.show()
     return (im_q_table, line_value_function, im_a_table, line_control)
 
-def update_q_learning_figures(env, q_table, v_table, a_table, policy, tuples):
+def update_tabular_figures(env, q_table, v_table, a_table, policy, tuples):
 
     # unpack lines and images
     im_q_table, line_value_function, im_a_table, line_policy = tuples

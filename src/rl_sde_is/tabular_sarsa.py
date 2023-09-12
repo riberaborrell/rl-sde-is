@@ -62,7 +62,7 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
     # initialize live figures
     if live_plot:
         v_table, a_table, policy = compute_tables(env, q_table)
-        lines = initialize_q_learning_figures(env, q_table, v_table, a_table, policy,
+        lines = initialize_tabular_figures(env, q_table, v_table, a_table, policy,
                                               value_function_opt, policy_opt)
         im_n_table = initialize_frequency_figure(env, n_table)
 
@@ -158,7 +158,7 @@ def sarsa(env, gamma=1., epsilons=None, lr=0.01, n_episodes=1000,
 
             # update live figures
             if live_plot:
-                update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
+                update_tabular_figures(env, q_table, v_table, a_table, policy, lines)
                 update_frequency_figure(env, n_table, im_n_table)
 
     data = {

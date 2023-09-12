@@ -59,8 +59,8 @@ def double_q_learning(env, gamma=1., epsilons=None, eps_init=None, eps_decay=Non
     if live_plot:
         v_table, a_table, policy = compute_tables(env, q1_table)
         im = initialize_frequency_figure(env, n_table)
-        lines = initialize_q_learning_figures(env, q1_table, v_table, a_table, policy,
-                                              value_function_opt, policy_opt)
+        lines = initialize_tabular_figures(env, q1_table, v_table, a_table, policy,
+                                           value_function_opt, policy_opt)
     # for each episode
     for ep in np.arange(n_episodes):
 
@@ -148,7 +148,7 @@ def double_q_learning(env, gamma=1., epsilons=None, eps_init=None, eps_decay=Non
         if live_plot and ep % n_avg_episodes == 0:
             v_table, a_table, policy = compute_tables(env, q1_table)
             update_frequency_figure(env, n_table, im)
-            update_q_learning_figures(env, q1_table, v_table, a_table, policy, lines)
+            update_tabular_figures(env, q1_table, v_table, a_table, policy, lines)
 
     data = {
         'n_episodes': n_episodes,

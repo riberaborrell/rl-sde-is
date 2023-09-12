@@ -81,8 +81,8 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
     # initialize live figures
     if live_plot:
-        lines = initialize_q_learning_figures(env, q_table, v_table, a_table, policy,
-                                              value_function_opt, policy_opt)
+        lines = initialize_tabular_figures(env, q_table, v_table, a_table, policy,
+                                           value_function_opt, policy_opt)
     # for each iteration
     for i in np.arange(n_iterations):
 
@@ -107,7 +107,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
             # update live figures
             if live_plot:
-                update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
+                update_tabular_figures(env, q_table, v_table, a_table, policy, lines)
 
     data = {
         'n_iterations': n_iterations,
