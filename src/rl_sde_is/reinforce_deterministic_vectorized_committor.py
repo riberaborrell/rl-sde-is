@@ -331,8 +331,8 @@ def main():
         env.is_state_init_sampled = True
 
     # set action space bounds
-    env.action_space_low = 0
-    env.action_space_high = 5
+    env.action_space_bounds[0] = 0
+    env.action_space_bounds[1] = 5
 
     # discretized state space (for plot purposes only)
     env.discretize_state_space(h_state=0.05)

@@ -31,17 +31,22 @@ class DoubleWellCommittor1D():
 
         # initial state
         self.is_state_init_sampled = is_state_init_sampled
-        self.state_init = np.zeros((1, self.d), dtype=np.float32)
+        #self.state_init = np.zeros((1, self.d), dtype=np.float32)
+        self.state_init = - 0.9* np.ones((1, self.d), dtype=np.float32)
 
         # observation space bounds
         self.state_space_dim = 1
-        self.state_space_low = -2.
-        self.state_space_high = 2.
+        self.state_space_bounds[0] = -2.
+        self.state_space_bounds[1] = 2.
 
         # action space bounds
         self.action_space_dim = 1
-        self.action_space_low = 0.
-        self.action_space_high = 3.
+        self.action_space_bounds[0] = 0.
+        self.action_space_bounds[1] = 3.
+
+        # set in target set condition functions                                                    
+        self.is_in_target_set_a = lambda x: (x >= self.target_set_a[0]) & (x <= self.target_set_a[1])
+        self.is_in_target_set_b = lambda x: (x >= self.target_set_b[0]) & (x <= self.target_set_b[1])
 
     def potential(self, state):
         return self.alpha * (state**2 - 1) ** 2
@@ -51,35 +56,30 @@ class DoubleWellCommittor1D():
 
     def is_done(self, state):
         done = np.where(
-            (state[:, 0] <= self.target_set_a[1]) | (state[:, 0] >= self.target_set_b[0]),
+            #(state[:, 0] <= self.target_set_a[1]) | (state[:, 0] >= self.target_set_b[0]),
+            (self.is_in_target_set_a(state) == True) | (self.is_in_target_set_b(state) == True),
             True,
             False,
-        )
+        ).squeeze()
         return done
 
     def is_done_torch(self, state):
         done = torch.where(
-            (state[:, 0] <= self.target_set_a[1]) | (state[:, 0] >= self.target_set_b[0]),
+            #(state[:, 0] <= self.target_set_a[1]) | (state[:, 0] >= self.target_set_b[0]),
+            (self.is_in_target_set_a(state) == True) | (self.is_in_target_set_b(state) == True),
             True,
             False,
-        )
+        ).squeeze()
         return done
-
-    #def is_in_b(self, state):
-    #    return np.where(state[:, 0] >= self.b_lb, True, False)
-        #return np.where(state[:, 0] <= self.a_rb, True, False)
-
-    #def is_in_b_torch(self, state):
-    #    return torch.where(state[:, 0] >= self.b_lb, True, False)
 
     def f(self, state):
         return np.zeros(state.shape[0])
 
     def g(self, state):
-        #return np.where(self.is_in_b(state), 0, 10**5)
         return np.where(
-            (state >= self.target_set_b[0]) & (state <= self.target_set_b[1]),
-            0,
+        #    (state >= self.target_set_b[0]) & (state <= self.target_set_b[1]),
+            self.is_in_target_set_b(state),
+            -np.log(1+self.epsilon),
             -np.log(self.epsilon),
         ).squeeze()
 
@@ -87,7 +87,11 @@ class DoubleWellCommittor1D():
         return torch.zeros(state.shape[0])
 
     def g_torch(self, state):
-        return torch.where(self.is_in_b_torch(state), 0, 10**5)
+        return torch.where(
+            self.is_in_target_set_b(state),
+            -np.log(1+self.epsilon),
+            -np.log(self.epsilon),
+        ).squeeze()
 
     def reset(self, batch_size=1):
         if not self.is_state_init_sampled:
@@ -105,43 +109,39 @@ class DoubleWellCommittor1D():
              - stats.norm.cdf(next_state - h, mu, std_dev)
         return prob
 
-    def reward_signal_state_action(self, state, action):
-        done = self.is_done(state)
+    def reward_signal_state_action(self, state, action, done):
         reward = np.where(
             done,
             - self.g(state),
             - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt,
         )
-        return reward, done
+        return reward
 
-    def reward_signal_state_action_next_state(self, state, action, next_state):
-        done = self.is_done(next_state)
+    def reward_signal_state_action_next_state(self, state, action, next_state, done):
         reward = np.where(
             done,
             - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt \
             - self.g(next_state),
             - (self.f(state) + 0.5 * np.linalg.norm(action, axis=1)**2) * self.dt,
         )
-        return reward, done
+        return reward
 
-    def reward_signal_state_action_torch(self, state, action):
-        done = self.is_done_torch(state)
+    def reward_signal_state_action_torch(self, state, action, done):
         reward = torch.where(
             done,
             - self.g_torch(state),
             - (self.f_torch(state) + 0.5 * torch.linalg.norm(action, axis=1)**2) * self.dt_tensor,
         )
-        return reward, done
+        return reward
 
-    def reward_signal_state_action_next_state_torch(self, state, action, next_state):
-        done = self.is_done_torch(next_state)
+    def reward_signal_state_action_next_state_torch(self, state, action, next_state, done):
         reward = torch.where(
             done,
             - (self.f_torch(state) + 0.5 * torch.linalg.norm(action, axis=1)**2) * self.dt_tensor \
             - self.g_torch(next_state),
             - (self.f_torch(state) + 0.5 * torch.linalg.norm(action, axis=1)**2) * self.dt_tensor,
         )
-        return reward, done
+        return reward
 
 
     def step(self, state, action):
@@ -157,11 +157,14 @@ class DoubleWellCommittor1D():
                    + (- self.gradient(state) + self.sigma * action) * self.dt \
                    + self.sigma * dbt
 
-        # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
-        r, done = self.reward_signal_state_action_next_state(state, action, next_state)
-
         # reward signal r_n = r(s_n, a_n)
-        #r, done = self.reward_signal_state_action(state, action)
+        done = self.is_done(state)
+        r = self.reward_signal_state_action(state, action, done)
+
+        # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
+        #done = self.is_done(next_state)
+        #r = self.reward_signal_state_action_next_state(state, action, next_state, done)
+
 
         return next_state, r, done, dbt
 
@@ -180,15 +183,17 @@ class DoubleWellCommittor1D():
                    + (- self.gradient(state) + sigma * action) * dt \
                    + sigma * dbt
 
-        # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
-        r, done = self.reward_signal_state_action_next_state_torch(state, action, next_state)
-
         # reward signal r_n = r(s_n, a_n)
-        #r, done = self.reward_signal_state_action_torch(state, action)
+        done = self.is_done_torch(state)
+        r = self.reward_signal_state_action_torch(state, action, done)
+
+        # reward signal r_{n+1} = r(s_{n+1}, s_n, a_n)
+        #done = self.is_done_torch(next_state)
+        #r = self.reward_signal_state_action_next_state_torch(state, action, next_state, done)
 
         return next_state, r, done, dbt
 
-    def get_idx_new_in_ts(self, is_in_target_set, been_in_target_set):
+    def get_new_in_ts_idx(self, is_in_target_set, been_in_target_set):
 
         idx = np.where(
                 (is_in_target_set == True) &
@@ -199,7 +204,7 @@ class DoubleWellCommittor1D():
 
         return idx
 
-    def get_idx_new_in_ts_torch(self, is_in_target_set, been_in_target_set):
+    def get_new_in_ts_idx_torch(self, is_in_target_set, been_in_target_set):
 
         idx = torch.where(
                 (is_in_target_set == True) &
@@ -210,13 +215,29 @@ class DoubleWellCommittor1D():
 
         return idx
 
+    def set_action_space_bounds(self):
+
+        if self.alpha == 1. and self.beta == 1:
+            a = 20
+        elif self.alpha == 5. and self.beta == 1:
+            a = 8
+        elif self.alpha == 1. and self.beta == 4:
+            a = 5
+        elif self.alpha == 10. and self.beta == 1:
+            a = 20
+        else:
+            return
+
+        self.action_space_bounds[0] = - a
+        self.action_space_bounds[1] = a
+
     def discretize_state_space(self, h_state):
 
         # discretize state space
         self.state_space_h = np.around(
             np.arange(
-                self.state_space_low,
-                self.state_space_high + h_state,
+                self.state_space_bounds[0],
+                self.state_space_bounds[1] + h_state,
                 h_state,
             ),
             decimals=3,
@@ -225,17 +246,17 @@ class DoubleWellCommittor1D():
         self.h_state = h_state
 
         # get initial state index 
-        self.get_idx_state_init()
+        self.get_state_init_idx()
 
         # get target set indices
-        self.get_idx_target_set()
+        self.get_target_set_idx()
 
     def discretize_action_space(self, h_action):
 
         # discretize action space
         self.action_space_h = np.arange(
-            self.action_space_low,
-            self.action_space_high + h_action,
+            self.action_space_bounds[0],
+            self.action_space_bounds[1] + h_action,
             h_action,
         )
         self.n_actions = self.action_space_h.shape[0]
@@ -260,9 +281,9 @@ class DoubleWellCommittor1D():
         idx = np.floor(
             (np.clip(
                 state,
-                self.state_space_low,
-                self.state_space_high - 2 * self.h_state
-            ) + self.state_space_high) / self.h_state).astype(int)
+                self.state_space_bounds[0],
+                self.state_space_bounds[1] - 2 * self.h_state
+            ) + self.state_space_bounds[1]) / self.h_state).astype(int)
         idx = idx[:, 0]
         return idx
 
@@ -280,36 +301,34 @@ class DoubleWellCommittor1D():
 
         return np.argmin(np.abs(self.action_space_h - action), axis=1)
 
-    def get_idx_state_init(self):
-        self.idx_state_init = self.get_state_idx(self.state_init)
+    def get_state_init_idx(self):
+        self.state_init_idx = self.get_state_idx(self.state_init)
 
-    def get_idx_target_set(self):
+    def get_target_set_idx(self):
         #self.idx_a = np.where(self.state_space_h <= self.a_rb)[0]
         #self.idx_b = np.where(self.state_space_h >= self.b_lb)[0]
         #self.idx_ts = np.where((self.state_space_h <= self.a_rb) | (self.state_space_h >= self.b_lb))[0]
         #self.idx_not_ts = np.where((self.state_space_h > self.a_rb) & (self.state_space_h < self.b_lb))[0]
 
-        # indices of domain_h in tha target set A
-        self.idx_ts_a = np.where(
-            (self.state_space_h >= self.target_set_a[0]) & (self.state_space_h <= self.target_set_a[1])
-        )[0]
+        self.is_in_a = (self.state_space_h >= self.target_set_a[0]) & (self.state_space_h <= self.target_set_a[1])
+        self.is_in_b = (self.state_space_h >= self.target_set_b[0]) & (self.state_space_h <= self.target_set_b[1])
+        self.is_in_ts = self.is_in_a | self.is_in_b
 
-        # indices of domain_h in tha target set B
-        self.idx_ts_b = np.where(
-            (self.state_space_h >= self.target_set_b[0]) & (self.state_space_h <= self.target_set_b[1])
-        )[0]
-
-        # indices of the discretized domain corresponding to the target set
-        self.idx_ts = np.where(
-            ((self.state_space_h >= self.target_set_a[0]) & (self.state_space_h <= self.target_set_a[1])) |
-            ((self.state_space_h >= self.target_set_b[0]) & (self.state_space_h <= self.target_set_b[1]))
-        )[0]
+        # indices of domain_h in tha target set A and B and the target set
+        self.ts_a_idx = np.where(self.is_in_a)[0]
+        self.ts_b_idx = np.where(self.is_in_b)[0]
+        self.ts_idx = np.where(self.is_in_ts)[0]
+        self.not_ts_idx = np.where(np.invert(self.is_in_ts))[0]
+        #self.idx_ts = np.where(
+        #    ((self.state_space_h >= self.target_set_a[0]) & (self.state_space_h <= self.target_set_a[1])) |
+        #    ((self.state_space_h >= self.target_set_b[0]) & (self.state_space_h <= self.target_set_b[1]))
+        #)[0]
 
         # indices of the discretized domain corresponding to the target set
-        self.idx_not_ts = np.where(
-            ((self.state_space_h < self.target_set_a[0]) | (self.state_space_h > self.target_set_a[1])) &
-            ((self.state_space_h < self.target_set_b[0]) | (self.state_space_h > self.target_set_b[1]))
-        )[0]
+        #self.idx_not_ts = np.where(
+        #    ((self.state_space_h < self.target_set_a[0]) | (self.state_space_h > self.target_set_a[1])) &
+        #    ((self.state_space_h < self.target_set_b[0]) | (self.state_space_h > self.target_set_b[1]))
+        #)[0]
 
     def get_idx_null_action(self):
         self.idx_null_action = self.get_action_idx(np.zeros((1, 1)))
@@ -321,7 +340,7 @@ class DoubleWellCommittor1D():
         greedy_actions = self.action_space_h[idx_actions]
 
         # set actions in the target set to 0
-        greedy_actions[self.idx_ts] = 0.
+        greedy_actions[self.ts_idx] = 0.
         return greedy_actions
 
     def get_hjb_solver(self, h_hjb=0.001):

@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from matplotlib import colors, cm, rc, rcParams
-from shapely.geometry import Polygon
 
 from rl_sde_is.utils_figures import TITLES_FIG, COLORS_FIG, COLORS_TAB20b
 
@@ -36,13 +36,9 @@ def plot_episode_states_1d(env, ep_states, loc=None):
     ep_pot = env.potential(ep_states)
 
     # draw target set
-    target_set = Polygon([
-       (1, 0),
-       (1, 15),
-       (3, 15),
-       (3, 0),
-    ])
-    target_set_x, target_set_y = target_set.exterior.xy
+    target_set = patches.Rectangle(
+            (1, 0), 2, 15, lw=1.5, edgecolor='black', facecolor='tab:orange', alpha=0.5
+    )
 
     # compute potential on the grid
     potential = env.potential(env.state_space_h)
@@ -53,7 +49,7 @@ def plot_episode_states_1d(env, ep_states, loc=None):
     ax.set_xlim(-2, 2)
     ax.set_ylim(0, 4)
     ax.text(1.12, 2.2, r'Target set', size=13, rotation=0.)
-    ax.fill(target_set_x, target_set_y, alpha=0.4, fc='tab:orange', ec='none')
+    ax.add_patch(target_set)
     ax.plot(env.state_space_h, potential, label=r'Potential $V_\alpha$')
     ax.scatter(ep_states[::1], ep_pot[::1], alpha=.1, c='black', marker='o', s=100)
     plt.legend(loc=loc)
@@ -62,13 +58,9 @@ def plot_episode_states_1d(env, ep_states, loc=None):
 def plot_episode_states_2d(env, ep_states):
 
     # draw target set
-    target_set = Polygon([
-       (1, 1),
-       (1, 2),
-       (2, 2),
-       (2, 1),
-    ])
-    target_set_x, target_set_y = target_set.exterior.xy
+    target_set = patches.Rectangle(
+            (1, 1), 1, 1, lw=1.5, edgecolor='black', facecolor='tab:orange', alpha=0.5
+    )
 
     # compute potential on the grid
     flat_state_space_h = env.state_space_h.reshape(env.n_states, env.d)
@@ -80,8 +72,7 @@ def plot_episode_states_2d(env, ep_states):
     ax.set_xlabel(r'$s_2$')
     ax.set_xlim(-2, 2)
     ax.set_ylim(-2, 2)
-    #ax.text(1.12, 2.2, r'Target set', size=13, rotation=0.)
-    ax.fill(target_set_x, target_set_y, alpha=0.4, fc='tab:orange', ec='none')
+    ax.add_patch(target_set)
     ax.imshow(
         potential,
         origin='lower',
@@ -568,8 +559,10 @@ def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
 
     fig, ax = plt.subplots()
     #ax.set_title(TITLES_FIG['policy'])
-    ax.set_xlabel('States')
-    ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
+    ax.set_xlabel('x', fontsize=16)
+    #ax.set_xlabel('States')
+    #ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
+    ax.set_xlim(-1.8, 1.8)
     if ylim is not None:
         ax.set_ylim(ylim)
 
@@ -579,7 +572,8 @@ def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
     ax.plot(x, policy_opt, c=colors[i+1], ls=':', label=labels[i+1])
 
     if labels[0]:
-        plt.legend(loc=loc, fontsize=10)
+        #plt.legend(loc=loc, fontsize=10)
+        plt.legend(loc=loc, fontsize=12)
 
     if file_path is not None:
         plt.savefig(file_path, format='pdf')
@@ -611,8 +605,8 @@ def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=
 
     ax.set_title(TITLES_FIG['policy'], fontsize=10)
     ax.set_xlabel('States', fontsize=8)
-    ax.set_xlim(env.state_space_low, env.state_space_high)
-    ax.set_ylim(env.action_space_low, env.action_space_high)
+    ax.set_xlim(env.state_space_bounds)
+    ax.set_ylim(env.action_space_bounds)
     det_policy_line = ax.plot(env.state_space_h, policy)[0]
     if policy_opt is not None:
         ax.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'hjb')
@@ -643,8 +637,8 @@ def canvas_det_policy_1d_figure(env, policies, policy_opt):
         ax.cla()
         ax.set_title(TITLES_FIG['policy'], fontsize=10)
         ax.set_xlabel('States', fontsize=8)
-        ax.set_xlim(env.state_space_low, env.state_space_high)
-        ax.set_ylim(env.action_space_low, env.action_space_high)
+        ax.set_xlim(env.state_space_bounds)
+        ax.set_ylim(env.action_space_bounds)
         ax.plot(env.state_space_h, policy)[0]
         ax.plot(env.state_space_h, policy_opt, label=r'hjb', c=COLORS_FIG['hjb'])
 
@@ -697,8 +691,8 @@ def plot_det_policy_2d(env, policy, policy_hjb, file_path=None):
     ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel(r'$s_1$')
     ax.set_ylabel(r'$s_2$')
-    ax.set_xlim(env.state_space_low, env.state_space_high)
-    ax.set_ylim(env.state_space_low, env.state_space_high)
+    ax.set_xlim(env.state_space_bounds[0], env.state_space_bounds[1])
+    ax.set_ylim(env.state_space_bounds[0], env.state_space_bounds[1])
 
     # initialize norm object
     C = np.sqrt(U**2 + V**2)
@@ -739,8 +733,8 @@ def initialize_stoch_policy_1d_figure(env, policy, policy_opt):
 
     ax.set_title(TITLES_FIG['stoch-policy'], fontsize=10)
     ax.set_xlabel('States', fontsize=8)
-    ax.set_xlim(env.state_space_low, env.state_space_high)
-    ax.set_ylim(env.action_space_low, env.action_space_high)
+    ax.set_xlim(env.state_space_bounds)
+    ax.set_ylim(env.action_space_bounds)
     sc = ax.scatter(env.state_space_h, policy)
     ax.plot(env.state_space_h, policy_opt, label=r'hjb', c=COLORS_FIG['hjb'])
 
@@ -781,8 +775,8 @@ def initialize_det_policy_2d_figure(env, policy, policy_hjb):
     ax.set_title(TITLES_FIG['policy'], fontsize=10)
     ax.set_xlabel(r'$s_1$', fontsize=8)
     ax.set_ylabel(r'$s_2$', fontsize=8)
-    ax.set_xlim(env.state_space_low, env.state_space_high)
-    ax.set_ylim(env.state_space_low, env.state_space_high)
+    ax.set_xlim(env.state_space_bounds[0], env.state_space_bounds[1])
+    ax.set_ylim(env.state_space_bounds[0], env.state_space_bounds[1])
 
     # turn interactive mode on
     plt.ion()
@@ -842,8 +836,8 @@ def canvas_det_policy_2d_figure(env, data, backup_episodes, policy_opt, scale=1.
     plt.suptitle(TITLES_FIG['policy'], fontsize=10)
     ax.set_xlabel(r'$s_1$', fontsize=8)
     ax.set_ylabel(r'$s_2$', fontsize=8)
-    ax.set_xlim(env.state_space_low, env.state_space_high)
-    ax.set_ylim(env.state_space_low, env.state_space_high)
+    ax.set_xlim(env.state_space_bounds[0], env.state_space_bounds[0])
+    ax.set_ylim(env.state_space_bounds[0], env.state_space_bounds[0])
 
     # turn interactive mode on
     plt.ion()
@@ -1020,7 +1014,7 @@ def update_imshow_figure(env, X, im):
     # update figure frequency
     plt.pause(0.1)
 
-def initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy_critic):
+def initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy_critic=None):
 
     # initialize figure
     fig, ax = plt.subplots()
@@ -1042,19 +1036,24 @@ def initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy_cri
         extent=get_state_action_1d_extent(env),
     )
     ax.plot(env.state_space_h, policy_opt, c='black', ls=':')
-    line = ax.plot(env.state_space_h, policy_critic, c='grey', ls='--')[0]
+    if policy_critic is not None:
+        line = ax.plot(env.state_space_h, policy_critic, c='grey', ls='--')[0]
     \
     # colorbar
     plt.colorbar(im, ax=ax)
 
     plt.show()
-    return im, line
+    if policy_critic is not None:
+        return im, line
+    else:
+        return im
 
-def update_advantage_function_1d_figure(env, a_table, policy_critic, im, line):
+def update_advantage_function_1d_figure(env, a_table, im, policy_critic=None, line=None):
 
     im.set_data(a_table.T)
     im.set_clim(vmin=a_table.min(), vmax=a_table.max())
-    line.set_data(env.state_space_h, policy_critic)
+    if policy_critic is not None:
+        line.set_data(env.state_space_h, policy_critic)
 
     # update figure frequency
     plt.pause(0.1)
@@ -1185,8 +1184,8 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax1.set_title(TITLES_FIG['q-value-function'], fontsize=10)
     ax1.set_xlabel('States', fontsize=8)
     ax1.set_ylabel('Actions', fontsize=8)
-    ax1.set_xlim(env.state_space_low, env.state_space_high)
-    ax1.set_ylim(env.action_space_low, env.action_space_high)
+    ax1.set_xlim(env.state_space_bounds)
+    ax1.set_ylim(env.action_space_bounds)
     im_q_table = ax1.imshow(
         q_table.T,
         cmap=cm.viridis,
@@ -1200,7 +1199,7 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     # value function
     ax2.set_title('Value function', fontsize=10)
     ax2.set_xlabel('States', fontsize=8)
-    ax2.set_xlim(env.state_space_low, env.state_space_high)
+    ax2.set_xlim(env.state_space_bounds)
     line_value_f_actor_critic = ax2.plot(env.state_space_h, v_table_actor_critic)[0]
     line_value_f_critic = ax2.plot(env.state_space_h, v_table_critic)[0]
     ax2.plot(env.state_space_h, value_function_opt)
@@ -1209,8 +1208,8 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax3.set_title(TITLES_FIG['a-value-function'], fontsize=10)
     ax3.set_xlabel('States', fontsize=8)
     ax3.set_ylabel('Actions', fontsize=8)
-    ax3.set_xlim(env.state_space_low, env.state_space_high)
-    ax3.set_ylim(env.action_space_low, env.action_space_high)
+    ax3.set_xlim(env.state_space_bounds)
+    ax3.set_ylim(env.action_space_bounds)
     im_a_table = ax3.imshow(
         a_table.T,
         cmap=cm.plasma,
@@ -1225,8 +1224,8 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     ax4.set_title(TITLES_FIG['policy'], fontsize=10)
     ax4.set_xlabel('States', fontsize=8)
     ax4.set_ylabel('Actions', fontsize=8)
-    ax4.set_xlim(env.state_space_low, env.state_space_high)
-    ax4.set_ylim(env.action_space_low, env.action_space_high)
+    ax4.set_xlim(env.state_space_bounds)
+    ax4.set_ylim(env.action_space_bounds[0], env.action_space_bounds[1])
     line_policy_actor = ax4.plot(env.state_space_h, policy_actor)[0]
     line_policy_critic = ax4.plot(env.state_space_h, policy_critic)[0]
     ax4.plot(env.state_space_h, policy_opt)
@@ -1281,15 +1280,15 @@ def canvas_actor_critic_1d_figures(env, data, value_function_opt, policy_opt,
     ax1.set_title(TITLES_FIG['q-value-function'])
     ax1.set_xlabel('States')
     ax1.set_ylabel('Actions')
-    ax1.set_xlim(env.state_space_low, env.state_space_high)
-    ax1.set_ylim(env.action_space_low, env.action_space_high)
+    ax1.set_xlim(env.state_space_bounds)
+    ax1.set_ylim(env.action_space_bounds)
 
     # a table
     ax3.set_title(TITLES_FIG['a-value-function'])
     ax3.set_xlabel('States')
     ax3.set_ylabel('Actions')
-    ax3.set_xlim(env.state_space_low, env.state_space_high)
-    ax3.set_ylim(env.action_space_low, env.action_space_high)
+    ax3.set_xlim(env.state_space_bounds)
+    ax3.set_ylim(env.action_space_bounds)
 
     # looop to update figures
     episodes = np.arange(0, n_episodes + step, step)
@@ -1316,7 +1315,7 @@ def canvas_actor_critic_1d_figures(env, data, value_function_opt, policy_opt,
         ax2.cla()
         ax2.set_title('Value function')
         ax2.set_xlabel('States')
-        ax2.set_xlim(env.state_space_low, env.state_space_high)
+        ax2.set_xlim(env.state_space_bounds)
         ax2.plot(env.state_space_h, v_table_actor_critic)
         ax2.plot(env.state_space_h, v_table_critic)
         ax2.plot(env.state_space_h, value_function_opt, c='black', ls=':')
@@ -1334,8 +1333,8 @@ def canvas_actor_critic_1d_figures(env, data, value_function_opt, policy_opt,
         ax4.set_title(TITLES_FIG['policy'])
         ax4.set_xlabel('States')
         ax4.set_ylabel('Actions')
-        ax4.set_xlim(env.state_space_low, env.state_space_high)
-        ax4.set_ylim(env.action_space_low, env.action_space_high)
+        ax4.set_xlim(env.state_space_bounds)
+        ax4.set_ylim(env.action_space_bounds[0], env.action_space_bounds[1])
         ax4.plot(env.state_space_h, policy_actor)
         ax4.plot(env.state_space_h, policy_critic)
         ax4.plot(env.state_space_h, policy_opt, c='black', ls=':')

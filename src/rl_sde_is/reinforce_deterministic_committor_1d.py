@@ -1,10 +1,21 @@
+import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.optim as optim
+import torch.nn as nn
 
-from base_parser import get_base_parser
-from environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
-from plots import *
-from reinforce_deterministic_core import *
+from rl_sde_is.approximate_methods import *
+from rl_sde_is.base_parser import get_base_parser
+from rl_sde_is.environments_committor import DoubleWellCommittor1D
+from rl_sde_is.plots import *
+from rl_sde_is.reinforce_deterministic_core import *
+from rl_sde_is.utils_path import *
+
+def get_parser():
+    parser = get_base_parser()
+    return parser
 
 def get_policy(env, data, it=None):
     model = data['model']
@@ -48,19 +59,17 @@ def get_backup_policies(env, data):
 
 
 def main():
-    args = get_base_parser().parse_args()
+    args = get_parser().parse_args()
 
     # initialize environment
-    #SdeIsEnv = DoubleWellMGF1DEnv
-    SdeIsEnv = DoubleWellCommittor1DEnv
+    env = DoubleWellCommittor1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
-    env = SdeIsEnv(
-        alpha=args.alpha,
-        beta=args.beta,
-        dt=args.dt,
-        state_init_dist=args.state_init_dist,
-        reward_type=args.reward_type,
-    )
+    # set explorable starts flag
+    if args.explorable_starts:
+        env.is_state_init_sampled = True
+
+    # set action space bounds
+    env.set_action_space_bounds()
 
     # discretized state space (for plot purposes only)
     env.discretize_state_space(h_state=0.05)

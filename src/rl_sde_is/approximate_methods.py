@@ -4,6 +4,7 @@ import torch.optim as optim
 
 from rl_sde_is.utils_path import save_data
 from rl_sde_is.tabular_methods import compute_tables
+from rl_sde_is.plots import *
 
 def get_epsilon_greedy_discrete_action(env, model, state, epsilon):
 
@@ -53,7 +54,7 @@ def get_epsilon_greedy_continuous_action(env, model, state, epsilon):
 
     # pick random action (exploration)
     else:
-        return np.random.uniform(env.action_space_low, env.action_space_high, (1,))
+        return np.random.uniform(env.action_space_bounds[0], env.action_space_bounds[1], (1,))
 
 def compute_value_advantage_and_greedy_actions(q_table):
     ''' computes the value table, the advantage table and the greedy action indices.
@@ -218,19 +219,19 @@ def compute_v_value_critic_1d(env, critic, state):
         q_values = critic.forward(inputs).numpy()
     return np.max(q_values)
 
-def load_dp_tables_data(env):
+def load_dp_tables_data(env, dt=1e-4, h_state=1e-2, h_action=1e-2):
     from rl_sde_is.environments import DoubleWellStoppingTime1D
     from rl_sde_is.tabular_dp_tables import dynamic_programming_tables
 
     # initialize environment
-    env_dp = DoubleWellStoppingTime1D(alpha=env.alpha, beta=env.beta, dt=env.dt)
+    env_dp = DoubleWellStoppingTime1D(alpha=env.alpha, beta=env.beta, dt=dt)
 
     # set action space bounds
     env_dp.set_action_space_bounds()
 
     # discretize state and action space
-    env_dp.discretize_state_space(5e-2)
-    env_dp.discretize_action_space(1e-2)
+    env_dp.discretize_state_space(h_state)
+    env_dp.discretize_action_space(h_action)
     env_dp.discretize_state_action_space()
 
     # run dynamic programming q-value iteration
@@ -245,7 +246,7 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
                                 update_imshow_figure
 
     # load q value table from dynamic programming
-    env_dp, data = load_dp_tables_data(env)
+    env_dp, data = load_dp_tables_data(env)#, dt=1e-2, h_state=5e-1, h_action=5e-1)
 
     # load critic if already trained
     if load and 'q_function_approx' in data:
@@ -280,7 +281,6 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
 
         # compute q values
         q_values = critic.forward(states)
-        breakpoint()
 
         # compute mse loss
         loss = ((q_values - q_values_target)**2).mean()
@@ -310,7 +310,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
                                 update_imshow_figure
 
     # load q value table from dynamic programming
-    env_dp, data = load_dp_tables_data(env)
+    env_dp, data = load_dp_tables_data(env, dt=1e-3, h_state=1e-2, h_action=1e-2)
 
     # load critic if already trained
     if load and 'q_function_approx' in data:
@@ -318,21 +318,29 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
         print('Critic load to be the actual q-value function (from dp)')
 
     q_table_dp = data['q_table']
+    _, _, policy_dp = compute_tables(env_dp, q_table_dp)
 
     # initialize figures
     q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
     im_q = initialize_qvalue_function_1d_figure(env, q_table)
-    im_a = initialize_advantage_function_1d_figure(env, a_table, policy_opt)
+    im_a, line = initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy)
+    #im_a, line = initialize_advantage_function_1d_figure(env, a_table, policy_dp, policy)
 
     # optimizer
-    optimizer = optim.Adam(critic.parameters(), lr=1e-3)
+    optimizer = optim.Adam(critic.parameters(), lr=1e-2)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9999)
 
-    # train
+    def get_lr(optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
+
+    # train q-value function parameters
     n_iterations = int(1e5)
+    batch_size = int(1e3)
+
     for i in range(n_iterations):
 
         # sample data
-        batch_size = int(1e3)
         state_actions_idx = np.random.randint(0, env_dp.n_states_actions, batch_size)
         state_actions = env_dp.state_action_space_h_flat[state_actions_idx]
         states = torch.tensor(state_actions[:, 0], dtype=torch.float32).unsqueeze(dim=1)
@@ -353,12 +361,13 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         if i % int(1e3) == 0:
-            print('iteration: {:d}, loss: {:1.4e}'.format(i, loss))
-            q_table, _, a_table, _ = compute_tables_critic_1d(env, critic)
+            print('iteration: {:d}, loss: {:1.4e}, lr: {:1.4e}'.format(i, loss, get_lr(optimizer)))
+            q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
             update_imshow_figure(env, q_table, im_q)
-            update_imshow_figure(env, a_table, im_a)
+            update_advantage_function_1d_figure(env, a_table, im_a, policy, line)
 
     # save
     data['q_function_approx'] = critic
@@ -376,7 +385,7 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
                                 update_imshow_figure
 
     # load q value table from dynamic programming
-    env_dp, data = load_dp_tables_data(env)
+    env_dp, data = load_dp_tables_data(env, dt=1e-4, h_state=1e-2, h_action=1e-2)
 
     # load critics if already trained
     if load and 'v_function_approx' in data and 'a_function_approx' in data:
@@ -385,8 +394,9 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
 
     # compute v and a tables
     q_table_dp = data['q_table']
-    v_table_dp = np.max(q_table_dp, axis=1)
-    a_table_dp = q_table_dp - np.expand_dims(v_table_dp, axis=1)
+    #v_table_dp = np.max(q_table_dp, axis=1)
+    #a_table_dp = q_table_dp - np.expand_dims(v_table_dp, axis=1)
+    v_table_dp, a_table_dp, policy_dp = compute_tables(env_dp, q_table_dp)
 
     # initialize figures
     v_table = compute_v_table_1d(env, critic_v)
@@ -403,7 +413,7 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
     # targets
     v_values_target = torch.tensor(v_table_dp[states_idx], dtype=torch.float32)
 
-    # train value function critic
+    # train value function parameters
     n_iterations = int(2e3)
 
     for i in range(n_iterations):
@@ -428,6 +438,7 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
 
     # initialize figures
     a_table = compute_q_table_continuous_actions_1d(env, critic_a)
+    #q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
     q_table = a_table + v_table
     im_q = initialize_qvalue_function_1d_figure(env, q_table)
     im_a = initialize_advantage_function_1d_figure(env, a_table, policy_opt)
@@ -435,13 +446,13 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
     # optimizer
     optimizer_a = optim.Adam(critic_a.parameters(), lr=1e-3)
 
-    # train value function critic
+    # train value function parameters
+    batch_size = int(1e4)
     n_iterations = int(5e3)
 
     for i in range(n_iterations):
 
         # sample data
-        batch_size = int(1e4)
         state_actions_idx = np.random.randint(0, env_dp.n_states_actions, batch_size)
         state_actions = env_dp.state_action_space_h_flat[state_actions_idx]
         states = torch.tensor(state_actions[:, 0], dtype=torch.float32).unsqueeze(dim=1)

@@ -1,16 +1,11 @@
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
 from rl_sde_is.plots import *
 from rl_sde_is.tabular_methods import *
 from rl_sde_is.utils_numeric import discount_cumsum
 from rl_sde_is.utils_path import *
-
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
 
 def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_episodes=1000,
                 n_steps_lim=1000, test_freq_episodes=10, n_avg_episodes=10, seed=None,
@@ -59,7 +54,7 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_epis
     # initialize live figures
     if live_plot:
         v_table, a_table, policy = compute_tables(env, q_table)
-        lines = initialize_q_learning_figures(env, q_table, v_table, a_table, policy,
+        lines = initialize_tabular_figures(env, q_table, v_table, a_table, policy,
                                               value_function_opt, policy_opt)
 
     # for each episode
@@ -173,7 +168,7 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_epis
 
             # update live figures
             if live_plot:
-                update_q_learning_figures(env, q_table, v_table, a_table, policy, lines)
+                update_tabular_figures(env, q_table, v_table, a_table, policy, lines)
 
     data = {
         'gamma': gamma,
@@ -199,26 +194,31 @@ def mc_learning(env, gamma=1., epsilons=None, constant_lr=False, lr=0.01, n_epis
 
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
+
+    # choose environment
+    SdeIsEnv = DoubleWellMGF1DEnv
+    #SdeIsEnv = DoubleWellCommittor1DEnv
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
-
-    # set explorable starts flag
-    if args.explorable_starts:
-        env.is_state_init_sampled = True
-
-    # set action space bounds
-    env.set_action_space_bounds()
+    env = SdeIsEnv(
+        alpha=args.alpha,
+        beta=args.beta,
+        dt=args.dt,
+        state_init_dist=args.state_init_dist,
+        reward_type=args.reward_type,
+    )
 
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
+    env.get_state_init_idx()
+    env.get_target_set_idx()
 
     # set epsilons
-    epsilons = get_epsilons_constant(args.n_episodes, eps_init=0.01)
+    #epsilons = get_epsilons_constant(args.n_episodes, eps_init=0.01)
     #epsilons = get_epsilons_constant(args.n_episodes, eps_init=1.)
-    #epsilons = get_epsilons_linear_decay(args.n_episodes, eps_min=0.01, exploration=0.5)
+    epsilons = get_epsilons_linear_decay(args.n_episodes, eps_min=0.01, exploration=0.5)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()

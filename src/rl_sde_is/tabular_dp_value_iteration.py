@@ -1,16 +1,10 @@
 import numpy as np
 
-from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.plots import *
-from rl_sde_is.tabular_methods import *
-from rl_sde_is.utils_path import *
-
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
-
+from base_parser import get_base_parser
+from environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
+from plots import *
+from tabular_methods import *
+from utils_path import *
 
 def v_table_update_semi_vect(env, r_table, p_tensor, v_table, gamma):
 
@@ -126,17 +120,21 @@ def value_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     return data
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
+
+    # choose environment
+    SdeIsEnv = DoubleWellMGF1DEnv
+    #SdeIsEnv = DoubleWellCommittor1DEnv
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
-
-    # set action space bounds
-    env.set_action_space_bounds()
+    env = SdeIsEnv(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
+    env.get_state_init_idx()
+    env.get_target_set_idx()
+    env.get_null_action_idx()
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()

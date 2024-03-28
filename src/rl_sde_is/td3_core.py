@@ -8,8 +8,6 @@ import torch.nn as nn
 import torch.optim as optim
 
 from rl_sde_is.approximate_methods import *
-from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.models import mlp
 from rl_sde_is.plots import *
 from rl_sde_is.replay_buffers import ReplayBuffer
@@ -162,7 +160,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
                  update_after=5000, update_every=100, policy_delay=50, target_noise=0.2, polyak=0.95, action_limit=None,
                  test_freq_episodes=100, test_batch_size=1000, backup_freq_episodes=None,
-                 value_function_opt=None, policy_opt=None, load=False, test=False,live_plot=False):
+                 value_function_opt=None, policy_opt=None, load=False, test=False, live_plot=False):
 
     # get dir path
     rel_dir_path = get_td3_dir_path(
@@ -369,6 +367,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
 
                 # env step
                 next_state, r, done, _ = env.step(state, action)
+                #next_state, r, done, _ = env.step(state, action, reward_type='baseline')
 
                 # store tuple
                 replay_buffer.store(state, action, r, next_state, done)

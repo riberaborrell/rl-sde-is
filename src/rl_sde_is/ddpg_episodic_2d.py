@@ -1,7 +1,7 @@
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.ddpg_core import *
-from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
 from rl_sde_is.plots import *
 
 def get_parser():
@@ -13,7 +13,7 @@ def main():
     args = get_parser().parse_args()
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta)
+    env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta)
 
     # set action space bounds
     env.action_space_bounds[0] = -5
@@ -24,8 +24,7 @@ def main():
         env.is_state_init_sampled = True
 
     # discretize state and action space (plot purposes only)
-    env.discretize_state_space(h_state=0.05)
-    env.discretize_action_space(h_action=0.05)
+    env.discretize_state_space(h_state=0.01)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
@@ -39,13 +38,12 @@ def main():
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
-        n_steps_episode_lim=1000,
         seed=args.seed,
         start_steps=10000,
         replay_size=100000,
         update_after=10000,
-        update_every=10,
-        noise_scale=2.,
+        update_every=100,
+        n_steps_episode_lim=1000,
         test_freq_episodes=100,
         test_batch_size=1000,
         backup_freq_episodes=args.backup_freq_episodes,
@@ -67,17 +65,11 @@ def main():
     if args.plot_episode is not None:
         load_backup_models(data, ep=args.plot_episode)
 
-    # compute tables following q-value model
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic(env, critic)
 
-    # compute value function and actions following the policy model
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic(env, actor, critic)
-
-    plot_q_value_function(env, q_table)
-    plot_value_function_actor_critic(env, v_table_actor_critic,
-                                     v_table_critic, sol_hjb.value_function)
-    plot_advantage_function(env, a_table)
-    plot_det_policy_actor_critic(env, policy_actor, policy_critic, sol_hjb.u_opt)
+    # compute actor policy
+    states = torch.FloatTensor(env.state_space_h)
+    policy = compute_det_policy_actions(env, actor, states)
+    plot_det_policy_2d(env, policy, policy_hjb)
 
     # plot moving averages for each episode
     returns = data['returns']

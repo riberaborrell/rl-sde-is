@@ -6,9 +6,10 @@ import torch.optim as optim
 import torch.nn as nn
 
 from rl_sde_is.approximate_methods import *
-from rl_sde_is.models import mlp
+from rl_sde_is.models import mlp, GaussianAnsatzModel
 from rl_sde_is.plots import *
 from rl_sde_is.utils_path import *
+from rl_sde_is.utils_numeric import logistic_torch
 
 class DeterministicPolicy(nn.Module):
 
@@ -26,6 +27,11 @@ class DeterministicPolicy(nn.Module):
 
     def forward(self, state):
         return self.policy.forward(state)
+        #mu = self.policy.forward(state)
+        #xi = logistic_torch(state, k=10, x0=self.target_set[0])
+        #xi = logistic_torch(state, k=10, x0=1)
+        #return (1 - xi) * mu
+
 
 def sample_loss_vectorized(env, model, K):
 
@@ -131,12 +137,15 @@ def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
     # initialize nn model 
+    #"""
     model = DeterministicPolicy(
         state_dim=env.state_space_dim,
         action_dim=env.action_space_dim,
         hidden_sizes=d_hidden_layers,
         activation=nn.Tanh(),
     )
+    #"""
+    #model = GaussianAnsatzModel(env, m_i=20, sigma_i=0.5, normalized=True, seed=seed)
 
     # define optimizer
     optimizer = optim.Adam(
@@ -309,7 +318,7 @@ def reinforce(env, gamma=1., d_hidden_layer=256, n_layers=3,
             save_data(data, rel_dir_path)
 
         # update figure
-        if not load and live_plot and i % 10 == 0:
+        if not load and live_plot and i % 1 == 0:
             if env.d == 1:
                 update_1d_figures(env, model, policy_line)
             elif env.d == 2:

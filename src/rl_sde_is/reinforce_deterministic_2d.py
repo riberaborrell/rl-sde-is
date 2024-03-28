@@ -1,21 +1,9 @@
-import time
-
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
-import torch.optim as optim
-import torch.nn as nn
 
-from rl_sde_is.approximate_methods import *
-from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
-from rl_sde_is.plots import *
-from rl_sde_is.reinforce_deterministic_core import *
-from rl_sde_is.utils_path import *
-
-def get_parser():
-    parser = get_base_parser()
-    return parser
+from base_parser import get_base_parser
+from environments_2d import DoubleWellMGF2DEnv
+from plots import *
+from reinforce_deterministic_core import *
 
 def get_policy(env, data, it=None):
     model = data['model']
@@ -26,18 +14,22 @@ def get_policy(env, data, it=None):
     return compute_det_policy_actions(env, model, states)
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
 
     # initialize environment
-    env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta, dt=args.dt)
+    SdeIsEnv = DoubleWellMGF2DEnv
+    #SdeIsEnv = DoubleWellCommittor2DEnv
 
-    # set explorable starts flag
-    if args.explorable_starts:
-        env.is_state_init_sampled = True
+    env = SdeIsEnv(
+        alpha=args.alpha,
+        beta=args.beta,
+        dt=args.dt,
+        state_init_dist=args.state_init_dist,
+        reward_type=args.reward_type,
+    )
 
     # set action space bounds
-    env.action_space_low = 0
-    env.action_space_high = 5
+    env.action_space_bounds = (0, 5)
 
     # discretized state space (for plot purposes only)
     env.discretize_state_space(h_state=0.1)

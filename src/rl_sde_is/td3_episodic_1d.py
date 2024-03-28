@@ -1,8 +1,7 @@
-from rl_sde_is.approximate_methods import *
-from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.plots import *
-from rl_sde_is.td3_core import *
+from base_parser import get_base_parser
+from environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
+from plots import *
+from td3_core import *
 
 def get_policy(env, data, ep=None):
     actor = data['actor']
@@ -26,23 +25,21 @@ def get_policies(env, data, episodes):
 
     return policies
 
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
-
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
+
+    # choose environment
+    SdeIsEnv = DoubleWellMGF1DEnv
+    #SdeIsEnv = DoubleWellCommittor1DEnv
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
-
-    # set explorable starts flag
-    if args.explorable_starts:
-        env.is_state_init_sampled = True
-
-    # set action space bounds
-    env.set_action_space_bounds()
+    env = SdeIsEnv(
+        alpha=args.alpha,
+        beta=args.beta,
+        dt=args.dt,
+        state_init_dist=args.state_init_dist,
+        reward_type=args.reward_type,
+    )
 
     # discretize state and action space (plot purposes only)
     env.discretize_state_space(h_state=0.1)

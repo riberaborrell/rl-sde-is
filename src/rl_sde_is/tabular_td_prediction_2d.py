@@ -1,44 +1,48 @@
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
+from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
 from rl_sde_is.plots import *
-from rl_sde_is.tabular_methods import compute_rms_error
+from rl_sde_is.tabular_methods import *
 from rl_sde_is.utils_path import *
 
-def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
-                  n_steps_lim=1000, test_freq_episodes=10, first_visit=False, seed=None,
+def get_parser():
+    parser = get_base_parser()
+    parser.description = ''
+    return parser
+
+def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
+                  n_steps_lim=1000, test_freq_episodes=10, seed=None,
                   value_function_opt=None, load=False, live_plot=False):
 
-    ''' Monte Carlo learning for policy evaluation. First-visit and every-visit
-        implementation (Sutton and Barto)
+    ''' Temporal difference learning for policy evaluation.
     '''
 
     # get dir path
-    rel_dir_path = get_tabular_mc_prediction_dir_path(
+    rel_dir_path = get_tabular_td_prediction_dir_path(
         env,
-        agent='tabular-mc-prediction',
+        agent='tabular-td-prediction',
         n_episodes=n_episodes,
+        lr=lr,
         seed=seed,
     )
 
     # load results
     if load:
-        return load_data(rel_dir_path)
+        data = load_data(rel_dir_path)
+        return data
 
     # set seed
     if seed is not None:
         np.random.seed(seed)
 
-    # initialize value function table and returns
-    v_table = -np.random.rand(env.n_states)
-    returns_table = [[] for i in range(env.n_states)]
+    # initialize value function table
+    v_table = - np.random.rand(env.n_states)
 
-    # set values for the target set
-    v_table[env.ts_idx] = 0
-
-    # preallocate returns and time steps
-    time_steps = np.empty(n_episodes, dtype=np.int32)
+    # get index initial state
+    #state_init_idx = env.get_state_idx(env.state_init).item()
+    state_init_idx = env.get_state_idx(env.state_init)
 
     # preallocate value function rms errors
     n_test_episodes = n_episodes // test_freq_episodes + 1
@@ -54,11 +58,11 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
         # reset environment
         state = env.reset()
 
-        # reset trajectory
-        states = np.empty(0)
-        rewards = np.empty(0)
+        # get index of the state
+        state_idx = env.get_state_idx(state)
 
-        states_idx = []
+        # reset trajectory rewards
+        rewards = np.empty(0)
 
         # terminal state flag
         done = False
@@ -70,46 +74,26 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
             if done:
                 break
 
-            # save state
-            states = np.append(states, state)
-
-            # get index of the state
-            state_idx = env.get_state_idx(state)
-            states_idx.append(state_idx.item())
-
             # choose action following the given policy
+            breakpoint()
             action_idx = policy[state_idx]
             action = np.expand_dims(env.action_space_h[action_idx], axis=1)
 
             # step dynamics forward
-            new_state, r, done, _ = env.step(state, action)
+            next_state, r, done, _ = env.step(state, action)
+            next_state_idx = env.get_state_idx(next_state)
+
+            # update v values
+            d = np.where(done, 1., 0.)
+            target = r + gamma * (1 - d) * v_table[next_state_idx]
+            v_table[state_idx] += lr * (target - v_table[state_idx])
 
             # save reward
             rewards = np.append(rewards, r)
 
-            # update state
-            state = new_state
-
-        # save number of time steps of the episode
-        time_steps[ep] = k
-
-        ret = 0
-        for k in np.flip(np.arange(time_steps[ep])):
-
-            # compute return at time step k  
-            ret = gamma * ret + rewards[k]
-
-            # if state not in the previous time steps
-            if not states_idx[k] in states_idx[:k] or not first_visit:
-
-                # get current state index
-                state_idx = states_idx[k]
-
-                # append return
-                returns_table[state_idx].append(ret)
-
-                # update v table
-                v_table[state_idx] = np.mean(returns_table[state_idx])
+            # update state and action
+            state = next_state
+            state_idx = next_state_idx
 
         # test
         if (ep + 1) % test_freq_episodes == 0:
@@ -120,10 +104,10 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
 
             # logs
             msg = 'ep: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}'.format(
-                ep,
-                v_table[env.state_init_idx.item()],
-                v_rms_errors[ep_test],
-            )
+                    ep,
+                    v_table[state_init_idx],
+                    v_rms_errors[ep_test],
+                )
             print(msg)
 
             # update live figure
@@ -134,6 +118,7 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
         'gamma': gamma,
         'n_episodes': n_episodes,
         'n_steps_lim': n_steps_lim,
+        'lr': lr,
         'seed': seed,
         'test_freq_episodes' : test_freq_episodes,
         'v_table' : v_table,
@@ -144,42 +129,37 @@ def mc_prediction(env, policy=None, gamma=1.0, n_episodes=100,
     return data
 
 def main():
-    args = get_base_parser().parse_args()
-
-    # choose environment
-    SdeIsEnv = DoubleWellMGF1DEnv
-    #SdeIsEnv = DoubleWellCommittor1DEnv
+    args = get_parser().parse_args()
 
     # initialize environment
-    env = SdeIsEnv(
-        alpha=args.alpha,
-        beta=args.beta,
-        dt=args.dt,
-        state_init_dist=args.state_init_dist,
-        reward_type=args.reward_type,
-    )
+    #env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
+    env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta, dt=args.dt)
+
+    # set explorable starts flag
+    if args.explorable_starts:
+        env.is_state_init_sampled = True
 
     # discretize observation and action space
+    #env.set_action_space_bounds()
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
-    env.get_state_init_idx()
-    env.get_target_set_idx()
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
 
     # set deterministic policy from the hjb control
     policy = env.get_det_policy_indices_from_hjb(sol_hjb.u_opt)
+    breakpoint()
 
-    # run mc value function learning agent following optimal policy
-    data = mc_prediction(
+    # run temporal difference learning agent following optimal policy
+    data = td_prediction(
         env,
         policy=policy,
         gamma=args.gamma,
+        lr=args.lr,
         n_steps_lim=args.n_steps_lim,
         n_episodes=args.n_episodes,
         test_freq_episodes=args.test_freq_episodes,
-        first_visit=False,
         seed=args.seed,
         value_function_opt=-sol_hjb.value_function,
         load=args.load,

@@ -1,16 +1,11 @@
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
 from rl_sde_is.plots import *
 from rl_sde_is.tabular_methods import *
 from rl_sde_is.utils_path import *
 from rl_sde_is.utils_numeric import *
-
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
 
 def qlearning(env, gamma=1., epsilons=None, eps_init=None, eps_decay=None, lr=0.01,
               n_episodes=1000, n_avg_episodes=10, n_steps_lim=1000, seed=None,
@@ -163,21 +158,29 @@ def qlearning(env, gamma=1., epsilons=None, eps_init=None, eps_decay=None, lr=0.
 
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
+
+    # choose environment
+    SdeIsEnv = DoubleWellMGF1DEnv
+    #SdeIsEnv = DoubleWellCommittor1DEnv
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
-
-    # set explorable starts flag
-    if args.explorable_starts:
-        env.is_state_init_sampled = True
+    env = SdeIsEnv(
+        alpha=args.alpha,
+        beta=args.beta,
+        dt=args.dt,
+        state_init_dist=args.state_init_dist,
+        reward_type=args.reward_type,
+    )
 
     # set action space bounds
-    env.set_action_space_bounds()
+    env.action_space_bounds = (-5, 5)
 
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
+    env.get_state_init_idx()
+    env.get_target_set_idx()
 
     # set epsilons
     #epsilons = get_epsilons_constant(args.n_episodes, eps_init=args.eps_init)

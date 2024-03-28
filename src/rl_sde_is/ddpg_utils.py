@@ -9,10 +9,10 @@ def pre_train_critic2(env, critic):
     # number of iterations
     n_iterations = 10**3
 
-    env.state_space_low = -2
-    env.state_space_high = 2
-    env.action_space_low = -2
-    env.action_space_high = 2
+    env.state_space_bounds[0] = -2
+    env.state_space_bounds[0] = 2
+    env.action_space_bounds[0] = -2
+    env.action_space_bounds[1] = 2
 
     states = torch
     def sample_data_points():
@@ -21,11 +21,11 @@ def pre_train_critic2(env, critic):
         states_ts = (env.lb - env.rb) * torch.rand(batch_size_ts, 1) + env.rb
 
         # data points outside the target set
-        states_not_ts = (env.state_space_low - env.lb) * torch.rand(batch_size_not_ts, 1) + env.lb
+        states_not_ts = (env.state_space_bounds[0] - env.lb) * torch.rand(batch_size_not_ts, 1) + env.lb
 
         # total data points
         states = torch.cat((states_ts, states_not_ts))
-        actions = (env.action_space_low - env.action_space_high) * torch.rand(batch_size, 1) + env.action_space_high
+        actions = (env.action_space_bounds[0] - env.action_space_bounds[1]) * torch.rand(batch_size, 1) + env.action_space_bounds[1]
 
         return states, actions
 
@@ -89,8 +89,8 @@ def pre_train_critic(env, critic):
     # number of iterations
     n_iterations = 10**4
 
-    env.action_space_low = 0
-    env.action_space_high = 3
+    env.action_space_bounds[0] = 0
+    env.action_space_bounds[1] = 3
 
     def sample_data_points():
 
@@ -98,11 +98,11 @@ def pre_train_critic(env, critic):
         states_ts = (env.lb - env.rb) * torch.rand(batch_size_ts, 1) + env.rb
 
         # data points outside the target set
-        states_not_ts = (env.state_space_low - env.lb) * torch.rand(batch_size_not_ts, 1) + env.lb
+        states_not_ts = (env.state_space_bounds[0] - env.lb) * torch.rand(batch_size_not_ts, 1) + env.lb
 
         # total data points
         states = torch.cat((states_ts, states_not_ts))
-        actions = (env.action_space_low - env.action_space_high) * torch.rand(batch_size, 1) + env.action_space_high
+        actions = (env.action_space_bounds[0] - env.action_space_bounds[1]) * torch.rand(batch_size, 1) + env.action_space_bounds[1]
 
         return states, actions
 

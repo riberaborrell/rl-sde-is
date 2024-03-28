@@ -1,15 +1,10 @@
 import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
 from rl_sde_is.plots import *
 from rl_sde_is.tabular_methods import *
 from rl_sde_is.utils_path import *
-
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
 
 def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
                   n_steps_lim=1000, test_freq_episodes=10, seed=None,
@@ -74,7 +69,7 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
 
             # step dynamics forward
             next_state, r, done, _ = env.step(state, action)
-            next_state_idx = env.get_state_idx(next_state)
+            next_state_idx = env.get_state_idx(next_state).item()
 
             # update v values
             d = np.where(done, 1., 0.)
@@ -122,19 +117,26 @@ def td_prediction(env, policy=None, gamma=1.0, n_episodes=100, lr=0.01,
     return data
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
+
+    # choose environment
+    SdeIsEnv = DoubleWellMGF1DEnv
+    #SdeIsEnv = DoubleWellCommittor1DEnv
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
-
-    # set explorable starts flag
-    if args.explorable_starts:
-        env.is_state_init_sampled = True
+    env = SdeIsEnv(
+        alpha=args.alpha,
+        beta=args.beta,
+        dt=args.dt,
+        state_init_dist=args.state_init_dist,
+        reward_type=args.reward_type,
+    )
 
     # discretize observation and action space
-    env.set_action_space_bounds()
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
+    env.get_state_init_idx()
+    env.get_target_set_idx()
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()

@@ -2,15 +2,10 @@ import numpy as np
 
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.dynamic_programming import compute_p_tensor_batch, compute_r_table
-from rl_sde_is.environments import DoubleWellStoppingTime1D
+from rl_sde_is.environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
 from rl_sde_is.tabular_methods import compute_tables
 from rl_sde_is.plots import *
 from rl_sde_is.utils_path import *
-
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
 
 def check_p_tensor(env, p_tensor):
     sum_probs = np.sum(p_tensor, axis=0)
@@ -63,6 +58,9 @@ def dynamic_programming_tables(env, value_function_opt=None, policy_opt=None, lo
     #array = np.isclose(v_table, np.max(q_table, axis=1))
 
     data = {
+        'dt': env.dt,
+        'h_state': env.h_state,
+        'h_action': env.h_action,
         'r_table': r_table,
         'p_tensor': p_tensor,
         'q_table': q_table,
@@ -73,19 +71,23 @@ def dynamic_programming_tables(env, value_function_opt=None, policy_opt=None, lo
 
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
+
+    # choose environment
+    #SdeIsEnv = DoubleWellMGF1DEnv
+    SdeIsEnv = DoubleWellCommittor1DEnv
 
     # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
+    env = SdeIsEnv(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # discretize observation and action space
-    env.set_action_space_bounds()
     env.discretize_state_space(args.h_state)
     env.discretize_action_space(args.h_action)
+    env.get_target_set_idx()
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
-    value_function_opt = -sol_hjb.value_function
+    value_function_opt = - sol_hjb.value_function
     policy_opt = sol_hjb.u_opt
 
     # compute dp tables

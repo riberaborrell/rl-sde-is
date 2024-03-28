@@ -90,7 +90,7 @@ def pre_train_actor(env, actor):
     n_iterations = 10**2
 
     def sample_data_points():
-        states = (env.state_space_low - env.state_space_high) * torch.rand(batch_size, 1) + env.state_space_high
+        states = (env.state_space_bounds[0] - env.state_space_bounds[0]) * torch.rand(batch_size, 1) + env.state_space_bounds[0]
         return states
 
     # targets
@@ -125,7 +125,7 @@ def get_action(env, actor, state, noise_scale=0):
     action += noise_scale * np.random.randn(env.action_space_dim)
 
     # clipp such that it lies in the valid action range
-    action = np.clip(action, env.action_space_low, env.action_space_high)
+    action = np.clip(action, env.action_space_bounds[0], env.action_space_bounds[1])
     return action
 
 def update_parameters(actor, actor_target, actor_optimizer, critic, critic_target,

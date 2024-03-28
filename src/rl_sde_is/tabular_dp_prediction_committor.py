@@ -1,7 +1,8 @@
 import numpy as np
 
 from base_parser import get_base_parser
-from environments_1d import DoubleWellMGF1DEnv, DoubleWellCommittor1DEnv
+#from environments_committor import DoubleWellCommittor1D
+from environments_1d import DoubleWellCommittor1DEnv
 from plots import *
 from tabular_methods import *
 from utils_path import *
@@ -32,23 +33,26 @@ def value_table_update(env, r_table, p_tensor, policy, v_table, gamma):
                                * v_table_i[next_state_idx]
 
 def value_table_update_semi_vect(env, r_table, p_tensor, policy, v_table, gamma):
+
     v_table_i = v_table.copy()
-    d = np.where(env.is_in_ts, 1, 0)
     for state_idx in range(env.n_states):
         action_idx = policy[state_idx]
+        d = np.where(env.is_in_ts, 1, 0)
         v_table[state_idx] = r_table[state_idx, action_idx] \
-                           + gamma * (1 - d[state_idx]) * np.dot(
+                           + gamma * (1 - d) * np.dot(
                                 p_tensor[:, state_idx, action_idx].squeeze(),
                                 v_table_i,
                            )
 
 def value_table_update_vect(env, r_table, p_tensor, policy, v_table, gamma):
+
+    v_table_i = v_table.copy()
     actions_idx = policy.squeeze()
     d = np.where(env.is_in_ts, 1, 0)
     v_table = r_table[np.arange(env.n_states), actions_idx] \
             + gamma * (1 - d) * np.matmul(
                 p_tensor[:, np.arange(env.n_states), actions_idx].T,
-                v_table
+                v_table_i
             )
     return v_table
 
@@ -103,7 +107,7 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
             # logs
             msg = 'it: {:3d}, V(s_init): {:.3f}, V_RMSE: {:.3f}' \
-                  ''.format(i+1, v_table[env.state_init_idx.item()], v_rms_errors[j])
+                  ''.format(i, v_table[env.state_init_idx.item()], v_rms_errors[j])
             print(msg)
 
             # update live figure
@@ -122,12 +126,8 @@ def policy_evaluation(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 def main():
     args = get_base_parser().parse_args()
 
-    # choose environment
-    SdeIsEnv = DoubleWellMGF1DEnv
-    #SdeIsEnv = DoubleWellCommittor1DEnv
-
     # initialize environment
-    env = SdeIsEnv(alpha=args.alpha, beta=args.beta, dt=args.dt)
+    env = DoubleWellCommittor1DEnv(alpha=args.alpha, beta=args.beta, dt=args.dt)
 
     # discretize observation and action space
     env.discretize_state_space(args.h_state)
@@ -139,7 +139,10 @@ def main():
     sol_hjb = env.get_hjb_solver()
 
     # set deterministic policy from the hjb control
-    policy = env.get_det_policy_indices_from_hjb(sol_hjb.u_opt)
+    policy = np.array([
+        env.get_action_idx(sol_hjb.u_opt[state_idx])
+        for state_idx, _ in enumerate(env.state_space_h)
+    ])
 
     # run dynammic programming policy evaluation of the optimal policy
     data = policy_evaluation(

@@ -1,27 +1,26 @@
-from rl_sde_is.approximate_methods import *
-from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments_2d import DoubleWellStoppingTime2D
-from rl_sde_is.plots import *
-from rl_sde_is.td3_core import *
-
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
+from base_parser import get_base_parser
+from environments_2d import DoubleWellMGF2DEnv#, DoubleWellCommittor2DEnv
+from plots import *
+from td3_core import *
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
+
+    # choose environment
+    SdeIsEnv = DoubleWellMGF2DEnv
+    #SdeIsEnv = DoubleWellCommittor2DEnv
 
     # initialize environment
-    env = DoubleWellStoppingTime2D(alpha=args.alpha, beta=args.beta, dt=args.dt)
-
-    # set explorable starts flag
-    if args.explorable_starts:
-        env.is_state_init_sampled = True
+    env = SdeIsEnv(
+        alpha=args.alpha,
+        beta=args.beta,
+        dt=args.dt,
+        state_init_dist=args.state_init_dist,
+        reward_type=args.reward_type,
+    )
 
     # set action space bounds
-    env.action_space_low = -5
-    env.action_space_high = 5
+    env.action_space_bounds = (-5, 5)
 
     # discretize state and action space (plot purposes only)
     env.discretize_state_space(h_state=0.1)

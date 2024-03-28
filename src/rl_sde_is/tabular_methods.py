@@ -54,6 +54,8 @@ def get_epsilons_harmonic(n_episodes):
     return np.array([1 / (ep + 1) for ep in np.arange(n_episodes)])
 
 def compute_tables(env, q_table):
+    ''' computes the value table, the advantage table and the greedy action indices.
+    '''
 
     # compute value function
     v_table = np.max(q_table, axis=1)

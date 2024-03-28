@@ -18,8 +18,8 @@ def get_parser():
 def value_iteration(env, model, gamma=1.0, n_iterations=100, n_avg_iterations=10, K=10):
     '''
     '''
-    low = env.state_space_low
-    high = env.state_space_high
+    low = env.state_space_bounds[0]
+    high = env.state_space_bounds[0]
 
     actions = torch.FloatTensor(env.action_space_h)
 

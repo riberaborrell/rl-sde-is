@@ -4,9 +4,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from rl_sde_is.approximate_methods import *
 from rl_sde_is.base_parser import get_base_parser
 from rl_sde_is.environments import DoubleWellStoppingTime1D
 from rl_sde_is.models import FeedForwardNN
+from rl_sde_is.utils_numeric import discount_cumsum 
 
 def get_parser():
     parser = get_base_parser()
@@ -14,9 +16,11 @@ def get_parser():
     return parser
 
 def get_action_idx(env, action):
+    breakpoint()
     return torch.argmin(torch.abs(torch.FloatTensor(env.action_space_h) - action))
-
+"""
 def get_epsilon_greedy_action(env, model, epsilon, state):
+    breakpoint()
 
     # pick greedy action (exploitation)
     if np.random.rand() > epsilon:
@@ -29,7 +33,8 @@ def get_epsilon_greedy_action(env, model, epsilon, state):
 
     # pick random action (exploration)
     else:
-        return np.random.uniform(env.action_space_low, env.action_space_high, (1,))
+        return np.random.uniform(env.action_space_bounds[0], env.action_space_bounds[1], (1,))
+"""
 
 def update_parameters(optimizer, model, target_model, batch, gamma):
 
@@ -84,11 +89,12 @@ def dqn(env, hidden_size=32, n_layers=3,
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     # preallocate lists to hold results
+    batch_counter = 0
     batch_states = np.zeros([batch_size, env.state_space_dim], dtype=np.float32)
     batch_next_states = np.zeros([batch_size, env.state_space_dim], dtype=np.float32)
     batch_actions = np.zeros(batch_size, dtype=np.int64)
     batch_rewards = np.zeros(batch_size, dtype=np.float32)
-    batch_done = np.zeros(batch_size, dtype=np.bool)
+    batch_done = np.zeros(batch_size, dtype=bool)
 
     batch_discounted_returns = []
     batch_idx = 0
@@ -112,27 +118,28 @@ def dqn(env, hidden_size=32, n_layers=3,
 
         print(k)
 
-        complete = False
-        while complete == False:
+        done = False
+        while done == False:
 
             # save state
+            breakpoint()
+            print(k, batch_states)
             batch_states[batch_idx] = state.copy()
 
             # get action following q-values
-            action = get_epsilon_greedy_action(env, model, epsilon, state)
-            act_idx = get_action_idx(env, action)
+            action_idx, action = get_epsilon_greedy_discrete_action(env, model, state, epsilon)
 
             # next step
-            new_state, r, complete = env.step(state, action)
+            next_state, r, done, dbt = env.step(state, action)
             k += 1
 
             # save action and reward
             batch_actions[batch_idx] = action
             batch_rewards[batch_idx] = r
-            batch_done[batch_idx] = complete
+            batch_done[batch_idx] = done
 
             # update states
-            state = new_state
+            state = next_state
 
             # update epsilon
             #epsilon = 1 + (eps_final - 1)*min(1, t/finish_decay)
