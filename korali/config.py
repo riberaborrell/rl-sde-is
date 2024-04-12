@@ -1,6 +1,7 @@
 import os
 
 from environment import environment as env
+from rl_sde_is.utils.config import DATA_ROOT_DIR
 
 def set_korali_problem(e, gym_env, args):
 
@@ -57,7 +58,10 @@ def set_vracer_train_params(e, gym_env, args):
     e["Console Output"]["Verbosity"] = "Detailed"
     e["File Output"]["Enabled"] = True
     e["File Output"]["Frequency"] = 500
-    e["File Output"]["Path"] = os.path.join('results', gym_env.unwrapped.__str__(), 'vracer')
+    e["File Output"]["Path"] = os.path.join(
+        os.path.relpath(DATA_ROOT_DIR),
+        gym_env.unwrapped.__str__(), 'vracer',
+    )
 
 def set_vracer_eval_params(e, gym_env, args):
     e["Solver"]["Mode"] = "Testing"
@@ -65,4 +69,7 @@ def set_vracer_eval_params(e, gym_env, args):
     e["Console Output"]["Verbosity"] = "Detailed"
     e["File Output"]["Enabled"] = True
     e["File Output"]["Frequency"] = 1
-    e["File Output"]["Path"] = os.path.join('results', gym_env.unwrapped.__str__(), 'vracer')
+    e["File Output"]["Path"] = os.path.join(
+        os.path.relpath(DATA_ROOT_DIR),
+        gym_env.unwrapped.__str__(), 'vracer',
+    )
