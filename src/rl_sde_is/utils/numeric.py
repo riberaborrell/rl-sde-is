@@ -1,16 +1,45 @@
 import numpy as np
 import torch
 
-def compute_running_mean(array, run_window=10):
-    ''' computes the running mean / moving average of the array along the given running window.
+nf32 = np.float32
+ni32 = np.int32
+
+tf32 = torch.float32
+ti32 = torch.int32
+
+def get_device(disable_cuda):
+    if not disable_cuda and torch.cuda.is_available():
+        return torch.device('cuda')
+    else:
+        return torch.device('cpu')
+
+# vectorized operations
+def dot_vect(a, b):
+    return torch.matmul(
+        torch.unsqueeze(a, dim=1),
+        torch.unsqueeze(b, dim=2),
+    ).squeeze()
+
+def dot_vect_sum(a, b):
+    return (a * b).sum(axis=1)
+
+# general logistic function
+def logistic(x, L=1, k=1, x0=0):
+        return L / (1 + np.exp(-k * (x - x0)))
+
+def logistic_torch(x, L=1, k=1, x0=0):
+        return L / (1 + torch.exp(-k * (x - x0)))
+
+def compute_running_mean(x: np.array, run_window=10):
+    ''' running mean / moving average of the array along the given running window.
     '''
     return np.array([
-        np.mean(array[i-run_window:i+1]) if i > run_window
-        else np.mean(array[:i+1]) for i in range(len(array))
+        np.mean(x[i-run_window:i+1]) if i > run_window
+        else np.mean(x[:i+1]) for i in range(len(x))
     ])
 
 def compute_running_variance(array, run_window=10):
-    ''' computes the running variance of the array along the given running window.
+    ''' running variance of the array along the given running window.
     '''
     return np.array([
         np.var(array[i-run_window:i+1]) if i > run_window

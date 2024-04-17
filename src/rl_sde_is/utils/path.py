@@ -5,7 +5,7 @@ import sys
 import torch
 import numpy as np
 
-from rl_sde_is.config import PROJECT_ROOT_DIR, DATA_ROOT_DIR
+from rl_sde_is.utils.config import PROJECT_ROOT_DIR, DATA_ROOT_DIR
 
 def get_project_dir():
     ''' returns the absolute path of the repository's directory
@@ -77,11 +77,11 @@ def load_model(model, rel_dir_path, file_name):
     model.load_state_dict(torch.load(os.path.join(get_data_dir(), rel_dir_path, file_name)))
 
 
-def get_rel_dir_path(env, algorithm_name, param_str):
+def get_rel_dir_path(env_str, algorithm_name, param_str):
 
     # relative directory path
     rel_dir_path = os.path.join(
-        env.name,
+        env_str,
         algorithm_name,
         param_str,
     )
@@ -92,52 +92,60 @@ def get_rel_dir_path(env, algorithm_name, param_str):
     return rel_dir_path
 
 def get_initial_point_str(env):
-    if not env.is_state_init_sampled:
-        initial_point_str = 'init-state{:2.1f}_'.format(env.state_init[0, 0].item())
-    else:
-        initial_point_str = 'explorable-starts_'
+    if env.state_init_dist == 'delta':
+        string = 'init-state{:2.1f}_'.format(env.state_init[0, 0].item())
+    elif env.state_init_dist == 'uniform':
+        string = 'uniform_'
 
-    return initial_point_str
+    return string
+
+def get_baseline_str(env):
+    if env.reward_type == 'baseline':
+        string = 'baseline_'
+    else:
+        string = ''
+
+    return string
 
 def get_lr_str(**kwargs):
     if not kwargs['constant_lr']:
-        lr_str = 'lr-not-const_'
+        string = 'lr-not-const_'
     else:
-        lr_str = 'lr{:1.2f}_'.format(kwargs['lr'])
-    return lr_str
+        string = 'lr{:1.2f}_'.format(kwargs['lr'])
+    return string
 
 def get_eps_str(**kwargs):
     if kwargs['eps_type'] == 'constant':
-        eps_str = 'eps-const_' \
+        string = 'eps-const_' \
                 + 'eps-init{:0.1f}_'.format(kwargs['eps_init'])
     elif kwargs['eps_type'] == 'harmonic':
-        eps_str = 'eps_harmonic_'
+        string = 'eps_harmonic_'
     elif kwargs['eps_type'] == 'linear-decay':
-        eps_str = 'eps-linear-decay_' \
+        string = 'eps-linear-decay_' \
                 + 'eps-min{:0.1f}_'.format(kwargs['eps_min'])
     elif kwargs['eps_type'] == 'exp-decay':
-        eps_str = 'eps-exp-decay_' \
+        string = 'eps-exp-decay_' \
                 + 'eps-init{:0.1f}_'.format(kwargs['eps_init']) \
                 + 'eps-decay{:0.4f}_'.format(kwargs['eps_decay'])
-    return eps_str
+    return string
 
 def get_iter_str(**kwargs):
     if 'n_episodes' in kwargs.keys():
-        iter_str = 'n-episodes{:.0e}_'.format(kwargs['n_episodes'])
+        string = 'n-episodes{:.0e}_'.format(kwargs['n_episodes'])
     elif 'n_total_steps' in kwargs.keys():
-        iter_str = 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps'])
+        string = 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps'])
     elif 'n_iterations' in kwargs.keys():
-        iter_str = 'n-iter{:.0e}_'.format(kwargs['n_iterations'])
+        string = 'n-iter{:.0e}_'.format(kwargs['n_iterations'])
     else:
-        iter_str = ''
-    return iter_str
+        string = ''
+    return string
 
 def get_seed_str(**kwargs):
     if 'seed' not in kwargs.keys() or not kwargs['seed']:
-        seed_str = 'seedNone'.format(kwargs['seed'])
+        string = 'seedNone'.format(kwargs['seed'])
     else:
-        seed_str = 'seed{:1d}'.format(kwargs['seed'])
-    return seed_str
+        string = 'seed{:1d}'.format(kwargs['seed'])
+    return string
 
 def get_agent_dir_path(env, **kwargs):
     '''
@@ -222,6 +230,7 @@ def get_sarsa_lambda_dir_path(env, **kwargs):
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
               + get_initial_point_str(env) \
+              + get_baseline_str(env) \
               + 'lr{:1.2f}_'.format(kwargs['lr']) \
               + 'lambda{:0.1f}_'.format(kwargs['lam']) \
               + get_eps_str(**kwargs) \
@@ -252,6 +261,7 @@ def get_qlearning_dir_path(env, **kwargs):
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
               + get_initial_point_str(env) \
+              + get_baseline_str(env) \
               + 'lr{:1.2f}_'.format(kwargs['lr']) \
               + get_eps_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
@@ -315,6 +325,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
     '''
     # set parameters string
     param_str = get_initial_point_str(env) \
+              + get_baseline_str(env) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
@@ -334,7 +345,6 @@ def get_dpg_dir_path(env, **kwargs):
               + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
-              + 'lr-type-{}_'.format(kwargs['lr_type']) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
@@ -363,6 +373,7 @@ def get_td3_dir_path(env, **kwargs):
 
     # set parameters string
     param_str = get_initial_point_str(env) \
+              + get_baseline_str(env) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
@@ -376,4 +387,4 @@ def get_td3_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_rel_dir_path(env.name, kwargs['agent'], param_str)

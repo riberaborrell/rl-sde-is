@@ -1,20 +1,18 @@
 import gymnasium as gym
 import gym_sde_is
+from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
+import numpy as np
 import korali
 
-from base_parser import get_base_parser
-from config import set_korali_problem, set_vracer_train_params
+from rl_sde_is.utils.base_parser import get_base_parser
+from rl_sde_is.utils.plots import *
+
+from vracer_utils import set_korali_problem, set_vracer_train_params, vracer
 
 def main():
     parser = get_base_parser()
     parser.description = 'Run V-racer for the sde importance sampling environment \
                           with a double well potential'
-    parser.add_argument(
-        '--beta',
-        type=float,
-        default=1.,
-        help='Set inverse of the temperature. Default: 1.',
-    )
     args = parser.parse_args()
 
     # create gym environment
@@ -24,9 +22,9 @@ def main():
         reward_type=args.reward_type,
         state_init_dist=args.state_init_dist,
     )
+    gym_env = RecordEpisodeStatistics(gym_env, deque_size=int(args.n_episodes))
 
-    # define Korali Problem
-    k = korali.Engine()
+    # define Korali experiment 
     e = korali.Experiment()
 
     # Defining Problem Configuration
@@ -45,15 +43,20 @@ def main():
     e["Variables"][2]["Type"] = "Action"
     e["Variables"][2]["Lower Bound"] = -5.0
     e["Variables"][2]["Upper Bound"] = +5.0
-    e["Variables"][2]["Initial Exploration Noise"] = 0.3
+    e["Variables"][2]["Initial Exploration Noise"] = 1.0
     e["Variables"][3]["Name"] = "Control u2"
     e["Variables"][3]["Type"] = "Action"
     e["Variables"][3]["Lower Bound"] = -5.0
     e["Variables"][3]["Upper Bound"] = +5.0
-    e["Variables"][3]["Initial Exploration Noise"] = 0.3
+    e["Variables"][3]["Initial Exploration Noise"] = 1.0
 
-    # Running Experiment
-    k.run(e)
+    # vracer
+    data = vracer(e, gym_env, args, load=args.load)
+
+    if args.plot:
+        plot_returns_std_episodes(data['returns'])
+        plot_time_steps_std_episodes(data['time_steps'])
+        plot_psi_is_std_episodes(data['psi_is'])
 
 if __name__ == '__main__':
     main()

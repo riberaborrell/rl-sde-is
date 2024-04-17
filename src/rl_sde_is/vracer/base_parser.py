@@ -3,6 +3,11 @@ import argparse
 def get_base_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        '--seed',
+        type=int,
+        help='random seed. Default: None',
+    )
+    parser.add_argument(
         '--state-init-dist',
         choices=['delta', 'uniform'],
         default='delta',
@@ -13,12 +18,6 @@ def get_base_parser():
         choices=['state-action', 'state-action-next-state', 'baseline'],
         default='state-action',
         help='the step size / learning rate parameter is constant.',
-    )
-    parser.add_argument(
-        '--distribution',
-        help='Policy Distribution',
-        type=str,
-        default='Normal',
     )
     parser.add_argument(
         '--n-episodes',
@@ -36,7 +35,6 @@ def get_base_parser():
         '--max-steps',
         help='Maximum number of steps for an episode.',
         type=int,
-        default=int(1e5),
     )
     parser.add_argument(
         '--d-hidden',
