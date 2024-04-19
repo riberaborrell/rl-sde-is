@@ -54,9 +54,10 @@ def main():
     data = vracer(e, gym_env, args, load=args.load)
 
     if args.plot:
-        plot_returns_std_episodes(data['returns'])
-        plot_time_steps_std_episodes(data['time_steps'])
-        plot_psi_is_std_episodes(data['psi_is'])
+        dt = gym_env.unwrapped.dt
+        plot_return_per_episode_std(data['returns'])
+        plot_fht_per_episode_std(dt * data['time_steps'])
+        plot_psi_is_per_episode_std(data['psi_is'])
 
 if __name__ == '__main__':
     main()

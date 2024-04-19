@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
-import pickle
 
 import numpy as np
-
-# generate states file 'states.pickle'?
-output = True
 
 def environment(s, gym_env, args):
 
@@ -16,8 +12,6 @@ def environment(s, gym_env, args):
 
     # dimension of the state and action space
     d = gym_env.unwrapped.d
-    gym_env.positions = np.zeros((d, args.n_steps_lim))
-    gym_env.actions = np.zeros((d, args.n_steps_lim))
     s["State"] = gym_env.unwrapped._state.tolist()
     step = 0
     done = False
@@ -45,13 +39,3 @@ def environment(s, gym_env, args):
         s["Termination"] = "Terminal"
     else:
         s["Termination"] = "Truncated"
-
-    # Generate output file with states and actions
-    if output:
-        data = {
-            'position': gym_env.positions,
-            'action': gym_env.actions,
-        }
-
-        with open('states.pickle', 'wb') as fp:
-            pickle.dump(data, fp)

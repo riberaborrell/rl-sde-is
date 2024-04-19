@@ -24,10 +24,11 @@ def main():
     )
     gym_env = RecordEpisodeStatistics(gym_env, deque_size=int(args.n_episodes))
 
+
     # define Korali experiment 
     e = korali.Experiment()
 
-    # Defining Problem Configuration
+    # define Problem Configuration
     set_korali_problem(e, gym_env, args)
 
     # Set V-RACER training parameters
@@ -45,10 +46,22 @@ def main():
     # vracer
     data = vracer(e, gym_env, args, load=args.load)
 
-    if args.plot:
-        plot_returns_std_episodes(data['returns'])
-        plot_time_steps_std_episodes(data['time_steps'])
-        plot_psi_is_std_episodes(data['psi_is'])
+    # plots
+    if not args.plot: return
+
+    # time step
+    dt = gym_env.unwrapped.dt
+
+    if args.beta == 1.0:
+        plot_return_per_episode_std(data['returns'], ylim=(-10, 0))
+        plot_fht_per_episode_std(dt*data['time_steps'], ylim=(0, 5))
+        plot_psi_is_per_episode_std(data['psi_is'], ylim=(5e-2, 2.5e-1))
+
+    if args.beta == 4.0:
+        #xlim = (0, 2500)
+        plot_return_per_episode_std(data['returns'], xlim=xlim, ylim=(-120, 0))
+        plot_fht_per_episode_std(dt*data['time_steps'], xlim=xlim, ylim=(0, 100))
+        plot_psi_is_per_episode_std(data['psi_is'], xlim=xlim, ylim=(1e-4, 1e-2))
 
 if __name__ == '__main__':
     main()

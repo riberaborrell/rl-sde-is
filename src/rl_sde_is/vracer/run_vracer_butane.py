@@ -30,9 +30,11 @@ def main():
     set_korali_problem(e, gym_env, args)
 
     # Set V-RACER training parameters
+    args.n_layers = 4
+    args.d_hidden = 64
     set_vracer_train_params(e, gym_env, args)
 
-    # Define Variables
+    # define Variables
     for i in range(4):
         for j in range(3):
             idx = i*3+j
@@ -51,11 +53,15 @@ def main():
     # vracer
     data = vracer(e, gym_env, args, load=args.load)
 
-    if args.plot:
-        plot_returns_std_episodes(data['returns'])
-        plot_time_steps_std_episodes(data['time_steps'])
-        plot_psi_is_std_episodes(data['psi_is'])
+    # plots
+    if not args.plot: return
 
+    # time step
+    dt = gym_env.unwrapped.dt
+
+    plot_fht_per_episode_std(dt * data['time_steps'], ylim=(0, 10))
+    plot_return_per_episode_std(data['returns'], ylim=(-50, 0))
+    plot_psi_is_per_episode_std(data['psi_is'])
 
 if __name__ == '__main__':
     main()

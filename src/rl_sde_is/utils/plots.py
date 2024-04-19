@@ -84,26 +84,28 @@ def plot_episode_states_2d(env, ep_states):
     plt.show()
 
 
-def plot_array_episodes(y, run_window: int = 100, loc=None, ylim=None, titel: str = ''):
+def plot_y_per_episode(y, run_window: int = 100, loc=None,
+                        xlim=None, ylim=None, titel: str = ''):
     run_mean_y = compute_running_mean(y, run_window)
     fig, ax = plt.subplots()
     ax.set_title(titel)
     ax.set_xlabel('Episodes')
+    if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
     plt.plot(y, alpha=0.4, c='tab:blue')
     plt.plot(run_mean_y, label='running mean of last returns', c='tab:blue')
     plt.legend(loc=loc)
     plt.show()
 
-def plot_array_std_episodes(y, run_window: int = 100, ylim=None, titel: str = ''):
+def plot_y_per_episode_std(y, run_window: int = 100, xlim=None, ylim=None, titel: str = ''):
     run_mean_y = compute_running_mean(y, run_window)
     run_var_y = compute_running_variance(y, run_window)
 
     fig, ax = plt.subplots()
     ax.set_title(titel)
     ax.set_xlabel('Episodes')
+    if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
-
     n_episodes = run_mean_y.shape[0]
     x = np.arange(n_episodes)
     y = run_mean_y
@@ -113,24 +115,23 @@ def plot_array_std_episodes(y, run_window: int = 100, ylim=None, titel: str = ''
     plt.legend()
     plt.show()
 
-def plot_returns_episodes(returns, **kwargs):
-    plot_array_episodes(returns, titel='Returns', **kwargs)
+def plot_return_per_episode(returns, **kwargs):
+    plot_y_per_episode(returns, titel='Returns', **kwargs)
 
-def plot_returns_std_episodes(returns, **kwargs):
-    plot_array_std_episodes(returns, titel='Returns', **kwargs)
+def plot_return_per_episode_std(returns, **kwargs):
+    plot_y_per_episode_std(returns, titel='Returns', **kwargs)
 
-def plot_time_steps_episodes(time_steps, **kwargs):
-    plot_array_episodes(time_steps, titel='Time steps', **kwargs)
+def plot_fht_per_episode(fhts, **kwargs):
+    plot_y_per_episode(fhts, titel=r'$\tau$', **kwargs)
 
-def plot_time_steps_std_episodes(time_steps, **kwargs):
-    plot_array_std_episodes(time_steps, titel='Time steps', **kwargs)
+def plot_fht_per_episode_std(fhts, **kwargs):
+    plot_y_per_episode_std(fhts, titel=r'$\tau$', **kwargs)
 
-def plot_psi_is_episodes(psi, **kwargs):
-    plot_array_episodes(psi, titel=r'\Psi', **kwargs)
+def plot_psi_is_per_episode(psi, **kwargs):
+    plot_y_per_episode(psi, titel=r'$\Psi$', **kwargs)
 
-def plot_psi_is_std_episodes(psi, **kwargs):
-    plot_array_std_episodes(psi, titel=r'\Psi', **kwargs)
-
+def plot_psi_is_per_episode_std(psi, **kwargs):
+    plot_y_per_episode_std(psi, titel=r'$\Psi$', **kwargs)
 
 def plot_expected_returns_epochs(test_mean_returns):
     fig, ax = plt.subplots()
