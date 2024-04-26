@@ -20,9 +20,10 @@ def main():
         'sde-is-doublewell-mgf-v0',
         beta=args.beta,
         reward_type=args.reward_type,
+        baseline_scale_factor=args.baseline_scale_factor,
         state_init_dist=args.state_init_dist,
     )
-    gym_env = RecordEpisodeStatistics(gym_env, deque_size=int(args.n_episodes))
+    gym_env = RecordEpisodeStatistics(gym_env, args.n_episodes)
 
 
     # define Korali experiment 
@@ -55,13 +56,13 @@ def main():
     if args.beta == 1.0:
         plot_return_per_episode_std(data['returns'], ylim=(-10, 0))
         plot_fht_per_episode_std(dt*data['time_steps'], ylim=(0, 5))
-        plot_psi_is_per_episode_std(data['psi_is'], ylim=(5e-2, 2.5e-1))
+        plot_psi_is_per_episode_std(np.exp(data['log_psi_is']), ylim=(1e-2, 5e-1))
 
     if args.beta == 4.0:
-        #xlim = (0, 2500)
+        xlim = (0, 2500)
         plot_return_per_episode_std(data['returns'], xlim=xlim, ylim=(-120, 0))
         plot_fht_per_episode_std(dt*data['time_steps'], xlim=xlim, ylim=(0, 100))
-        plot_psi_is_per_episode_std(data['psi_is'], xlim=xlim, ylim=(1e-4, 1e-2))
+        plot_psi_is_per_episode_std(np.exp(data['log_psi_is']), xlim=xlim, ylim=(1e-4, 1e-1))
 
 if __name__ == '__main__':
     main()

@@ -2,7 +2,9 @@
 
 import numpy as np
 
-def environment(s, gym_env, args):
+from rl_sde_is.utils.path import load_data, save_data
+
+def env(s, gym_env, args):
 
 
     # Initializing environment and random seed
@@ -10,8 +12,7 @@ def environment(s, gym_env, args):
     launchId = s["Launch Id"]
     _, _ = gym_env.reset(seed=sampleId * 1024 + launchId)
 
-    # dimension of the state and action space
-    d = gym_env.unwrapped.d
+    # initial state
     s["State"] = gym_env.unwrapped._state.tolist()
     step = 0
     done = False
@@ -39,3 +40,15 @@ def environment(s, gym_env, args):
         s["Termination"] = "Terminal"
     else:
         s["Termination"] = "Truncated"
+
+    # checkpoint results
+    if gym_env.episode_count % args.backup_freq_episodes == 0:
+
+        # collect results
+        data = {}
+        data['time_steps'] = gym_env.lengths
+        data['returns'] = gym_env.returns
+        data['log_psi_is'] = gym_env.log_psi_is
+
+        # save results
+        save_data(data, args.rel_dir_path)

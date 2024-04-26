@@ -3,12 +3,18 @@ import os
 import korali
 import numpy as np
 
-from environment import environment as env
+from rl_sde_is.vracer.korali_environment import env
 from rl_sde_is.utils.config import DATA_ROOT_DIR
 from rl_sde_is.utils.path import load_data, save_data, get_rel_dir_path
 
 def get_vracer_params_str(args):
-    param_str = 'policy-freq{:d}_'.format(args.policy_freq) \
+    if args.reward_type == 'baseline':
+        baseline_str = 'baseline-factor{}_'.format(args.baseline_scale_factor)
+    else:
+        baseline_str = ''
+
+    param_str = baseline_str \
+              + 'policy-freq{:d}_'.format(args.policy_freq) \
               + 'n-episodes{:.0e}_'.format(args.n_episodes) \
               + 'seed{}'.format(args.seed)
     return param_str
@@ -86,7 +92,7 @@ def set_vracer_train_params(e, gym_env, args):
     # file output configuration
     e["Console Output"]["Verbosity"] = "Detailed"
     e["File Output"]["Enabled"] = True
-    e["File Output"]["Frequency"] = 100
+    e["File Output"]["Frequency"] = args.backup_freq_episodes
     e["File Output"]["Path"] = get_vracer_dir_path(gym_env, args)
 
 def set_vracer_eval_params(e, gym_env, args):
@@ -100,12 +106,12 @@ def set_vracer_eval_params(e, gym_env, args):
 def vracer(e, gym_env, args, load=False):
 
     # get dir path
-    rel_dir_path = get_rel_dir_path(gym_env.unwrapped.__str__(), 'vracer',
-                                    get_vracer_params_str(args))
+    args.rel_dir_path = get_rel_dir_path(gym_env.unwrapped.__str__(), 'vracer',
+                                         get_vracer_params_str(args))
 
     # load results
     if load:
-        return load_data(rel_dir_path)
+        return load_data(args.rel_dir_path)
 
     # korali engine
     k = korali.Engine()
@@ -115,11 +121,11 @@ def vracer(e, gym_env, args, load=False):
 
     # collect results
     data = {}
-    data['time_steps'] = np.hstack(gym_env.length_queue)
-    data['returns'] = np.hstack(gym_env.return_queue)
-    data['psi_is'] = np.exp(np.hstack(gym_env.log_psi_is_queue))
+    data['time_steps'] = gym_env.lengths
+    data['returns'] = gym_env.returns
+    data['log_psi_is'] = gym_env.log_psi_is
 
     # save results
-    save_data(data, rel_dir_path)
+    save_data(data, args.rel_dir_path)
 
     return data

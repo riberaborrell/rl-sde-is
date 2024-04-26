@@ -21,7 +21,7 @@ def main():
         temperature=args.temperature,
         gamma=10.0,
     )
-    gym_env = RecordEpisodeStatistics(gym_env, deque_size=int(args.n_episodes))
+    gym_env = RecordEpisodeStatistics(gym_env, args.n_episodes)
 
     # define Korali experiment 
     e = korali.Experiment()
@@ -59,9 +59,9 @@ def main():
     # time step
     dt = gym_env.unwrapped.dt
 
-    plot_fht_per_episode_std(dt * data['time_steps'], ylim=(0, 10))
-    plot_return_per_episode_std(data['returns'], ylim=(-50, 0))
-    plot_psi_is_per_episode_std(data['psi_is'])
+    plot_fht_per_episode_std(dt * data['time_steps'], ylim=(0, 5))
+    plot_return_per_episode_std(data['returns'], ylim=(-40, 0))
+    plot_psi_is_per_episode_std(np.exp(data['log_psi_is']), ylim=(1e-3, 1e-1))
 
 if __name__ == '__main__':
     main()

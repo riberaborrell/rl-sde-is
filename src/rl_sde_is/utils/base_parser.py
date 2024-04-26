@@ -9,6 +9,12 @@ def get_base_parser():
         help='Type of agent. Default: random',
     )
     parser.add_argument(
+        '--n-envs',
+        type=int,
+        default=1,
+        help='Set number of gym environments. Default: 1',
+    )
+    parser.add_argument(
         '--state-init-dist',
         choices=['delta', 'uniform'],
         default='delta',
@@ -19,6 +25,12 @@ def get_base_parser():
         choices=['state-action', 'state-action-next-state', 'baseline'],
         default='state-action',
         help='the step size / learning rate parameter is constant.',
+    )
+    parser.add_argument(
+        '--baseline-scale-factor',
+        type=float,
+        default=1.,
+        help='Scaling factor of the added reward baseline. Default: 1.',
     )
     parser.add_argument(
         '--d',
@@ -151,6 +163,12 @@ def get_base_parser():
         help='Set number of episodes. Default: 1000',
     )
     parser.add_argument(
+        '--n-eval-episodes',
+        type=int,
+        default=1000,
+        help='Set number of episodes. Default: 1000',
+    )
+    parser.add_argument(
         '--n-avg-episodes',
         type=int,
         default=100,
@@ -165,7 +183,8 @@ def get_base_parser():
     parser.add_argument(
         '--backup-freq-episodes',
         type=int,
-        help='Set frequency of backups in terms of number of episodes. Default: None',
+        default=100,
+        help='Set frequency of backups in terms of number of episodes. Default: 10',
     )
     parser.add_argument(
         '--n-iterations',
