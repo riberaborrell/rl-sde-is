@@ -14,6 +14,7 @@ def get_vracer_params_str(args):
         baseline_str = ''
 
     param_str = baseline_str \
+              + 'expl-noise{:.1f}_'.format(args.expl_noise_init) \
               + 'policy-freq{:d}_'.format(args.policy_freq) \
               + 'n-episodes{:.0e}_'.format(args.n_episodes) \
               + 'seed{}'.format(args.seed)
@@ -94,6 +95,38 @@ def set_vracer_train_params(e, gym_env, args):
     e["File Output"]["Enabled"] = True
     e["File Output"]["Frequency"] = args.backup_freq_episodes
     e["File Output"]["Path"] = get_vracer_dir_path(gym_env, args)
+
+
+def set_vracer_variables_toy(e, gym_env, args):
+    for i in range(gym_env.d):
+        idx = i
+        e["Variables"][idx]["Name"] = "Position x{:d}".format(i)
+        e["Variables"][idx]["Type"] = "State"
+
+    for i in range(gym_env.d):
+        idx = gym_env.d + i
+        e["Variables"][idx]["Name"] = "Control u{:d}".format(i)
+        e["Variables"][idx]["Type"] = "Action"
+        e["Variables"][idx]["Lower Bound"] = - args.action_limit
+        e["Variables"][idx]["Upper Bound"] = + args.action_limit
+        e["Variables"][idx]["Initial Exploration Noise"] = args.expl_noise_init
+
+def set_vracer_variables_butane(e, gym_env, args):
+    for i in range(4):
+        for j in range(3):
+            idx = i*3+j
+            e["Variables"][idx]["Name"] = "Position (C{:d} x{:d}-axis)".format(i, j)
+            e["Variables"][idx]["Type"] = "State"
+
+    for i in range(4):
+        for j in range(3):
+            idx = 12 + i*3+j
+            e["Variables"][idx]["Name"] = "Control ({:d}-{:d})".format(i, j)
+            e["Variables"][idx]["Type"] = "Action"
+            e["Variables"][idx]["Lower Bound"] = - args.action_limit
+            e["Variables"][idx]["Upper Bound"] = + args.action_limit
+            e["Variables"][idx]["Initial Exploration Noise"] = args.expl_noise_init
+
 
 def set_vracer_eval_params(e, gym_env, args):
     e["Solver"]["Mode"] = "Testing"

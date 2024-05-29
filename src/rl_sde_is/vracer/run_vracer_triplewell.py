@@ -7,18 +7,19 @@ import korali
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
 
-from vracer_utils import set_korali_problem, set_vracer_train_params, vracer
+from vracer_utils import *
 
 def main():
     parser = get_base_parser()
     parser.description = 'Run V-racer for the sde importance sampling environment \
-                          with a triple well potential'
+                          with a triple well potential.'
     args = parser.parse_args()
 
     # create gym environment
     gym_env = gym.make(
-        'sde-is-triplewell-mgf-v0',
+        'sde-is-triplewell-{}-v0'.format(args.setting),
         beta=args.beta,
+        alpha=args.alpha,
         reward_type=args.reward_type,
         baseline_scale_factor=args.baseline_scale_factor,
         state_init_dist=args.state_init_dist,
@@ -32,24 +33,9 @@ def main():
     set_korali_problem(e, gym_env, args)
 
     # Set V-RACER training parameters
+    args.action_limit = 5.0
     set_vracer_train_params(e, gym_env, args)
-
-    # Define Variables
-    e["Variables"][0]["Name"] = "Position x1"
-    e["Variables"][0]["Type"] = "State"
-    e["Variables"][1]["Name"] = "Position x2"
-    e["Variables"][1]["Type"] = "State"
-
-    e["Variables"][2]["Name"] = "Control u1"
-    e["Variables"][2]["Type"] = "Action"
-    e["Variables"][2]["Lower Bound"] = -5.0
-    e["Variables"][2]["Upper Bound"] = +5.0
-    e["Variables"][2]["Initial Exploration Noise"] = 1.0
-    e["Variables"][3]["Name"] = "Control u2"
-    e["Variables"][3]["Type"] = "Action"
-    e["Variables"][3]["Lower Bound"] = -5.0
-    e["Variables"][3]["Upper Bound"] = +5.0
-    e["Variables"][3]["Initial Exploration Noise"] = 1.0
+    set_vracer_variables_toy(e, gym_env, args)
 
     # vracer
     data = vracer(e, gym_env, args, load=args.load)

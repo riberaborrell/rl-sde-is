@@ -378,7 +378,7 @@ def get_td3_dir_path(env, **kwargs):
               + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
-              + 'policy-delay{:d}_'.format(kwargs['policy_delay']) \
+              + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \
               + 'target-noise{:.1f}_'.format(kwargs['target_noise']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \

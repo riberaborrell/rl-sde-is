@@ -3,6 +3,18 @@ import argparse
 def get_base_parser():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument(
+        '--setting',
+        choices=['mgf', 'committor'],
+        default='mgf',
+        help='Set setting type. Default: mgf',
+    )
+    parser.add_argument(
+        '--problem',
+        choices=['doublewell-1d', 'doublewell-2d', 'triplewell', 'butane'],
+        default='doublewell-1d',
+        help='Set setting type. Default: doublewell-1d',
+    )
+    parser.add_argument(
         '--agent-type',
         choices=['random', 'not-controlled', 'hjb', 'trained'],
         default='random',
