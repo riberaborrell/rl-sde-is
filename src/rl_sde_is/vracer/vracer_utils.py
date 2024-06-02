@@ -1,3 +1,4 @@
+import json
 import os
 
 import korali
@@ -21,6 +22,10 @@ def get_vracer_params_str(args):
     return param_str
 
 def get_vracer_dir_path(gym_env, args):
+    #TODO: refactor get_rel_dir_path to get_dir_path
+    return get_rel_dir_path(gym_env.unwrapped.__str__(), 'vracer', get_vracer_params_str(args))
+
+def get_vracer_rel_dir_path(gym_env, args):
     return os.path.join(
         os.path.relpath(DATA_ROOT_DIR),
         gym_env.unwrapped.__str__(),
@@ -94,7 +99,7 @@ def set_vracer_train_params(e, gym_env, args):
     e["Console Output"]["Verbosity"] = "Detailed"
     e["File Output"]["Enabled"] = True
     e["File Output"]["Frequency"] = args.backup_freq_episodes
-    e["File Output"]["Path"] = get_vracer_dir_path(gym_env, args)
+    e["File Output"]["Path"] = get_vracer_rel_dir_path(gym_env, args)
 
 
 def set_vracer_variables_toy(e, gym_env, args):
@@ -134,7 +139,7 @@ def set_vracer_eval_params(e, gym_env, args):
     e["Console Output"]["Verbosity"] = "Detailed"
     e["File Output"]["Enabled"] = True
     e["File Output"]["Frequency"] = 1
-    e["File Output"]["Path"] = get_vracer_dir_path(gym_env, args)
+    e["File Output"]["Path"] = get_vracer_rel_dir_path(gym_env, args)
 
 def vracer(e, gym_env, args, load=False):
 
@@ -144,7 +149,11 @@ def vracer(e, gym_env, args, load=False):
 
     # load results
     if load:
-        return load_data(args.rel_dir_path)
+        try:
+            data = load_data(args.rel_dir_path)
+            return data
+        except FileNotFoundError as e:
+            print(e)
 
     # korali engine
     k = korali.Engine()
@@ -162,3 +171,12 @@ def vracer(e, gym_env, args, load=False):
     save_data(data, args.rel_dir_path)
 
     return data
+
+"""
+def get_timestamp(korali_file: str):
+    with open(korali_file, "r") as f:
+        e = json.load(f)
+        timestamp = e["Timestamp"]
+        #TODO parse it to datetime object
+"""
+

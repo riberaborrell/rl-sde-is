@@ -53,8 +53,9 @@ def get_base_parser():
     parser.add_argument(
         '--alpha',
         type=float,
+        nargs='+',
         default=1.,
-        help='Double well potential parameter. Default: 1.',
+        help='Potential barrier parameter. Default: 1.',
     )
     parser.add_argument(
         '--beta',
@@ -170,12 +171,6 @@ def get_base_parser():
     )
     parser.add_argument(
         '--n-episodes',
-        type=int,
-        default=1000,
-        help='Set number of episodes. Default: 1000',
-    )
-    parser.add_argument(
-        '--n-eval-episodes',
         type=int,
         default=1000,
         help='Set number of episodes. Default: 1000',
@@ -365,6 +360,11 @@ def get_base_parser():
         '--save-traj',
         action='store_true',
         help='Save states, actions and rewards of the first trajectory. Default: False',
+    )
+    parser.add_argument(
+        '--track-l2-error',
+        action='store_true',
+        help='track policy l2 error',
     )
     parser.add_argument(
         '--track',

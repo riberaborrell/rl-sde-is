@@ -19,7 +19,7 @@ def main():
     gym_env = gym.make(
         'sde-is-triplewell-{}-v0'.format(args.setting),
         beta=args.beta,
-        alpha=args.alpha,
+        alpha=np.array(args.alpha),
         reward_type=args.reward_type,
         baseline_scale_factor=args.baseline_scale_factor,
         state_init_dist=args.state_init_dist,
@@ -40,11 +40,15 @@ def main():
     # vracer
     data = vracer(e, gym_env, args, load=args.load)
 
-    if args.plot:
-        dt = gym_env.unwrapped.dt
-        plot_return_per_episode_std(data['returns'])
-        plot_fht_per_episode_std(dt * data['time_steps'])
-        plot_psi_is_per_episode_std(np.exp(data['log_psi_is']), ylim=(1e-2, 2e-1))
+    # plots
+    if not args.plot: return
+
+    # time step
+    dt = gym_env.unwrapped.dt
+
+    plot_return_per_episode_std(data['returns'])
+    plot_fht_per_episode_std(dt * data['time_steps'])
+    plot_psi_is_per_episode_std(np.exp(data['log_psi_is']), ylim=(1e-2, 2e-1))
 
 if __name__ == '__main__':
     main()

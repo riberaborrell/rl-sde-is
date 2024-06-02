@@ -50,13 +50,13 @@ def get_fig_notebooks_dir_path():
 
     return dir_path
 
-def save_data(data_dict, rel_dir_path):
-    file_path = os.path.join(get_data_dir(), rel_dir_path, 'agent.npz')
+def save_data(data_dict, rel_dir_path, file_name: str = 'agent.npz'):
+    file_path = os.path.join(get_data_dir(), rel_dir_path, file_name)
     np.savez(file_path, **data_dict)
 
-def load_data(rel_dir_path):
+def load_data(rel_dir_path, file_name: str = 'agent.npz'):
     try:
-        file_path = os.path.join(get_data_dir(), rel_dir_path, 'agent.npz')
+        file_path = os.path.join(get_data_dir(), rel_dir_path, file_name)
         data = dict(np.load(file_path, allow_pickle=True))
         for file_name in data.keys():
             if data[file_name].ndim == 0:

@@ -19,7 +19,7 @@ def main():
     gym_env = gym.make(
         'sde-is-doublewell-1d-{}-v0'.format(args.setting),
         beta=args.beta,
-        alpha=args.alpha,
+        alpha=np.array(args.alpha),
         reward_type=args.reward_type,
         baseline_scale_factor=args.baseline_scale_factor,
         state_init_dist=args.state_init_dist,
