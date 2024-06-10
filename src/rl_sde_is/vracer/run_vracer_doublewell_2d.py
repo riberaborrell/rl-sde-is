@@ -20,6 +20,7 @@ def main():
         'sde-is-doublewell-2d-{}-v0'.format(args.setting),
         beta=args.beta,
         alpha=np.array(args.alpha),
+        T=args.T,
         reward_type=args.reward_type,
         baseline_scale_factor=args.baseline_scale_factor,
         state_init_dist=args.state_init_dist,
@@ -48,7 +49,7 @@ def main():
 
     plot_return_per_episode_std(data['returns'])
     plot_fht_per_episode_std(dt * data['time_steps'])
-    plot_psi_is_per_episode_std(np.exp(data['log_psi_is']), ylim=(1e-2, 2e-1))
+    plot_psi_is_per_episode_std(data['is_functional'])
 
 if __name__ == '__main__':
     main()

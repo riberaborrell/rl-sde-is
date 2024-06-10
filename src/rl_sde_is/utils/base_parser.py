@@ -4,7 +4,7 @@ def get_base_parser():
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument(
         '--setting',
-        choices=['mgf', 'committor'],
+        choices=['mgf', 'committor', 'fht-prob'],
         default='mgf',
         help='Set setting type. Default: mgf',
     )
@@ -54,7 +54,7 @@ def get_base_parser():
         '--alpha',
         type=float,
         nargs='+',
-        default=1.,
+        default=[1.],
         help='Potential barrier parameter. Default: 1.',
     )
     parser.add_argument(
@@ -74,6 +74,12 @@ def get_base_parser():
         type=float,
         default=0.005,
         help='Set Euler-Marujama time discretization step. Default: 0.005',
+    )
+    parser.add_argument(
+        '--T',
+        type=float,
+        default=1.0,
+        help='Set finite-time horizon. Default: 1.0',
     )
     parser.add_argument(
         '--seed',

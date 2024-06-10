@@ -20,6 +20,7 @@ def main():
         'sde-is-butane-{}-v0'.format(args.setting),
         temperature=args.temperature,
         gamma=10.0,
+        T=args.T,
     )
     gym_env = RecordEpisodeStatistics(gym_env, args.n_episodes)
 
@@ -45,9 +46,9 @@ def main():
     # time step
     dt = gym_env.unwrapped.dt
 
-    plot_fht_per_episode_std(dt * data['time_steps'], ylim=(0, 5))
-    plot_return_per_episode_std(data['returns'], ylim=(-40, 0))
-    plot_psi_is_per_episode_std(np.exp(data['log_psi_is']), ylim=(1e-3, 1e-1))
+    plot_fht_per_episode_std(dt * data['time_steps'])
+    plot_return_per_episode_std(data['returns'])
+    plot_psi_is_per_episode_std(data['is_functional'])
 
 if __name__ == '__main__':
     main()

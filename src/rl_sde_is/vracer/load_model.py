@@ -6,6 +6,24 @@ import torch.nn as nn
 from rl_sde_is.vracer.vracer_utils import get_vracer_rel_dir_path
 from rl_sde_is.models import mlp
 
+def square_plus(x, b=1):
+    return 0.5 * (x + torch.sqrt(x**2 + b))
+
+class OutputActivation(nn.Module):
+    def __init__(self, idx):
+        super().__init__()
+        self.idx = idx
+        #self.stds_output_activation = square_plus
+        self.stds_output_activation = nn.Softplus()
+
+    def forward(self, x):
+        if x.ndim == 1:
+            x[self.idx] = self.stds_output_activation(x[self.idx])
+        elif x.ndim == 2:
+            x[:, self.idx] = self.stds_output_activation(x[:, self.idx])
+        return x
+
+
 class VracerModel(nn.Module):
 
     def __init__(self, d_in, d_out, hidden_sizes, activation):
@@ -14,7 +32,8 @@ class VracerModel(nn.Module):
         self.d_out = d_out
         self.d_out_tot = 1 + 2 * d_out # V, mus, stds
         self.sizes = [d_in] + list(hidden_sizes) + [self.d_out_tot]
-        self.model = mlp(self.sizes, activation)
+        output_activation = OutputActivation(slice(1+self.d_out, self.d_out_tot))
+        self.model = mlp(self.sizes, activation, output_activation)
 
     def forward(self, state):
         return self.model.forward(state)

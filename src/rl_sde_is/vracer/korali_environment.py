@@ -3,6 +3,7 @@
 import numpy as np
 
 from rl_sde_is.utils.path import load_data, save_data
+from rl_sde_is.vracer.vracer_utils import collect_vracer_results
 
 def env(s, gym_env, args):
 
@@ -14,17 +15,16 @@ def env(s, gym_env, args):
 
     # initial state
     s["State"] = gym_env.unwrapped._state.tolist()
-    step = 0
-    done = False
 
-    while not done and step < args.n_steps_lim:
+    done = False
+    while not done:
 
         # Getting new action
         s.update()
 
         # Performing the action
         action = np.array(s["Action"], dtype=np.float32)
-        obs, r, done, _, info = gym_env.step(action)
+        obs, r, terminated, truncated, info = gym_env.step(action)
 
         # Getting Reward
         s["Reward"] = r
@@ -32,23 +32,15 @@ def env(s, gym_env, args):
         # Storing New State
         s["State"] = obs.tolist()
 
-        # Advancing step counter
-        step = step + 1
+        # interrupt if terminal state is reached or the episode is truncated
+        done = terminated or truncated
 
     # Setting termination status
-    if done:
-        s["Termination"] = "Terminal"
-    else:
-        s["Termination"] = "Truncated"
+    s["Termination"] = "Terminal" if terminated else "Truncated"
 
     # checkpoint results
     if gym_env.episode_count % args.backup_freq_episodes == 0:
 
-        # collect results
-        data = {}
-        data['time_steps'] = gym_env.lengths
-        data['returns'] = gym_env.returns
-        data['log_psi_is'] = gym_env.log_psi_is
-
         # save results
+        data = collect_vracer_results(gym_env)
         save_data(data, args.rel_dir_path)

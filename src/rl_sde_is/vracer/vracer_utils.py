@@ -3,8 +3,8 @@ import os
 
 import korali
 import numpy as np
+from gym_sde_is.utils.sde import compute_is_functional
 
-from rl_sde_is.vracer.korali_environment import env
 from rl_sde_is.utils.config import DATA_ROOT_DIR
 from rl_sde_is.utils.path import load_data, save_data, get_rel_dir_path
 
@@ -34,6 +34,7 @@ def get_vracer_rel_dir_path(gym_env, args):
     )
 
 def set_korali_problem(e, gym_env, args):
+    from rl_sde_is.vracer.korali_environment import env
 
     # problem configuration
     e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
@@ -141,6 +142,15 @@ def set_vracer_eval_params(e, gym_env, args):
     e["File Output"]["Frequency"] = 1
     e["File Output"]["Path"] = get_vracer_rel_dir_path(gym_env, args)
 
+def collect_vracer_results(gym_env):
+    data = {}
+    data['time_steps'] = gym_env.lengths
+    data['returns'] = gym_env.returns
+    #data['log_psi_is'] = gym_env.log_psi_is
+    data['is_functional'] = compute_is_functional(gym_env.girs_stoch_int, gym_env.running_rewards,
+                                                  gym_env.terminal_rewards)
+    return data
+
 def vracer(e, gym_env, args, load=False):
 
     # get dir path
@@ -161,13 +171,8 @@ def vracer(e, gym_env, args, load=False):
     # Running Experiment
     k.run(e)
 
-    # collect results
-    data = {}
-    data['time_steps'] = gym_env.lengths
-    data['returns'] = gym_env.returns
-    data['log_psi_is'] = gym_env.log_psi_is
-
     # save results
+    data = collect_vracer_results(gym_env)
     save_data(data, args.rel_dir_path)
 
     return data
