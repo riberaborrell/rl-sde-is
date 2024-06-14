@@ -20,9 +20,10 @@ def main():
 
         # create gym envs 
         env = gym.make(
-            'sde-is-doublewell-2d-{}-v0'.format(args.setting),
+            'sde-is-{}-{}-v0'.format(args.problem, args.setting),
             alpha=np.array(args.alpha),
             beta=args.beta,
+            T=args.T,
             reward_type=args.reward_type,
             state_init_dist=args.state_init_dist,
         )
@@ -38,17 +39,16 @@ def main():
 
         # save and log epoch 
         l2_errors = env.l2_errors if args.track_l2_error else None
+        is_functional = compute_is_functional(env.girs_stoch_int,
+                                              env.running_rewards, env.terminal_rewards)
         ais_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                             np.exp(env.log_psi_is), l2_errors)
+                             is_functional, l2_errors)
         ais_stats.log_epoch(i)
         env.close()
 
     # save is statistics
     dir_path = get_vracer_dir_path(env, args)
     ais_stats.save_stats(dir_path)
-
-    # close env
-    env.close()
 
 
 if __name__ == '__main__':

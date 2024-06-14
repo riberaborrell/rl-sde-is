@@ -73,6 +73,10 @@ class AISStatistics(object):
         # get data dictionary
         data = load_data(dir_path, file_name='eval.npz')
 
+        assert self.n_episodes == data['n_episodes'], 'n_episodes mismatch'
+        assert self.eval_freq_episodes == data['eval_freq_episodes'], 'eval freq episodes mismatch'
+        assert self.eval_batch_size == data['eval_batch_size'], 'eval batch size mismatch'
+
         # recover attributes
         for key in data:
             setattr(self, key, data[key])

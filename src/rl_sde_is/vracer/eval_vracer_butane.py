@@ -20,9 +20,10 @@ def main():
 
         # create gym envs 
         env = gym.make(
-            'sde-is-butane-mgf-v0',
+            'sde-is-butane-{}-v0'.format(args.setting),
             temperature=args.temperature,
             gamma=10.0,
+            T=args.T,
         )
         env = RecordEpisodeStatistics(env, args.test_batch_size)
 
@@ -35,8 +36,11 @@ def main():
         evaluate_policy(env, model, args.test_batch_size)
 
         # save and log epoch 
+        is_functional = compute_is_functional(
+            env.girs_stoch_int, env.running_rewards, env.terminal_rewards,
+        )
         ais_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                             np.exp(env.log_psi_is))
+                             is_functional)
         ais_stats.log_epoch(i)
         env.close()
 

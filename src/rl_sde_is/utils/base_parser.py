@@ -310,7 +310,7 @@ def get_base_parser():
         '--action-limit',
         type=float,
         default=10,
-        help='Set action limit for policy smoothing. Default: 10',
+        help='Set action limit. Default: 10',
     )
     parser.add_argument(
         '--polyak',
