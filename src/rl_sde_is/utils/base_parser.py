@@ -10,7 +10,7 @@ def get_base_parser():
     )
     parser.add_argument(
         '--problem',
-        choices=['doublewell-1d', 'doublewell-2d', 'triplewell', 'butane'],
+        choices=['brownian-1d', 'doublewell-1d', 'doublewell-2d', 'triplewell', 'butane'],
         default='doublewell-1d',
         help='Set setting type. Default: doublewell-1d',
     )

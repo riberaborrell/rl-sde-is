@@ -93,7 +93,8 @@ def get_rel_dir_path(env_str, algorithm_name, param_str):
 
 def get_initial_point_str(env):
     if env.state_init_dist == 'delta':
-        string = 'init-state{:2.1f}_'.format(env.state_init[0, 0].item())
+        #string = 'init-state{:2.1f}_'.format(env.state_init[0, 0].item())
+        string = 'init-state{:2.1f}_'.format(env.state_init[0].item())
     elif env.state_init_dist == 'uniform':
         string = 'uniform_'
 
@@ -167,7 +168,7 @@ def get_dynamic_programming_tables_dir_path(env):
               + 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}'.format(env.dt)
 
-    return get_rel_dir_path(env, 'dp-tables', param_str)
+    return get_rel_dir_path(env.unwrapped.__str__(), 'dp-tables', param_str)
 
 def get_dynamic_programming_dir_path(env, **kwargs):
     '''
@@ -178,7 +179,7 @@ def get_dynamic_programming_dir_path(env, **kwargs):
               + 'dt{:.0e}_'.format(env.dt) \
               + 'n-it{:.0e}'.format(kwargs['n_iterations'])
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_rel_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_tabular_td_prediction_dir_path(env, **kwargs):
     '''
@@ -348,7 +349,7 @@ def get_dpg_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_rel_dir_path(env.name, kwargs['agent'], param_str)
 
 def get_ddpg_dir_path(env, **kwargs):
     '''
@@ -372,10 +373,7 @@ def get_td3_dir_path(env, **kwargs):
     '''
 
     # set parameters string
-    param_str = get_initial_point_str(env) \
-              + get_baseline_str(env) \
-              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
-              + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
+    param_str = 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \
@@ -387,4 +385,4 @@ def get_td3_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env.name, kwargs['agent'], param_str)
+    return get_rel_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)

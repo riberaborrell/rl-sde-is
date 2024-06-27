@@ -1,26 +1,63 @@
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from matplotlib import colors, cm, rc, rcParams
+from matplotlib import colors, cm
 
-from rl_sde_is.utils.figures import TITLES_FIG, COLORS_FIG, COLORS_TAB20b
+import rl_sde_is.utils.figures
 from rl_sde_is.utils.numeric import compute_running_mean, compute_running_variance
 
-# set matplotlib hyperparameters
-mpl.rcParams['lines.linewidth'] = 2.5
-mpl.rcParams['axes.labelsize'] = 14
-mpl.rcParams['xtick.labelsize'] = 14
-mpl.rcParams['ytick.labelsize'] = 14
-mpl.rcParams['legend.fontsize'] = 12
+COLORS_TAB10 = [plt.cm.tab10(i) for i in range(20)]
+COLORS_TAB20 = [plt.cm.tab20(i) for i in range(20)]
+COLORS_TAB20b = [plt.cm.tab20b(i) for i in range(20)]
+COLORS_TAB20c = [plt.cm.tab20c(i) for i in range(20)]
+COLORS_FIG = {
+    'hjb': 'black',
+}
+
+TITLES_FIG = {
+    'potential': r'Potential $V(s)$',
+    'perturbed-potential': r'Perturbed Potential $\widetilde{V}(s)$',
+    'policy': r'Policy $\mu_\theta(s)$',
+    'stoch-policy': r'Stochastic policy $\pi_\theta(s)$',
+    'value-function': r'Value function $V_\omega(s)$',
+    'q-value-function': r'Q-value function $Q_\omega(s, a)$',
+    'a-value-function': r'Advantage function $A_\omega(s, a)$',
+    'value-rms-error': r'RMS Error of $V(s)$',
+    'policy-rms-error': r'RMS Error of $\pi(s)$',
+    'policy-l2-error': r'Estimation of $L^2(\mu_\theta)$',
+    'loss': r'$\widehat{J}(\mu_\theta)$',
+    'returns': r'Return $G_0^\tau$',
+    'time-steps': r'TS',
+    'ct': r'CT(s)',
+}
+TITLES_FIG['policy']
+
+def plot_test():
+    fig, ax = plt.subplots()
+    ax.set_title('Test')
+    plt.show()
+
+def get_plot_function(ax, plot_scale):
+    if plot_scale == 'linear':
+        return ax.plot
+    elif plot_scale == 'semilogx':
+        return ax.semilogx
+    elif plot_scale == 'semilogy':
+        return ax.semilogy
+    elif plot_scale == 'loglog':
+        return ax.loglog
+    else:
+        raise ValueError('plot_scale must be one of: lineal, semilogx, semilogy, loglog')
 
 def get_state_action_1d_extent(env):
     ''' set extent bounds for 1d state space in the x-axis and
         1d action space in the y-axis
     '''
 
-    extent = env.state_space_h[0] - env.h_state/2, env.state_space_h[-1] + env.h_state/2, \
-             env.action_space_h[0] - env.h_action/2, env.action_space_h[-1] + env.h_action/2
+    state_space_h = env.state_space_h.squeeze()
+    action_space_h = env.action_space_h.squeeze()
+    extent = state_space_h[0] - env.h_state/2, state_space_h[-1] + env.h_state/2, \
+             action_space_h[0] - env.h_action/2, action_space_h[-1] + env.h_action/2
     return extent
 
 def get_state_2d_extent(env):
@@ -84,25 +121,65 @@ def plot_episode_states_2d(env, ep_states):
     plt.show()
 
 
-def plot_y_per_episode(y, run_window: int = 100, loc=None,
-                        xlim=None, ylim=None, titel: str = ''):
-    run_mean_y = compute_running_mean(y, run_window)
+def plot_y_per_episode(x, y, hlines=None, title: str = '', xlim=None, ylim=None,
+                       plot_scale='linear', legend: bool = False, loc=None):
+
     fig, ax = plt.subplots()
-    ax.set_title(titel)
+    ax.set_title(title)
     ax.set_xlabel('Episodes')
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
-    plt.plot(y, alpha=0.4, c='tab:blue')
-    plt.plot(run_mean_y, label='running mean of last returns', c='tab:blue')
-    plt.legend(loc=loc)
+    plot_fn = get_plot_function(ax, plot_scale)
+    plot_fn(x, y, c='tab:blue')
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
     plt.show()
 
-def plot_y_per_episode_std(y, run_window: int = 100, xlim=None, ylim=None, titel: str = ''):
+def plot_y_per_episode_with_run_mean(x, y, run_window: int = 1, title: str = '', xlim=None,
+                                     ylim=None, legend: bool = False, loc=None):
+
+    run_mean_y = compute_running_mean(y, run_window)
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel('Episodes')
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plt.plot(x, y, alpha=0.4, c='tab:blue')
+    if run_window > 0:
+        plt.plot(x, run_mean_y, label='running mean of last returns', c='tab:blue')
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
+def plot_y_avg_per_episode(ys, x=None, hlines=None, title: str = '', xlim=None, ylim=None,
+                           plot_scale='linear', legend: bool = False, loc: str = 'upper right'):
+    if x is None:
+        x = np.arange(ys.shape[1])
+    y = np.mean(ys, axis=0)
+    error = np.sqrt(np.var(ys, axis=0))
+    fig, ax = plt.subplots()
+    plot_fn = get_plot_function(ax, plot_scale)
+    ax.set_title(title, size=20)
+    ax.set_xlabel('Episodes')
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plot_fn(x, y, label='Mean')
+    ax.fill_between(x, y-error, y+error, alpha=0.4, label='Standard deviation')
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
+def plot_y_per_episode_std(y, run_window: int = 100, hlines=None, title: str = '', xlim=None,
+                           ylim=None, plot_scale='linear', legend: bool = False, loc: str = 'upper right'):
     run_mean_y = compute_running_mean(y, run_window)
     run_var_y = compute_running_variance(y, run_window)
 
     fig, ax = plt.subplots()
-    ax.set_title(titel)
+    plot_fn = get_plot_function(ax, plot_scale)
+    ax.set_title(title)
     ax.set_xlabel('Episodes')
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
@@ -112,26 +189,65 @@ def plot_y_per_episode_std(y, run_window: int = 100, xlim=None, ylim=None, titel
     error = np.sqrt(run_var_y)
     ax.plot(x, y, label='running mean')
     ax.fill_between(x, y-error, y+error, alpha=0.4, label='standard deviation')
-    plt.legend()
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
     plt.show()
 
+def plot_mean_y_per_episode_with_std(x, mean_y, std_y=None, hlines=None, title: str = '', xlim=None,
+                                     ylim=None, plot_scale='linear', legend: bool = False,
+                                     loc: str = 'upper right'):
+    fig, ax = plt.subplots()
+    plot_fn = get_plot_function(ax, plot_scale)
+    ax.set_title(title)
+    ax.set_xlabel('Episodes')
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plot_fn(x, mean_y, label='running mean')
+    if std_y is not None:
+        ax.fill_between(x, mean_y-std_y, mean_y+std_y, alpha=0.4, label='standard deviation')
+    if hlines:
+        for (hline, std_hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+            #ax.fill_between(x, hline-std_hline, hline+std_hline, alpha=0.4)#, label='standard deviation')
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
+def plot_ys_per_episode(ys, run_window: int = 100, title: str = '', xlim=None, ylim=None,
+                        labels=None, legend: bool = False, loc=None):
+    n_lines = len(ys)
+    if labels is None:
+        labels = [None for i in range(n_lines)]
+    run_mean_ys = np.array([compute_running_mean(y, run_window) for y in ys])
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel('Episodes')
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    for i in range(n_lines):
+        plt.plot(run_mean_ys[i], label=labels[i])
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
+
 def plot_return_per_episode(returns, **kwargs):
-    plot_y_per_episode(returns, titel='Returns', **kwargs)
+    plot_y_per_episode(returns, title='Returns', **kwargs)
 
 def plot_return_per_episode_std(returns, **kwargs):
-    plot_y_per_episode_std(returns, titel='Returns', **kwargs)
+    plot_y_per_episode_std(returns, title='Returns', **kwargs)
 
 def plot_fht_per_episode(fhts, **kwargs):
-    plot_y_per_episode(fhts, titel=r'$\tau$', **kwargs)
+    plot_y_per_episode(fhts, title=r'$\tau$', **kwargs)
 
 def plot_fht_per_episode_std(fhts, **kwargs):
-    plot_y_per_episode_std(fhts, titel=r'$\tau$', **kwargs)
+    plot_y_per_episode_std(fhts, title=r'$\tau$', **kwargs)
 
 def plot_psi_is_per_episode(psi, **kwargs):
-    plot_y_per_episode(psi, titel=r'$\Psi$', **kwargs)
+    plot_y_per_episode(psi, title=r'$\Psi$', **kwargs)
 
 def plot_psi_is_per_episode_std(psi, **kwargs):
-    plot_y_per_episode_std(psi, titel=r'$\Psi$', **kwargs)
+    plot_y_per_episode_std(psi, title=r'$\Psi$', **kwargs)
 
 def plot_expected_returns_epochs(test_mean_returns):
     fig, ax = plt.subplots()
@@ -361,7 +477,9 @@ def plot_q_value_function_1d(env, q_table, vmin=None, file_path=None):
     #ax.plot(np.nan, alpha=0., label=r'bla')
     #ax.legend()
 
-    im = fig.axes[0].imshow(
+    breakpoint()
+    #im = fig.axes[0].imshow(
+    im = ax.imshow(
         q_table.T,
         vmin=vmin,
         vmax=0,
@@ -419,44 +537,48 @@ def plot_advantage_function_1d(env, a_table, policy_opt=None, policy_critic=None
     else:
         plt.show()
 
-def plot_value_function_1d(env, value_function, value_function_opt=None, loc=None):
+def plot_value_function_1d(env, value_function, value_function_opt=None, ylim=None,
+                           legend: bool = False, loc=None):
 
     fig, ax = plt.subplots()
     ax.set_title(TITLES_FIG['value-function'])
     ax.set_xlabel('States')
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
+    if ylim: ax.set_ylim(ylim)
     ax.plot(env.state_space_h, value_function)
     if value_function_opt is not None:
         ax.plot(env.state_space_h, value_function_opt, label=r'hjb', ls=':', c='black')
     ax.legend(loc=loc)
     plt.show()
 
-def plot_value_function_2d(env, value_function, value_function_opt, file_path=None):
+def plot_value_function_2d(env, value_function, value_function_opt, levels=10,
+                           isolines=True, title: str = '', file_path=None):
 
     fig, ax = plt.subplots()
-    ax.set_title(r'Value function $V(s) = max_a Q_\omega(s, a)$')
+    ax.set_title(title)
     ax.set_xlabel(r'$s_1$')
     ax.set_ylabel(r'$s_2$')
 
-    im = fig.axes[0].imshow(
-        value_function.T,
+    cs = ax.contourf(
+        env.state_space_h[:, :, 0],
+        env.state_space_h[:, :, 1],
+        value_function,
+        levels=levels,
         vmin=np.min(value_function_opt),
         vmax=np.max(value_function_opt),
         origin='lower',
         extent=get_state_2d_extent(env),
-        cmap=cm.coolwarm,
+        cmap='Blues_r',
     )
+    if isolines: ax.contour(cs, colors='k')
 
     # add space for colour bar
-    fig.subplots_adjust(right=0.85)
-    cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
-    fig.colorbar(im, cax=cbar_ax)
+    #fig.subplots_adjust(right=0.85)
+    #cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+    #fig.colorbar(cs, cax=cbar_ax)
+    fig.colorbar(cs)
 
-    if file_path is not None:
-        plt.savefig(file_path, format='pdf')
-    else:
-        plt.show()
-
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_value_function_1d_actor_critic(env, value_function_critic_initial, value_function_critic,
                                         value_function_actor_critic, value_function_opt,
@@ -546,14 +668,14 @@ def plot_det_policy_1d(env, policy, policy_opt=None, loc=None):
 
     ax.plot(env.state_space_h, policy)
     if policy_opt is not None:
-        ax.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'hjb')
+        ax.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'optimal')
     ax.legend(loc=loc)
     plt.show()
 
 def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
                          ylim=None, loc='upper right', file_path=None):
 
-    n_policies = policies.shape[0]
+    n_policies = len(policies)
 
     if labels is None:
         labels = ['' for i in range(n_policies + 1)]
@@ -562,9 +684,9 @@ def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
         colors = [None for i in range(n_policies + 1)]
 
     fig, ax = plt.subplots()
-    #ax.set_title(TITLES_FIG['policy'])
-    ax.set_xlabel('x', fontsize=16)
-    #ax.set_xlabel('States')
+    ax.set_title(TITLES_FIG['policy'])
+    #ax.set_xlabel('x')
+    ax.set_xlabel('States')
     #ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
     ax.set_xlim(-1.8, 1.8)
     if ylim is not None:
@@ -599,6 +721,39 @@ def plot_det_policies_1d_black_and_white(env, policies, policy_opt):
     #ax.set_ylim(-3, 3)
     plt.show()
 
+def plot_ys_1d(env, ys, y_opt=None, title: str = '', xlim=None, ylim=None, labels=None,
+               colors=None, legend: bool = False, loc='upper right', file_path=None):
+
+    n_lines = len(ys)
+
+    if labels is None:
+        labels = ['' for i in range(n_lines + 1)]
+
+    if colors is None:
+        colors = [None for i in range(n_lines + 1)]
+
+    x = env.state_space_h
+
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel('States')
+    if xlim is not None: ax.set_xlim(xlim)
+    if ylim is not None: ax.set_ylim(ylim)
+
+    for i in range(n_lines):
+        ax.plot(x, ys[i], c=colors[i], label=labels[i])
+
+    if y_opt is not None:
+        ax.plot(x, y_opt, c=colors[i+1], ls=':', label=labels[i+1])
+
+    if legend: plt.legend(loc=loc, fontsize=12)
+
+    if file_path is not None:
+        plt.savefig(file_path, format='pdf')
+    else:
+        plt.show()
+
+
 def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=None):
 
     # initialize figure
@@ -607,7 +762,7 @@ def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=
     # turn interactive mode on
     plt.ion()
 
-    ax.set_title(TITLES_FIG['policy'], fontsize=10)
+    ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel('States', fontsize=8)
     ax.set_xlim(env.state_space_bounds)
     ax.set_ylim(env.action_space_bounds)
@@ -639,7 +794,7 @@ def canvas_det_policy_1d_figure(env, policies, policy_opt):
         fig.suptitle('iteration: {:d}'.format(i), fontsize='x-large')
 
         ax.cla()
-        ax.set_title(TITLES_FIG['policy'], fontsize=10)
+        ax.set_title(TITLES_FIG['policy'])
         ax.set_xlabel('States', fontsize=8)
         ax.set_xlim(env.state_space_bounds)
         ax.set_ylim(env.action_space_bounds)
@@ -692,11 +847,12 @@ def plot_det_policy_2d(env, policy, policy_hjb, file_path=None):
 
     # initialize figure
     fig, ax = plt.subplots()
-    ax.set_title(TITLES_FIG['policy'])
+    #ax.set_title(TITLES_FIG['policy'])
+    ax.set_title(r'Mean $\mu_\theta$')
     ax.set_xlabel(r'$s_1$')
     ax.set_ylabel(r'$s_2$')
-    ax.set_xlim(env.state_space_bounds[0], env.state_space_bounds[1])
-    ax.set_ylim(env.state_space_bounds[0], env.state_space_bounds[1])
+    ax.set_xlim(env.state_space_bounds[0, 0], env.state_space_bounds[0, 1])
+    ax.set_ylim(env.state_space_bounds[1, 0], env.state_space_bounds[1, 1])
 
     # initialize norm object
     C = np.sqrt(U**2 + V**2)
@@ -735,7 +891,7 @@ def initialize_stoch_policy_1d_figure(env, policy, policy_opt):
     # turn interactive mode on
     plt.ion()
 
-    ax.set_title(TITLES_FIG['stoch-policy'], fontsize=10)
+    ax.set_title(TITLES_FIG['stoch-policy'])
     ax.set_xlabel('States', fontsize=8)
     ax.set_xlim(env.state_space_bounds)
     ax.set_ylim(env.action_space_bounds)
@@ -776,11 +932,11 @@ def initialize_det_policy_2d_figure(env, policy, policy_hjb):
 
     # initialize figure
     fig, ax = plt.subplots(figsize=(5, 4))
-    ax.set_title(TITLES_FIG['policy'], fontsize=10)
+    ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel(r'$s_1$', fontsize=8)
     ax.set_ylabel(r'$s_2$', fontsize=8)
-    ax.set_xlim(env.state_space_bounds[0], env.state_space_bounds[1])
-    ax.set_ylim(env.state_space_bounds[0], env.state_space_bounds[1])
+    ax.set_xlim(env.observation_space.low[0], env.observation_space.high[0])
+    ax.set_ylim(env.observation_space.low[1], env.observation_space.high[1])
 
     # turn interactive mode on
     plt.ion()
@@ -836,7 +992,7 @@ def canvas_det_policy_2d_figure(env, data, backup_episodes, policy_opt, scale=1.
 
     # initialize figure
     fig, ax = plt.subplots(figsize=(5, 4))
-    #ax.set_title(TITLES_FIG['policy'], fontsize=10)
+    #ax.set_title(TITLES_FIG['policy'])
     plt.suptitle(TITLES_FIG['policy'], fontsize=10)
     ax.set_xlabel(r'$s_1$', fontsize=8)
     ax.set_ylabel(r'$s_2$', fontsize=8)
@@ -914,7 +1070,7 @@ def initialize_return_and_time_steps_figures(env, n_episodes):
     plt.ion()
 
     # returns
-    ax1.set_title('Return', fontsize=10)
+    ax1.set_title('Return')
     ax1.set_xlabel('Episodes', fontsize=8)
     ax1.set_xlim(0, n_episodes)
     ax1.set_ylim(-20, 1)
@@ -1172,8 +1328,10 @@ def update_frequency_figure(env, n_table, im_n_table):
     # pause interval
     plt.pause(0.1)
 
-def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
-                                    policy_actor, policy_critic, value_function_opt, policy_opt):
+def initialize_actor_critic_1d_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
+                                       policy_actor, policy_critic, value_function_opt, policy_opt):
+
+    ''' initialize q-value function, value function, a-value function and policy figure '''
 
     # initialize figure with multiple subplots
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(5, 4))
@@ -1242,9 +1400,10 @@ def initialize_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_
     return (im_q_table, line_value_f_actor_critic, line_value_f_critic, im_a_table,
             line_policy_actor, line_policy_critic)
 
-def update_actor_critic_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
-                                policy_actor, policy_critic, tuples):
+def update_actor_critic_1d_figures(env, q_table, v_table_actor_critic, v_table_critic, a_table,
+                                   policy_actor, policy_critic, tuples):
 
+    ''' update q-value function, value function, a-value function and policy figure '''
     # unpack lines and images
     im_q_table, line_value_f_actor_critic, line_value_f_critic, im_a_table, \
             line_policy_actor, line_policy_critic = tuples
@@ -1355,15 +1514,15 @@ def plot_replay_buffer_1d(env, buf_states, buf_actions, file_path=None):
     n_points = buf_states.shape[0]
 
     # edges
-    x_edges = env.state_space_h[::1]
-    y_edges = env.action_space_h[::1]
+    x_edges = env.state_space_h[::1].squeeze()
+    y_edges = env.action_space_h[::1].squeeze()
 
     H, _, _ = np.histogram2d(buf_states, buf_actions, bins=(x_edges, y_edges))
     H /= n_points
 
     # initialize figure
     fig, ax = plt.subplots()
-    #ax.set_title('Histogram Replay Buffer (State-action)')
+    ax.set_title('Histogram Replay Buffer (State-action)')
     ax.set_xlabel('States')
     ax.set_ylabel('Actions')
 
@@ -1396,7 +1555,7 @@ def plot_replay_buffer_states_2d(env, buf_states, file_path=None):
 
     # initialize figure
     fig, ax = plt.subplots()
-    ax.set_title('Histogram Replay Buffer (State-action)')
+    ax.set_title('Histogram Replay Buffer (States)')
     ax.set_xlabel(r'$s_1$')
     ax.set_ylabel(r'$s_2$')
 
@@ -1433,8 +1592,8 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
         actions = env.action_space_h[replay_buffer.actions[:replay_buffer.size]]
 
     # edges
-    x_edges = env.state_space_h[::5]
-    y_edges = env.action_space_h[::5]
+    x_edges = env.state_space_h[::5].squeeze()
+    y_edges = env.action_space_h[::5].squeeze()
 
     H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
     H /= n_points
@@ -1478,3 +1637,20 @@ def update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig):
 
     # pause interval 
     plt.pause(0.1)
+
+
+def get_key_array(datas, key):
+    ''' Get array from list of dictionaries with the same key.
+        datas: list of dictionaries
+        key: entry key
+    '''
+
+    n_results = len(datas)
+
+    # create empty array
+    array = np.empty((n_results,) + datas[1][key].shape)
+
+    for idx, data in enumerate(datas):
+        array[idx] = data[key]
+
+    return array

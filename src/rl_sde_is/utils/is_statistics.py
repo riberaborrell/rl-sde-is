@@ -4,7 +4,7 @@ from gym_sde_is.utils.logging import compute_array_statistics, compute_std_and_r
 
 from rl_sde_is.utils.path import load_data, save_data
 
-class AISStatistics(object):
+class ISStatistics(object):
 
     def __init__(self, n_episodes, eval_freq_episodes,
                  eval_batch_size, track_l2_error=False, track_ct=True):
