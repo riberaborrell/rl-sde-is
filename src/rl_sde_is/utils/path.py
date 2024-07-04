@@ -77,7 +77,7 @@ def load_model(model, rel_dir_path, file_name):
     model.load_state_dict(torch.load(os.path.join(get_data_dir(), rel_dir_path, file_name)))
 
 
-def get_rel_dir_path(env_str, algorithm_name, param_str):
+def get_dir_path(env_str, algorithm_name, param_str):
 
     # relative directory path
     rel_dir_path = os.path.join(
@@ -158,7 +158,7 @@ def get_agent_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['batch_size']) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 def get_dynamic_programming_tables_dir_path(env):
     '''
@@ -168,7 +168,7 @@ def get_dynamic_programming_tables_dir_path(env):
               + 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}'.format(env.dt)
 
-    return get_rel_dir_path(env.unwrapped.__str__(), 'dp-tables', param_str)
+    return get_dir_path(env.unwrapped.__str__(), 'dp-tables', param_str)
 
 def get_dynamic_programming_dir_path(env, **kwargs):
     '''
@@ -179,7 +179,7 @@ def get_dynamic_programming_dir_path(env, **kwargs):
               + 'dt{:.0e}_'.format(env.dt) \
               + 'n-it{:.0e}'.format(kwargs['n_iterations'])
 
-    return get_rel_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_tabular_td_prediction_dir_path(env, **kwargs):
     '''
@@ -189,12 +189,11 @@ def get_tabular_td_prediction_dir_path(env, **kwargs):
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}_'.format(env.dt) \
-              + get_initial_point_str(env) \
               + 'lr{:1.2f}_'.format(kwargs['lr']) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_semi_gradient_td_prediction_dir_path(env, **kwargs):
     '''
@@ -207,7 +206,7 @@ def get_semi_gradient_td_prediction_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 def get_tabular_mc_prediction_dir_path(env, **kwargs):
     '''
@@ -221,7 +220,7 @@ def get_tabular_mc_prediction_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 
 def get_sarsa_lambda_dir_path(env, **kwargs):
@@ -238,7 +237,7 @@ def get_sarsa_lambda_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 def get_mc_learning_dir_path(env, **kwargs):
     '''
@@ -252,7 +251,7 @@ def get_mc_learning_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 def get_qlearning_dir_path(env, **kwargs):
     '''
@@ -268,7 +267,7 @@ def get_qlearning_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 #TODO: check
 def get_qlearning_batch_dir_path(env, **kwargs):
@@ -284,7 +283,7 @@ def get_qlearning_batch_dir_path(env, **kwargs):
               + 'epochs{:.0e}_'.format(kwargs['n_epochs']) \
               + 'K{:.0e}'.format(kwargs['n_episodes'])
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 #TODO: revise
 def get_dqn_dir_path(env, **kwargs):
@@ -299,26 +298,35 @@ def get_dqn_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['batch_size']) \
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
-def get_reinforce_stoch_dir_path(env, **kwargs):
+def get_reinforce_discrete_dir_path(env, **kwargs):
     '''
     '''
-    if kwargs['agent'] == 'reinforce-stochastic-discrete':
-        h_action_str = 'h-action{:.0e}_'.format(env.h_action)
-    else:
-        h_action_str = ''
 
     # set parameters string
-    param_str = h_action_str \
+    param_str = 'h-action{:.0e}_'.format(kwargs['h_action']) \
               + 'dt{:.0e}_'.format(env.dt) \
-              + get_initial_point_str(env) \
               + 'lr{:.1e}_'.format(kwargs['lr']) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+
+def get_reinforce_dir_path(env, **kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'policy-cov-{}_'.format(kwargs['policy_cov']) \
+              + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + 'K{:.0e}_'.format(kwargs['batch_size']) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 
 def get_reinforce_det_dir_path(env, **kwargs):
@@ -334,7 +342,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 def get_dpg_dir_path(env, **kwargs):
     '''
@@ -349,7 +357,7 @@ def get_dpg_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env.name, kwargs['agent'], param_str)
+    return get_dir_path(env.name, kwargs['agent'], param_str)
 
 def get_ddpg_dir_path(env, **kwargs):
     '''
@@ -366,7 +374,7 @@ def get_ddpg_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env, kwargs['agent'], param_str)
 
 def get_td3_dir_path(env, **kwargs):
     '''
@@ -385,4 +393,4 @@ def get_td3_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_rel_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)

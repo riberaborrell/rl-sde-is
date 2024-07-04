@@ -39,7 +39,7 @@ def env(s, gym_env, args):
     s["Termination"] = "Terminal" if terminated else "Truncated"
 
     # checkpoint results
-    if gym_env.episode_count % args.backup_freq_episodes == 0:
+    if gym_env.episode_count % args.backup_freq == 0:
 
         # save results
         data = collect_vracer_results(gym_env)

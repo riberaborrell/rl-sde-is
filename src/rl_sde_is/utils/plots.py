@@ -120,6 +120,22 @@ def plot_episode_states_2d(env, ep_states):
     ax.scatter(ep_states[:, 0], ep_states[:, 1], alpha=.1, c='black', marker='o', s=100)
     plt.show()
 
+def plot_y_per_x(x, y, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
+                       plot_scale='linear', legend: bool = False, loc=None):
+
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plot_fn = get_plot_function(ax, plot_scale)
+    plot_fn(x, y, c='tab:blue')
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
 
 def plot_y_per_episode(x, y, hlines=None, title: str = '', xlim=None, ylim=None,
                        plot_scale='linear', legend: bool = False, loc=None):
@@ -601,7 +617,7 @@ def plot_value_function_1d_actor_critic(env, value_function_critic_initial, valu
     ax.legend(loc=loc)
     plt.show()
 
-def plot_stoch_policy_1d(env, action_prob_dists, policy, policy_opt, loc=None):
+def plot_categorical_stoch_policy_1d(env, action_prob_dists, policy, policy_opt, loc=None):
 
     # plot action probability distributions
     fig, ax = plt.subplots()
@@ -624,39 +640,40 @@ def plot_stoch_policy_1d(env, action_prob_dists, policy, policy_opt, loc=None):
 
     # plot sampled actions following policy
     fig, ax = plt.subplots()
-    ax.set_title('Stochastic Policy')
+    ax.set_title('Actions sampled following policy')
     ax.set_xlabel('States')
-    ax.set_ylabel('Sampled actions')
-    plt.scatter(env.state_space_h, policy)
-    plt.plot(env.state_space_h, policy_opt, label=r'hjb solution')
+    ax.scatter(env.state_space_h, policy)
+    ax.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'optimal')
     plt.legend(loc=loc)
     plt.show()
 
-def plot_mu_and_simga_gaussian_stoch_policy_1d(env, mu, sigma_sq):
+def plot_gaussian_stoch_policy_1d(env, mu, sigma_sq, policy_opt):
 
     # plot mu
     fig, ax = plt.subplots()
+    ax.set_title(r'Mean $m_\theta(s)$')
+    ax.set_xlabel('States')
     ax.plot(env.state_space_h, mu)
-    ax.set_title('mu')
-    ax.set_xlabel('State space')
+    ax.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'optimal')
     plt.show()
 
     # plot sigma
     fig, ax = plt.subplots()
     ax.plot(env.state_space_h, sigma_sq)
-    ax.set_title('sigma')
-    ax.set_xlabel('State space')
+    ax.set_title(r'Sigma $\Sigma_\theta(s)$')
+    ax.set_xlabel('States')
     plt.show()
 
     # plot mu with error
-    fig, ax = plt.subplots()
-    x = env.state_space_h
+    x = env.state_space_h.squeeze()
     y = mu
     error = np.sqrt(sigma_sq)
+    fig, ax = plt.subplots()
+    ax.set_title(r'Mean $m_\theta(s)$')
+    ax.set_xlabel('State space')
     ax.plot(x, y, label='mu')
     ax.fill_between(x, y-error, y+error, alpha=0.5, label='standard deviation')
-    ax.set_title('mu')
-    ax.set_xlabel('State space')
+    ax.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'optimal')
     plt.show()
 
 def plot_det_policy_1d(env, policy, policy_opt=None, loc=None):
@@ -754,7 +771,7 @@ def plot_ys_1d(env, ys, y_opt=None, title: str = '', xlim=None, ylim=None, label
         plt.show()
 
 
-def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=None):
+def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=None, title: str = ''):
 
     # initialize figure
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -762,7 +779,7 @@ def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=
     # turn interactive mode on
     plt.ion()
 
-    ax.set_title(TITLES_FIG['policy'])
+    ax.set_title(title) if title else ax.set_title(TITLES_FIG['policy'])
     ax.set_xlabel('States', fontsize=8)
     ax.set_xlim(env.state_space_bounds)
     ax.set_ylim(env.action_space_bounds)
@@ -779,6 +796,40 @@ def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=
 
 def update_det_policy_1d_figure(env, policy, line):
     line.set_data(env.state_space_h, policy)
+    plt.pause(0.1)
+
+def initialize_gaussian_policy_1d_figure(env, mean, sigma, policy_opt=None, title: str = ''):
+
+    # initialize figure
+    fig, axes = plt.subplots(ncols=2)
+    ax1, ax2 = axes
+
+    # turn interactive mode on
+    plt.ion()
+
+    ax1.set_title(r'Mean $\mu_\theta$')
+    ax1.set_xlabel('States', fontsize=8)
+    ax1.set_xlim(env.state_space_bounds)
+    ax1.set_ylim(env.action_space_bounds)
+    mean_line = ax1.plot(env.state_space_h, mean)[0]
+    if policy_opt is not None:
+        ax1.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'hjb')
+
+    ax2.set_title(r'Sigma $\Sigma_\theta$')
+    ax2.set_xlabel('States', fontsize=8)
+    ax2.set_xlim(env.state_space_bounds)
+    ax2.set_ylim(0, 10)
+    sigma_line = ax2.plot(env.state_space_h, sigma)[0]
+
+    plt.legend()
+    plt.show()
+
+    return mean_line, sigma_line
+
+def update_gaussian_policy_1d_figure(env, mean, sigma, lines):
+    mean_line, sigma_line = lines
+    mean_line.set_data(env.state_space_h, mean)
+    sigma_line.set_data(env.state_space_h, sigma)
     plt.pause(0.1)
 
 def canvas_det_policy_1d_figure(env, policies, policy_opt):

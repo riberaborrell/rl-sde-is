@@ -16,7 +16,7 @@ def get_base_parser():
     )
     parser.add_argument(
         '--agent-type',
-        choices=['random', 'not-controlled', 'hjb', 'trained'],
+        choices=['random', 'uncontrolled', 'hjb', 'trained'],
         default='random',
         help='Type of agent. Default: random',
     )
@@ -104,12 +104,6 @@ def get_base_parser():
         help='the step size / learning rate parameter is constant.',
     )
     parser.add_argument(
-        '--lr-type',
-        choices=['constant', 'adaptive'],
-        default='constant',
-        help='Type of learning rate. Default: constant',
-    )
-    parser.add_argument(
         '--lr',
         type=float,
         default=0.01,
@@ -188,16 +182,16 @@ def get_base_parser():
         help='Set number last episodes to averaged the statistics. Default: 100',
     )
     parser.add_argument(
-        '--test-freq-episodes',
+        '--test-freq',
         type=int,
         default=10,
-        help='Set frequency of model tests in terms of number of episodes. Default: 10',
+        help='Set frequency of model evaluation. Default: 10',
     )
     parser.add_argument(
-        '--backup-freq-episodes',
+        '--backup-freq',
         type=int,
         default=100,
-        help='Set frequency of backups in terms of number of episodes. Default: 10',
+        help='Set frequency of backups. Default: 10',
     )
     parser.add_argument(
         '--n-iterations',
@@ -212,17 +206,6 @@ def get_base_parser():
         help='Set number last iterations to averaged the statistics. Default: 10',
     )
     parser.add_argument(
-        '--test-freq-iterations',
-        type=int,
-        default=10,
-        help='Set frequency of model tests in terms of number of iterations. Default: 10',
-    )
-    parser.add_argument(
-        '--backup-freq-iterations',
-        type=int,
-        help='Set frequency of backups in terms of number of iterations . Default: None',
-    )
-    parser.add_argument(
         '--n-epochs',
         type=int,
         default=100,
@@ -235,10 +218,10 @@ def get_base_parser():
         help='Set number of time steps per epoch. Default: 1000',
     )
     parser.add_argument(
-        '--target-update-freq',
+        '--update-freq',
         type=int,
         default=100,
-        help='Set number of time steps per epoch. Default: 1000',
+        help='Set gradient update frequency in time steps. Default: 1000',
     )
     parser.add_argument(
         '--step-sliced-episodes',
@@ -251,6 +234,12 @@ def get_base_parser():
         type=int,
         default=1000,
         help='Set number of trajectories in each batch. Default: 1000',
+    )
+    parser.add_argument(
+        '--learning-starts',
+        type=int,
+        default=1000,
+        help='Time step to start learning. Default: 1000',
     )
     parser.add_argument(
         '--test-batch-size',
@@ -287,6 +276,13 @@ def get_base_parser():
         type=int,
         default=32,
         help='Set dimension of the hidden layers. Default: 32',
+    )
+    parser.add_argument(
+        '--policy-cov',
+        type=str,
+        default='const',
+        choices=['const', 'learnt'],
+        help='Set if policy gaussian covariance is constant or will alse be learnt. Default: 32',
     )
     parser.add_argument(
         '--expl-noise-init',

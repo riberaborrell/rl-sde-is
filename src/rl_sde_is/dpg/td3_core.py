@@ -155,11 +155,11 @@ def get_action(env, actor, state, noise_scale, action_limit):
 
 
 def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
-                 n_episodes=100, n_steps_lim=1000,
-                 start_steps=0, expl_noise_init=0.1, expl_noise_decay=1., replay_size=50000,
+                 n_episodes=100, n_steps_lim=1000, learning_starts=1000,
+                 expl_noise_init=0.1, expl_noise_decay=1., replay_size=50000,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
-                 update_after=5000, update_every=100, policy_freq=50, target_noise=0.2, polyak=0.95, action_limit=None,
-                 backup_freq_episodes=None,
+                 update_freq=100, policy_freq=50, target_noise=0.2, polyak=0.95, action_limit=None,
+                 backup_freq=None,
                  value_function_opt=None, policy_opt=None, load=False, live_plot=False):
 
     # get dir path
@@ -219,7 +219,6 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
         'd_hidden_layer': d_hidden_layer,
         'n_episodes': n_episodes,
         'n_steps_lim': n_steps_lim,
-        'start_steps': start_steps,
         'expl_noise_init': expl_noise_init,
         'expl_noise_decay': expl_noise_decay,
         'replay_size': replay_size,
@@ -229,8 +228,8 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
         'lr_actor' : lr_actor,
         'lr_critic' : lr_critic,
         'seed': seed,
-        'update_after': update_after,
-        'update_every': update_every,
+        'learning_starts': learning_starts,
+        'update_freq': update_freq,
         'policy_freq': policy_freq,
         'target_noise': target_noise,
         'action_limit': action_limit,
@@ -300,7 +299,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
             # sample action
 
             # sample action randomly
-            if k_total < start_steps:
+            if k_total < learning_starts:
                 #action = env.sample_action(batch_size=1)
                 action = env.action_space.sample()
 
@@ -315,9 +314,9 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
             replay_buffer.store(state, action, r, next_state, done)
 
             # time to update
-            if k_total >= update_after and (k_total + 1) % update_every == 0:
+            if k_total >= learning_starts and (k_total + 1) % update_freq == 0:
 
-                for l in range(update_every):
+                for l in range(update_freq):
 
                     # sample minibatch of transition uniformlly from the replay buffer
                     batch = replay_buffer.sample_batch(batch_size)
@@ -356,7 +355,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
         print(msg)
 
         # backup models and results
-        if backup_freq_episodes is not None and (ep + 1) % backup_freq_episodes == 0:
+        if backup_freq is not None and (ep + 1) % backup_freq == 0:
 
             # save actor and critic models
             save_model(actor, rel_dir_path, 'actor_n-ep{}'.format(ep + 1))

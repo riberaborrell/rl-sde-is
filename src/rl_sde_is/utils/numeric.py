@@ -57,7 +57,7 @@ def cumsum_torch(x):
     return torch.flip(torch.cumsum(torch.flip(x, [0]), 0), [0])
     #return torch.cumsum(x.flip(dims=(0,)), dim=0).flip(dims=(0,))
 
-def discount_cumsum(x, gamma):
+def discount_cumsum_numpy(x, gamma):
     n = len(x)
     x = np.array(x)
     y = gamma**np.arange(n)
@@ -75,7 +75,7 @@ def discount_cumsum_torch(x, gamma):
     return z
 
 
-def discount_cumsum_torch_scipy(x, gamma):
+def discount_cumsum_scipy(x, gamma):
     import scipy
     """
     magic from rllab for computing discounted cumulative sums of vectors.
@@ -92,6 +92,9 @@ def discount_cumsum_torch_scipy(x, gamma):
          x2]
     """
     return scipy.signal.lfilter([1], [1, float(-gamma)], x[::-1], axis=0)[::-1]
+
+def normalize_advs_trick(x):
+    return (x - np.mean(x))/(np.std(x) + 1e-8)
 
 def sample_items_original(prob_matrix, items):
     n = prob_matrix.shape[1]

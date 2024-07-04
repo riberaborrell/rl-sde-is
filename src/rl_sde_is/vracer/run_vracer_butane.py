@@ -16,35 +16,35 @@ def main():
     args = parser.parse_args()
 
     # create gym environment
-    gym_env = gym.make(
+    env = gym.make(
         'sde-is-butane-{}-v0'.format(args.setting),
         temperature=args.temperature,
         gamma=10.0,
         T=args.T,
     )
-    gym_env = RecordEpisodeStatistics(gym_env, args.n_episodes)
+    env = RecordEpisodeStatistics(env, args.n_episodes)
 
     # define Korali experiment 
     e = korali.Experiment()
 
     # Defining Problem Configuration
-    set_korali_problem(e, gym_env, args)
+    set_korali_problem(e, env, args)
 
     # Set V-RACER training parameters
     args.n_layers = 4
     args.d_hidden = 64
     args.action_limit = 1.0
-    set_vracer_train_params(e, gym_env, args)
-    set_vracer_variables_butane(e, gym_env, args)
+    set_vracer_train_params(e, env, args)
+    set_vracer_variables_butane(e, env, args)
 
     # vracer
-    data = vracer(e, gym_env, args, load=args.load)
+    data = vracer(e, env, args, load=args.load)
 
     # plots
     if not args.plot: return
 
     # time step
-    dt = gym_env.unwrapped.dt
+    dt = env.unwrapped.dt
 
     plot_fht_per_episode_std(dt * data['time_steps'])
     plot_return_per_episode_std(data['returns'])

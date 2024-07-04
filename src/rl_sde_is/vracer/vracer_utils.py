@@ -6,7 +6,7 @@ import numpy as np
 from gym_sde_is.utils.sde import compute_is_functional
 
 from rl_sde_is.utils.config import DATA_ROOT_DIR
-from rl_sde_is.utils.path import load_data, save_data, get_rel_dir_path
+from rl_sde_is.utils.path import load_data, save_data, get_dir_path
 
 def get_vracer_params_str(args):
     if args.reward_type == 'baseline':
@@ -22,8 +22,7 @@ def get_vracer_params_str(args):
     return param_str
 
 def get_vracer_dir_path(gym_env, args):
-    #TODO: refactor get_rel_dir_path to get_dir_path
-    return get_rel_dir_path(gym_env.unwrapped.__str__(), 'vracer', get_vracer_params_str(args))
+    return get_dir_path(gym_env.unwrapped.__str__(), 'vracer', get_vracer_params_str(args))
 
 def get_vracer_rel_dir_path(gym_env, args):
     return os.path.join(
@@ -99,7 +98,7 @@ def set_vracer_train_params(e, gym_env, args):
     # file output configuration
     e["Console Output"]["Verbosity"] = "Detailed"
     e["File Output"]["Enabled"] = True
-    e["File Output"]["Frequency"] = args.backup_freq_episodes
+    e["File Output"]["Frequency"] = args.backup_freq
     e["File Output"]["Path"] = get_vracer_rel_dir_path(gym_env, args)
 
 
@@ -154,8 +153,9 @@ def collect_vracer_results(gym_env):
 def vracer(e, gym_env, args, load=False):
 
     # get dir path
-    args.rel_dir_path = get_rel_dir_path(gym_env.unwrapped.__str__(), 'vracer',
-                                         get_vracer_params_str(args))
+    args.rel_dir_path = get_dir_path(
+        gym_env.unwrapped.__str__(), 'vracer', get_vracer_params_str(args)
+    )
 
     # load results
     if load:
