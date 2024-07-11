@@ -15,13 +15,14 @@ def get_device(disable_cuda):
 
 # vectorized operations
 def dot_vect(a, b):
+    return (a * b).sum(axis=1)
+
+def dot_vect_torch(a, b):
     return torch.matmul(
         torch.unsqueeze(a, dim=1),
         torch.unsqueeze(b, dim=2),
     ).squeeze()
 
-def dot_vect_sum(a, b):
-    return (a * b).sum(axis=1)
 
 # general logistic function
 def logistic(x, L=1, k=1, x0=0):

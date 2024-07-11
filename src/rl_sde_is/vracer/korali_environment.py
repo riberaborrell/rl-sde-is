@@ -14,7 +14,7 @@ def env(s, gym_env, args):
     _, _ = gym_env.reset(seed=sampleId * 1024 + launchId)
 
     # initial state
-    s["State"] = gym_env.unwrapped._state.tolist()
+    s["State"] = gym_env.unwrapped.state.tolist()
 
     done = False
     while not done:

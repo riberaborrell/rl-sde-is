@@ -50,55 +50,46 @@ def get_fig_notebooks_dir_path():
 
     return dir_path
 
-def save_data(data_dict, rel_dir_path, file_name: str = 'agent.npz'):
-    file_path = os.path.join(get_data_dir(), rel_dir_path, file_name)
+def save_data(data_dict, dir_path, file_name: str = 'agent.npz'):
+    file_path = os.path.join(get_data_dir(), dir_path, file_name)
     np.savez(file_path, **data_dict)
 
-def load_data(rel_dir_path, file_name: str = 'agent.npz'):
+def load_data(dir_path, file_name: str = 'agent.npz'):
     try:
-        file_path = os.path.join(get_data_dir(), rel_dir_path, file_name)
+        file_path = os.path.join(get_data_dir(), dir_path, file_name)
         data = dict(np.load(file_path, allow_pickle=True))
         for file_name in data.keys():
             if data[file_name].ndim == 0:
                 data[file_name] = data[file_name].item()
-        data['rel_dir_path'] = rel_dir_path
+        data['dir_path'] = dir_path
         return data
     except FileNotFoundError as e:
         print(e)
         sys.exit()
 
-def save_model(model, rel_dir_path, file_name):
+def save_model(model, dir_path, file_name):
     torch.save(
         model.state_dict(),
-        os.path.join(get_data_dir(), rel_dir_path, file_name),
+        os.path.join(get_data_dir(), dir_path, file_name),
     )
 
-def load_model(model, rel_dir_path, file_name):
-    model.load_state_dict(torch.load(os.path.join(get_data_dir(), rel_dir_path, file_name)))
+def load_model(model, dir_path, file_name):
+    model.load_state_dict(torch.load(os.path.join(get_data_dir(), dir_path, file_name)))
 
 
 def get_dir_path(env_str, algorithm_name, param_str):
 
-    # relative directory path
-    rel_dir_path = os.path.join(
+    # directory path
+    dir_path = os.path.join(
         env_str,
         algorithm_name,
         param_str,
     )
 
     # create dir path if not exists
-    make_dir_path(os.path.join(get_data_dir(), rel_dir_path))
+    make_dir_path(os.path.join(get_data_dir(), dir_path))
 
-    return rel_dir_path
-
-def get_initial_point_str(env):
-    if env.state_init_dist == 'delta':
-        #string = 'init-state{:2.1f}_'.format(env.state_init[0, 0].item())
-        string = 'init-state{:2.1f}_'.format(env.state_init[0].item())
-    elif env.state_init_dist == 'uniform':
-        string = 'uniform_'
-
-    return string
+    return dir_path
 
 def get_baseline_str(env):
     if env.reward_type == 'baseline':
@@ -106,13 +97,6 @@ def get_baseline_str(env):
     else:
         string = ''
 
-    return string
-
-def get_lr_str(**kwargs):
-    if not kwargs['constant_lr']:
-        string = 'lr-not-const_'
-    else:
-        string = 'lr{:1.2f}_'.format(kwargs['lr'])
     return string
 
 def get_eps_str(**kwargs):
@@ -128,6 +112,22 @@ def get_eps_str(**kwargs):
         string = 'eps-exp-decay_' \
                 + 'eps-init{:0.1f}_'.format(kwargs['eps_init']) \
                 + 'eps-decay{:0.4f}_'.format(kwargs['eps_decay'])
+    return string
+
+def get_model_arch_str(**kwargs):
+    string = ''
+    if 'n_layers' in kwargs.keys():
+        string += 'n-layers{:d}_'.format(kwargs['n_layers'])
+    if 'd_hidden_layer' in kwargs.keys():
+        string += 'hidden-size{:d}_'.format(kwargs['d_hidden_layer'])
+    return string
+
+def get_lr_str(**kwargs):
+    string = ''
+    string += 'lr{:.1e}_'.format(kwargs['lr']) if 'lr' in kwargs.keys() else ''
+    string += 'lr-init{:.1e}_'.format(kwargs['lr_init']) if 'lr_init' in kwargs.keys() else ''
+    string += 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) if 'lr_actor' in kwargs.keys() else ''
+    string += 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) if 'lr_critic' in kwargs.keys() else ''
     return string
 
 def get_iter_str(**kwargs):
@@ -153,8 +153,7 @@ def get_agent_dir_path(env, **kwargs):
     '''
 
     # set parameters string
-    param_str = get_initial_point_str(env) \
-              + 'dt{:.0e}_'.format(env.dt) \
+    param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'K{:.0e}'.format(kwargs['batch_size']) \
               + get_seed_str(**kwargs)
 
@@ -189,7 +188,7 @@ def get_tabular_td_prediction_dir_path(env, **kwargs):
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}_'.format(env.dt) \
-              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + get_lr_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
@@ -201,8 +200,7 @@ def get_semi_gradient_td_prediction_dir_path(env, **kwargs):
 
     # set parameters string
     param_str = 'dt{:.0e}_'.format(env.dt) \
-              + get_initial_point_str(env) \
-              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + get_lr_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
@@ -216,7 +214,6 @@ def get_tabular_mc_prediction_dir_path(env, **kwargs):
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}_'.format(env.dt) \
-              + get_initial_point_str(env) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
@@ -229,9 +226,7 @@ def get_sarsa_lambda_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
-              + get_initial_point_str(env) \
-              + get_baseline_str(env) \
-              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + get_lr_str(**kwargs) \
               + 'lambda{:0.1f}_'.format(kwargs['lam']) \
               + get_eps_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
@@ -245,8 +240,7 @@ def get_mc_learning_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
-              + get_initial_point_str(env) \
-              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + get_lr_str(**kwargs) \
               + get_eps_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
@@ -260,9 +254,7 @@ def get_qlearning_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
-              + get_initial_point_str(env) \
-              + get_baseline_str(env) \
-              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + get_lr_str(**kwargs) \
               + get_eps_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
@@ -277,8 +269,7 @@ def get_qlearning_batch_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
-              + get_initial_point_str(env) \
-              + 'lr{:1.2f}_'.format(kwargs['lr']) \
+              + get_lr_str(**kwargs) \
               + get_eps_str(**kwargs) \
               + 'epochs{:.0e}_'.format(kwargs['n_epochs']) \
               + 'K{:.0e}'.format(kwargs['n_episodes'])
@@ -293,8 +284,7 @@ def get_dqn_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}_'.format(env.dt) \
-              + get_initial_point_str(env) \
-              + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + get_lr_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['batch_size']) \
 
@@ -307,7 +297,8 @@ def get_reinforce_discrete_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-action{:.0e}_'.format(kwargs['h_action']) \
               + 'dt{:.0e}_'.format(env.dt) \
-              + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_lr_str(**kwargs) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
@@ -320,8 +311,10 @@ def get_reinforce_dir_path(env, **kwargs):
 
     # set parameters string
     param_str = 'dt{:.0e}_'.format(env.dt) \
-              + 'policy-cov-{}_'.format(kwargs['policy_cov']) \
-              + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'policy-{}_'.format(kwargs['policy_type']) \
+              + get_lr_str(**kwargs) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
@@ -333,27 +326,24 @@ def get_reinforce_det_dir_path(env, **kwargs):
     '''
     '''
     # set parameters string
-    param_str = get_initial_point_str(env) \
-              + get_baseline_str(env) \
-              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
-              + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
+    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
-              + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + get_lr_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_dpg_dir_path(env, **kwargs):
     '''
     '''
 
     # set parameters string
-    param_str = get_initial_point_str(env) \
-              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
-              + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
+    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
-              + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
+              + get_lr_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
@@ -364,13 +354,11 @@ def get_ddpg_dir_path(env, **kwargs):
     '''
 
     # set parameters string
-    param_str = get_initial_point_str(env) \
-              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
-              + 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
+    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
               + 'noise-scale{:.1e}_'.format(kwargs['noise_scale']) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
-              + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
-              + 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) \
+              + get_lr_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
@@ -381,15 +369,15 @@ def get_td3_dir_path(env, **kwargs):
     '''
 
     # set parameters string
-    param_str = 'hidden-size{:d}_'.format(kwargs['d_hidden_layer']) \
+    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \
               + 'target-noise{:.1f}_'.format(kwargs['target_noise']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + 'K{:.0e}_'.format(kwargs['batch_size']) \
-              + 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) \
-              + 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) \
+              + get_lr_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 

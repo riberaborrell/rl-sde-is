@@ -10,7 +10,7 @@ from rl_sde_is.utils.plots import *
 def main():
     parser = get_base_parser()
     parser.description = 'Run td3 for the sde importance sampling environment \
-                          with a 1d toy example.'
+                          with a ol toy example.'
     args = parser.parse_args()
 
     # create gym environment

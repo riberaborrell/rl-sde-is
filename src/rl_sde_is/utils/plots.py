@@ -712,7 +712,7 @@ def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
     x = env.state_space_h
     for i in range(n_policies):
         ax.plot(x, policies[i], c=colors[i], label=labels[i])
-    ax.plot(x, policy_opt, c=colors[i+1], ls=':', label=labels[i+1])
+    ax.plot(x, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=labels[i+1])
 
     if labels[0]:
         #plt.legend(loc=loc, fontsize=10)

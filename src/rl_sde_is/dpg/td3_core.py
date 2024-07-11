@@ -154,7 +154,7 @@ def get_action(env, actor, state, noise_scale, action_limit):
     return action
 
 
-def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
+def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32,
                  n_episodes=100, n_steps_lim=1000, learning_starts=1000,
                  expl_noise_init=0.1, expl_noise_decay=1., replay_size=50000,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
@@ -163,7 +163,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
                  value_function_opt=None, policy_opt=None, load=False, live_plot=False):
 
     # get dir path
-    rel_dir_path = get_td3_dir_path(
+    dir_path = get_td3_dir_path(
         env,
         agent='td3-episodic',
         gamma=gamma,
@@ -182,7 +182,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
 
     # load results
     if load:
-        return load_data(rel_dir_path)
+        return load_data(dir_path)
 
     # set seed
     if seed is not None:
@@ -237,14 +237,14 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
         'actor': actor,
         'critic1': critic1,
         'critic2': critic2,
-        'rel_dir_path': rel_dir_path,
+        'dir_path': dir_path,
     }
-    save_data(data, rel_dir_path)
+    save_data(data, dir_path)
 
     # save models initial parameters
-    save_model(actor, rel_dir_path, 'actor_n-ep{}'.format(0))
-    save_model(critic1, rel_dir_path, 'critic1_n-ep{}'.format(0))
-    save_model(critic2, rel_dir_path, 'critic2_n-ep{}'.format(0))
+    save_model(actor, dir_path, 'actor_n-ep{}'.format(0))
+    save_model(critic1, dir_path, 'critic1_n-ep{}'.format(0))
+    save_model(critic2, dir_path, 'critic2_n-ep{}'.format(0))
 
     # preallocate arrays
 
@@ -358,16 +358,16 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
         if backup_freq is not None and (ep + 1) % backup_freq == 0:
 
             # save actor and critic models
-            save_model(actor, rel_dir_path, 'actor_n-ep{}'.format(ep + 1))
-            save_model(critic1, rel_dir_path, 'critic1_n-ep{}'.format(ep + 1))
-            save_model(critic2, rel_dir_path, 'critic2_n-ep{}'.format(ep + 1))
+            save_model(actor, dir_path, 'actor_n-ep{}'.format(ep + 1))
+            save_model(critic1, dir_path, 'critic1_n-ep{}'.format(ep + 1))
+            save_model(critic2, dir_path, 'critic2_n-ep{}'.format(ep + 1))
 
             # save test results
             data['returns'] = returns
             data['time_steps'] = time_steps
             data['cts'] = cts
 
-            save_data(data, rel_dir_path)
+            save_data(data, dir_path)
 
         # update plots
         if live_plot and (ep + 1) % 1 == 0:
@@ -387,7 +387,7 @@ def td3_episodic(env, gamma=1., d_hidden_layer=32, n_layers=3,
     data['replay_states'] = replay_buffer.states[:replay_buffer.size]
     data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
 
-    save_data(data, rel_dir_path)
+    save_data(data, dir_path)
     return data
 
 def initialize_1d_figures(env, actor, critic, value_function_opt, policy_opt):
@@ -419,11 +419,11 @@ def load_backup_models(data, ep=0):
     actor = data['actor']
     critic1 = data['critic1']
     critic2 = data['critic2']
-    rel_dir_path = data['rel_dir_path']
+    dir_path = data['dir_path']
     try:
-        load_model(actor, rel_dir_path, file_name='actor_n-ep{}'.format(ep))
-        load_model(critic1, rel_dir_path, file_name='critic1_n-ep{}'.format(ep))
-        load_model(critic2, rel_dir_path, file_name='critic2_n-ep{}'.format(ep))
+        load_model(actor, dir_path, file_name='actor_n-ep{}'.format(ep))
+        load_model(critic1, dir_path, file_name='critic1_n-ep{}'.format(ep))
+        load_model(critic2, dir_path, file_name='critic2_n-ep{}'.format(ep))
     except FileNotFoundError as e:
         print('The episode {:d} has no backup '.format(ep))
 

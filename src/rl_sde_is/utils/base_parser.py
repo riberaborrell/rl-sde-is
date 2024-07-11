@@ -278,11 +278,17 @@ def get_base_parser():
         help='Set dimension of the hidden layers. Default: 32',
     )
     parser.add_argument(
-        '--policy-cov',
+        '--policy-type',
         type=str,
-        default='const',
-        choices=['const', 'learnt'],
-        help='Set if policy gaussian covariance is constant or will alse be learnt. Default: 32',
+        default='const-cov',
+        choices=['const-cov', 'scheduled', 'learnt-cov'],
+        help='Set if policy gaussian covariance is constant, scheduled, or learnt. Default: const-cov',
+    )
+    parser.add_argument(
+        '--policy-noise',
+        type=float,
+        default=1.0,
+        help='Set factor of scalar covariance matrix. Default: 1.',
     )
     parser.add_argument(
         '--expl-noise-init',
@@ -345,6 +351,12 @@ def get_base_parser():
         '--live-plot',
         action='store_true',
         help='Plot live results. Default: False',
+    )
+    parser.add_argument(
+        '--live-plot-freq',
+        type=int,
+        default=None,
+        help='Set frequency to live plots. Default: None',
     )
     parser.add_argument(
         '--plot-episode',

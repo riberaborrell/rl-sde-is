@@ -94,7 +94,9 @@ class GaussianPolicyConstantCov(GaussianPolicy):
         self.cov = sigma * torch.ones(action_dim)
 
     def mean_and_cov(self, state):
-        return self.mean.forward(state), self.cov
+        cov = torch.empty_like(state)
+        cov[:] = self.cov
+        return self.mean.forward(state), cov#torch.full_like(state, self.cov)
 
 
 class GaussianPolicyLearntCov(GaussianPolicy):
@@ -111,14 +113,15 @@ class GaussianPolicyLearntCov(GaussianPolicy):
         self.net = mlp(sizes, activation, activation)
         self.mean = nn.Linear(hidden_sizes[-1], action_dim)
         self.log_cov = nn.Linear(hidden_sizes[-1], action_dim)
-        #self.cov = F.softplus(nn.Linear(hidden_sizes[-1], action_dim))
-        #self.act_limit = act_limit
+        #self.cov = nn.Linear(hidden_sizes[-1], action_dim)
 
     def mean_and_cov(self, state):
         y = self.net.forward(state)
         mean = self.mean.forward(y)
         log_cov = self.log_cov.forward(y)
         return mean, torch.exp(log_cov)
+        #cov = nn.functional.softplus(self.cov.forward(y))
+        #return mean, cov
 
 
 class QValueFunction(nn.Module):
