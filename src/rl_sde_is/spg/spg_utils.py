@@ -78,7 +78,7 @@ class GaussianPolicy(StochasticPolicy):
 class GaussianPolicyConstantCov(GaussianPolicy):
     '''Gaussian Policy with constant covariance matrix
     '''
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation, sigma, seed=0):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation, std, seed=0):
         super().__init__()
 
         # fix seed
@@ -90,8 +90,8 @@ class GaussianPolicyConstantCov(GaussianPolicy):
         self.apply(self.init_last_layer_weights)
 
         # constant covariance matrix
-        self.sigma = sigma
-        self.cov = sigma * torch.ones(action_dim)
+        self.std = std
+        self.cov = torch.ones(action_dim) * std**2
 
     def mean_and_cov(self, state):
         cov = torch.empty_like(state)

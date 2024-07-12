@@ -1,6 +1,7 @@
 import gymnasium as gym
 import gym_sde_is
 from gym_sde_is.utils.evaluate import evaluate_policy
+from gym_sde_is.utils.sde import compute_is_functional
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 import numpy as np
 
@@ -23,13 +24,13 @@ def main():
     env = RecordEpisodeStatistics(env, args.test_batch_size)
 
     # create object to store the is statistics of the learning
-    is_stats = ISStatistics(args.n_episodes, args.test_freq, args.test_batch_size)
+    is_stats = ISStatistics(args.test_freq, args.test_batch_size, n_episdoes=args.n_episodes)
 
     for i in range(is_stats.n_epochs):
 
 
         # load policy
-        ep = i * is_stats.eval_freq_episodes
+        ep = i * is_stats.eval_freq
         results_dir = get_vracer_rel_dir_path(env, args)
         model = load_model(results_dir + '/gen{}.json'.format(str(ep).zfill(8)))
 

@@ -149,12 +149,10 @@ def compute_table_det_policy_1d(env, model):
     with torch.no_grad():
         return model.forward(state_space_h).numpy()
 
-def compute_table_stoch_policy_1d(env, model):
-
+def compute_table_stoch_policy_1d(env, policy):
     state_space_h = torch.FloatTensor(env.state_space_h)
-
     with torch.no_grad():
-        means, covs = model.mean_and_cov(state_space_h)
+        means, covs = policy.mean_and_cov(state_space_h)
         return means.numpy(), covs.numpy()
 
 def compute_tables_critic_1d(env, critic):

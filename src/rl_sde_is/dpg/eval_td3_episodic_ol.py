@@ -1,8 +1,8 @@
 import gymnasium as gym
 import gym_sde_is
-from gym_sde_is.utils.evaluate import evaluate_policy, evaluate_policy_torch
-from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
+from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
 from gym_sde_is.utils.sde import compute_is_functional
+from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 import numpy as np
 
 from rl_sde_is.utils.base_parser import get_base_parser
@@ -19,11 +19,11 @@ def main():
         beta=args.beta,
         state_init_dist=args.state_init_dist,
     )
-    env = RecordEpisodeStatistics(env, args.test_batch_size, args.track_l2_error)
+    env = RecordEpisodeStatisticsVect(env, args.test_batch_size, args.track_l2_error)
 
     # create object to store the is statistics of the learning
-    is_stats = ISStatistics(args.n_episodes, args.test_freq, args.test_batch_size,
-                              args.track_l2_error)
+    is_stats = ISStatistics(args.test_freq, args.test_batch_size,
+                            args.track_l2_error, n_episodes=args.n_episodes)
 
     # load td3
     data = td3_episodic(
@@ -46,13 +46,12 @@ def main():
 
 
         # load policy
-        ep = i * is_stats.eval_freq_episodes
+        ep = i * is_stats.eval_freq
         load_backup_models(data, ep)
         policy = data['actor']
 
         # evaluate policy
-        env.reset_statistics()
-        evaluate_policy_torch(env, policy, args.test_batch_size)
+        evaluate_policy_torch_vect(env, policy, args.test_batch_size)
 
         # save and log epoch 
         l2_errors = env.l2_errors if args.track_l2_error else None
@@ -64,7 +63,7 @@ def main():
         env.close()
 
     # save is statistics
-    is_stats.save_stats(data['rel_dir_path'])
+    is_stats.save_stats(data['dir_path'])
 
 
 if __name__ == '__main__':

@@ -716,7 +716,7 @@ def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
 
     if labels[0]:
         #plt.legend(loc=loc, fontsize=10)
-        plt.legend(loc=loc, fontsize=12)
+        ax.legend(loc=loc, fontsize=12)
 
     if file_path is not None:
         plt.savefig(file_path, format='pdf')

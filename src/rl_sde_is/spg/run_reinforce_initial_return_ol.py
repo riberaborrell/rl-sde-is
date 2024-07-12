@@ -1,5 +1,6 @@
 import gymnasium as gym
 import gym_sde_is
+from gym_sde_is.utils.sde import compute_is_functional
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 
 import numpy as np
@@ -10,13 +11,14 @@ import torch.optim as optim
 from rl_sde_is.spg.spg_utils import *
 from rl_sde_is.approximate_methods import compute_table_stoch_policy_1d
 from rl_sde_is.utils.base_parser import get_base_parser
+from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.utils.path import get_reinforce_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import *
 
 
-def reinforce(env, gamma=1., n_layers=2, d_hidden_layer=32, policy_type='const-cov', policy_noise=1., lr=1e-4,
-              n_iterations=100, batch_size=1, seed=None, backup_freq=None,
-              policy_opt=None, load=False, live_plot_freq=None):
+def reinforce(env, gamma=1., n_layers=3, d_hidden_layer=32, policy_type='const-cov', policy_noise=1.,
+              lr=1e-4, batch_size=1, n_iterations=100, seed=None, track_l2_error=False,
+              backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
 
     # get dir path
     dir_path = get_reinforce_dir_path(
@@ -26,6 +28,7 @@ def reinforce(env, gamma=1., n_layers=2, d_hidden_layer=32, policy_type='const-c
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
         policy_type=policy_type,
+        policy_noise=policy_noise,
         batch_size=batch_size,
         lr=lr,
         n_iterations=n_iterations,
@@ -60,7 +63,7 @@ def reinforce(env, gamma=1., n_layers=2, d_hidden_layer=32, policy_type='const-c
     if policy_type == 'const-cov':
         policy = GaussianPolicyConstantCov(state_dim=env.d, action_dim=env.d,
                                            hidden_sizes=hidden_sizes, activation=nn.Tanh(),
-                                           sigma=policy_noise)
+                                           std=policy_noise)
     else:
         policy = GaussianPolicyLearntCov(
             state_dim=env.d, action_dim=env.d, hidden_sizes=hidden_sizes, activation=nn.Tanh(),
@@ -68,12 +71,9 @@ def reinforce(env, gamma=1., n_layers=2, d_hidden_layer=32, policy_type='const-c
     optimizer = optim.Adam(policy.parameters(), lr=lr)
     save_model(policy, dir_path, 'policy_it{}'.format(0))
 
-    # preallocate iteration arrays
-    objectives = np.empty(n_iterations, dtype=np.float32)
-    losses = np.empty(n_iterations, dtype=np.float32)
-    loss_vars = np.empty(n_iterations, dtype=np.float32)
-    mfhts = np.empty(n_iterations, dtype=np.float32)
-
+    # create object to store the is statistics of the learning
+    is_stats = ISStatistics(eval_freq=1, eval_batch_size=batch_size, n_iterations=n_iterations,
+                            track_loss=True, track_l2_error=track_l2_error)
 
     if live_plot_freq and env.d == 1:
         mean, sigma = compute_table_stoch_policy_1d(env, policy)
@@ -86,7 +86,6 @@ def reinforce(env, gamma=1., n_layers=2, d_hidden_layer=32, policy_type='const-c
 
         # initialization
         state, _ = env.reset(batch_size=batch_size)
-        env.reset_statistics()
 
         # preallocate log probs
         log_probs = torch.zeros(batch_size)
@@ -120,15 +119,12 @@ def reinforce(env, gamma=1., n_layers=2, d_hidden_layer=32, policy_type='const-c
         # update coefficients
         optimizer.step()
 
-        # save stats
-        objectives[i] = env.returns.mean()
-        losses[i] = eff_loss.detach().numpy()
-        loss_vars[i] = eff_loss_var
-        mfhts[i] = (env.lengths * env.dt).mean()
-
-        # log
-        print('it: {}, objective: {:.2f}, loss: {:.2e}, mfht: {:.2e}' \
-              ''.format(i, objectives[i], losses[i], mfhts[i]))
+        # save is stats
+        is_functional = compute_is_functional(env.girs_stoch_int,
+                                              env.running_rewards, env.terminal_rewards)
+        is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
+                            is_functional, loss=eff_loss.detach().numpy())
+        is_stats.log_epoch(i)
 
         # backup model
         if backup_freq and (i + 1) % backup_freq== 0:
@@ -140,10 +136,6 @@ def reinforce(env, gamma=1., n_layers=2, d_hidden_layer=32, policy_type='const-c
             update_gaussian_policy_1d_figure(env, mean, sigma, lines)
 
     data['policy'] = policy
-    data['objectives'] = objectives
-    data['losses'] = losses
-    data['loss_vars'] = loss_vars
-    data['mfhts'] = mfhts
     save_data(data, dir_path)
     return data
 
@@ -216,7 +208,7 @@ def main():
 
     # get backup policies
     iterations = np.arange(0, args.n_iterations + args.backup_freq, args.backup_freq)
-    means = get_means(env, data, iterations)
+    means = get_means(env, data, iterations[::10])
 
     # plot avg returns and mfht
     x = np.arange(data['n_iterations'])
