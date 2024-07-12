@@ -69,9 +69,9 @@ class ISStatistics(object):
         self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(returns)
         if self.track_is:
             self.mean_I_us[i], self.var_I_us[i], _, _ = compute_array_statistics(psi_is)
-        if self.track_loss:
+        if self.track_loss and loss is not None:
             self.losses[i] = loss
-        if self.track_l2_error and policy_l2_error is not None:
+        if self.track_l2_error and policy_l2_errors is not None:
             self.policy_l2_errors[i] = np.mean(policy_l2_errors)
         if self.track_ct and ct is not None:
             self.cts[i] = ct
