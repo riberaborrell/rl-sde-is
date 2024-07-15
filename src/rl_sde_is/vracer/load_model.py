@@ -58,7 +58,36 @@ class VracerModel(nn.Module):
         return self.evaluate(state, slice(1+self.d_out, self.d_out_tot))
 
 
-def load_model(korali_file: str):
+def get_model_hyperparameters(file: str):
+    with open(file, "r") as f:
+        dd = json.load(f)
+
+    # get input and output dimensions
+    d_in = dd["State Vector Size"]
+    d_out = dd["Action Vector Size"]
+
+    # get model parameters
+    params = torch.tensor(dd["Policy Hyperparameters"], dtype=torch.float32).squeeze()
+
+    # assume feed forward architecture
+    # load activation functions and hidden layer sizes
+    activations = []
+    hidden_sizes = []
+    net = dd["Neural Network"]
+    for entry in net['Hidden Layers']:
+        if entry["Type"] == "Layer/Linear":
+            hidden_sizes.append(entry["Output Channels"])
+        elif entry["Type"] == "Layer/Activation":
+            if entry["Function"] == "Elementwise/Tanh":
+                activations.append(nn.Tanh())
+            else:
+                raise NotImplementedError(f"not implemented activation function {function}")
+        else:
+            raise NotImplementedError(f"not implemented layer type {layer_type}")
+
+    return d_in, d_out, hidden_sizes, activations, params
+
+def get_model_hyperparameters_from_korali(korali_file: str):
     with open(korali_file, "r") as f:
         e = json.load(f)
 
@@ -96,6 +125,12 @@ def load_model(korali_file: str):
         else:
             raise NotImplementedError(f"not implemented layer type {layer_type}")
 
+    return d_in, d_out, hidden_sizes, activations, params
+
+def load_model(file: str):
+
+    d_in, d_out, hidden_sizes, activations, params = get_model_hyperparameters(file)
+
     # load model
     model = VracerModel(d_in, d_out, hidden_sizes, nn.Tanh())
     state_dict = model.state_dict()
@@ -111,7 +146,6 @@ def load_model(korali_file: str):
         state_dict[key] = params[s:s+size].reshape(model.state_dict()[key].shape)
         s += size
 
-    # load params
     model.load_state_dict(state_dict)
 
     return model
@@ -123,7 +157,7 @@ def get_policies(env, args, episodes):
     for ep in episodes:
 
         # load model
-        model = load_model(results_dir + '/gen{:08d}.json'.format(ep))
+        model = load_model(results_dir + '/model{:08d}.json'.format(ep))
 
         # append actions following policy
         policies.append(model.policy(env.state_space_h))
@@ -137,7 +171,7 @@ def get_value_functions(env, args, episodes):
     for ep in episodes:
 
         # load model
-        model = load_model(results_dir + '/gen{:08d}.json'.format(ep))
+        model = load_model(results_dir + '/model{:08d}.json'.format(ep))
 
         # append actions following policy
         value_functions.append(model.value_function(env.state_space_h))
@@ -150,7 +184,7 @@ def eval_model_state_space(env, args, episodes):
     for ep in episodes:
 
         # load model
-        model = load_model(results_dir + '/gen{:08d}.json'.format(ep))
+        model = load_model(results_dir + '/model{:08d}.json'.format(ep))
 
         # append actions following policy
         policies.append(model.policy(env.state_space_h))

@@ -34,7 +34,7 @@ def main():
         # load policy
         ep = i * is_stats.eval_freq
         results_dir = get_vracer_rel_dir_path(env, args)
-        model = load_model(results_dir + '/gen{}.json'.format(str(ep).zfill(8)))
+        model = load_model(results_dir + '/model{}.json'.format(str(ep).zfill(8)))
 
         # evaluate policy
         evaluate_policy_vect(env, model.policy, args.test_batch_size)
