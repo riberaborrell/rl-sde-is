@@ -44,7 +44,7 @@ def main():
         is_functional = compute_is_functional(env.girs_stoch_int,
                                               env.running_rewards, env.terminal_rewards)
         is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                            is_functional, l2_errors)
+                            is_functional=is_functional, l2_errors=l2_errors)
         is_stats.log_epoch(i)
         env.close()
 

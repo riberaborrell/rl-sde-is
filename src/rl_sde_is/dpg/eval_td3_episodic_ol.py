@@ -23,7 +23,7 @@ def main():
 
     # create object to store the is statistics of the learning
     is_stats = ISStatistics(args.test_freq, args.test_batch_size,
-                            args.track_l2_error, n_episodes=args.n_episodes)
+                            n_episodes=args.n_episodes, track_l2_error=args.track_l2_error)
 
     # load td3
     data = td3_episodic(
@@ -44,7 +44,6 @@ def main():
 
     for i in range(is_stats.n_epochs):
 
-
         # load policy
         ep = i * is_stats.eval_freq
         load_backup_models(data, ep)
@@ -58,7 +57,7 @@ def main():
         is_functional = compute_is_functional(env.girs_stoch_int,
                                               env.running_rewards, env.terminal_rewards)
         is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                             is_functional, l2_errors)
+                            is_functional=is_functional, l2_errors=l2_errors)
         is_stats.log_epoch(i)
         env.close()
 

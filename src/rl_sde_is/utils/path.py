@@ -128,7 +128,7 @@ def get_lr_and_batch_size_str(**kwargs):
     string += 'lr-init{:.1e}_'.format(kwargs['lr_init']) if 'lr_init' in kwargs.keys() else ''
     string += 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) if 'lr_actor' in kwargs.keys() else ''
     string += 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) if 'lr_critic' in kwargs.keys() else ''
-    string += 'K-{:d}_'.format(kwargs['batch_size']) if 'batch_size' in kwargs.keys() else ''
+    string += 'K{:d}_'.format(int(kwargs['batch_size'])) if 'batch_size' in kwargs.keys() else ''
     return string
 
 def get_iter_str(**kwargs):
@@ -313,7 +313,7 @@ def get_reinforce_dir_path(env, **kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'policy-{}_'.format(kwargs['policy_type']) \
-              + 'policy-noise_{:.2f}_'.format(kwargs['policy_noise']) \
+              + 'policy-noise{:.2f}_'.format(kwargs['policy_noise']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)

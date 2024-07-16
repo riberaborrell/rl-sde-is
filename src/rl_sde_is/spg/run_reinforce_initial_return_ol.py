@@ -17,7 +17,7 @@ from rl_sde_is.utils.plots import *
 
 
 def reinforce(env, gamma=1., n_layers=3, d_hidden_layer=32, policy_type='const-cov', policy_noise=1.,
-              lr=1e-4, batch_size=1, n_iterations=100, seed=None, track_l2_error=False,
+              lr=1e-4, batch_size=1, n_iterations=100, seed=None,
               backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
 
     # get dir path
@@ -73,7 +73,7 @@ def reinforce(env, gamma=1., n_layers=3, d_hidden_layer=32, policy_type='const-c
 
     # create object to store the is statistics of the learning
     is_stats = ISStatistics(eval_freq=1, eval_batch_size=batch_size, n_iterations=n_iterations,
-                            track_loss=True, track_l2_error=track_l2_error)
+                            track_loss=True, track_l2_error=env.track_l2_error)
 
     if live_plot_freq and env.d == 1:
         mean, sigma = compute_table_stoch_policy_1d(env, policy)
@@ -120,10 +120,12 @@ def reinforce(env, gamma=1., n_layers=3, d_hidden_layer=32, policy_type='const-c
         optimizer.step()
 
         # save is stats
+        l2_errors = env.l2_errors if env.track_l2_error else None
         is_functional = compute_is_functional(env.girs_stoch_int,
                                               env.running_rewards, env.terminal_rewards)
         is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                            is_functional, loss=eff_loss.detach().numpy())
+                            is_functional=is_functional, loss=eff_loss.detach().numpy(),
+                            l2_errors=l2_errors)
         is_stats.log_epoch(i)
 
         # backup model
@@ -169,7 +171,7 @@ def main():
         beta=args.beta,
         state_init_dist=args.state_init_dist,
     )
-    env = RecordEpisodeStatisticsVect(env, args.batch_size)
+    env = RecordEpisodeStatisticsVect(env, args.batch_size, args.track_l2_error)
 
     # discretize state and action space (plot purposes only)
     h_coarse = 0.05

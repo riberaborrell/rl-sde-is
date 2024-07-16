@@ -7,7 +7,7 @@ from rl_sde_is.utils.path import load_data, save_data
 class ISStatistics(object):
 
     def __init__(self, eval_freq, eval_batch_size, track_loss=False, track_is=True,
-                 track_l2_error=False, track_ct=True, **kwargs):
+                 track_l2_error=False, track_ct=False, **kwargs):
 
         # frequency of evaluation and batch size
         self.eval_freq = eval_freq
@@ -62,18 +62,28 @@ class ISStatistics(object):
         if track_ct:
             self.cts = np.empty(self.n_epochs)
 
-    def save_epoch(self, i, lengths, fhts, returns, psi_is=None,
-                   policy_l2_errors=None, loss=None, ct=None):
+    def save_epoch(self, i, lengths, fhts, returns, is_functional=None,
+                   l2_errors=None, loss=None, ct=None):
+
+        if self.track_is:
+            assert  is_functional is not None, 'IS functional is not provided'
+        if self.track_l2_error:
+            assert l2_errors is not None, 'L2 error is not provided'
+        if self.track_loss:
+            assert loss is not None, 'Loss is not provided'
+        if self.track_ct:
+            assert ct is not None, 'CT is not provided'
+
         self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(lengths)
         self.mean_fhts[i], self.var_fhts[i], _, _ = compute_array_statistics(fhts)
         self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(returns)
         if self.track_is:
-            self.mean_I_us[i], self.var_I_us[i], _, _ = compute_array_statistics(psi_is)
-        if self.track_loss and loss is not None:
+            self.mean_I_us[i], self.var_I_us[i], _, _ = compute_array_statistics(is_functional)
+        if self.track_loss:
             self.losses[i] = loss
-        if self.track_l2_error and policy_l2_errors is not None:
-            self.policy_l2_errors[i] = np.mean(policy_l2_errors)
-        if self.track_ct and ct is not None:
+        if self.track_l2_error:
+            self.policy_l2_errors[i] = np.mean(l2_errors)
+        if self.track_ct:
             self.cts[i] = ct
 
     def log_epoch(self, i):

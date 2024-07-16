@@ -43,7 +43,7 @@ def main():
             env.girs_stoch_int, env.running_rewards, env.terminal_rewards,
         )
         is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                             is_functional)
+                            is_functional=is_functional)
         is_stats.log_epoch(i)
         env.close()
 
