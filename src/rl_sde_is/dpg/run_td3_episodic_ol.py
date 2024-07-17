@@ -16,8 +16,9 @@ def main():
     # create gym environment
     env = gym.make(
         'sde-is-{}-{}-v0'.format(args.problem, args.setting),
+        dt=args.dt,
         beta=args.beta,
-        alpha=np.array(args.alpha),
+        alpha=args.alpha,
         state_init_dist=args.state_init_dist,
     )
     env = RecordEpisodeStatistics(env, args.n_episodes)
@@ -36,6 +37,7 @@ def main():
     # run td3
     data = td3_episodic(
         env=env,
+        n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,
         lr_actor=args.lr_actor,
@@ -53,10 +55,10 @@ def main():
         action_limit=args.action_limit,
         polyak=args.polyak,
         backup_freq=args.backup_freq,
+        live_plot_freq=args.live_plot_freq,
         value_function_opt=value_function_opt,
         policy_opt=policy_opt,
         load=args.load,
-        live_plot=args.live_plot,
     )
 
     # plots

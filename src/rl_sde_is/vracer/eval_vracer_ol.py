@@ -16,16 +16,16 @@ def main():
     # create gym envs 
     env = gym.make(
         'sde-is-{}-{}-v0'.format(args.problem, args.setting),
-        alpha=np.array(args.alpha),
+        alpha=args.alpha,
         beta=args.beta,
         T=args.T,
         reward_type=args.reward_type,
         state_init_dist=args.state_init_dist,
     )
-    env = RecordEpisodeStatisticsVect(env, args.test_batch_size, args.track_l2_error)
+    env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
 
     # create object to store the is statistics of the learning
-    is_stats = ISStatistics(args.test_freq, args.test_batch_size,
+    is_stats = ISStatistics(args.eval_freq, args.eval_batch_size,
                             n_episodes=args.n_episodes, track_l2_error=args.track_l2_error)
 
     for i in range(is_stats.n_epochs):
@@ -37,7 +37,7 @@ def main():
         model = load_model(results_dir + '/model{}.json'.format(str(ep).zfill(8)))
 
         # evaluate policy
-        evaluate_policy_vect(env, model.policy, args.test_batch_size)
+        evaluate_policy_vect(env, model.policy, args.eval_batch_size)
 
         # save and log epoch 
         l2_errors = env.l2_errors if args.track_l2_error else None

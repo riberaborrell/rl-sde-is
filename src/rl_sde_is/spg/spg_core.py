@@ -129,7 +129,7 @@ def reinforce_initial_return(env, gamma=1., n_layers=3, d_hidden_layer=32, polic
             save_model(policy, dir_path, 'policy_it{}'.format(i + 1))
 
         # update plots
-        if live_plot_freq and env.d == 1 and (i + 1) % live_plot_freq == 0:
+        if live_plot_freq and env.d == 1 and i % live_plot_freq == 0:
             mean, sigma = compute_table_stoch_policy_1d(env, policy)
             update_gaussian_policy_1d_figure(env, mean, sigma, lines)
 

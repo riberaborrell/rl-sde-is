@@ -182,7 +182,7 @@ def get_base_parser():
         help='Set number last episodes to averaged the statistics. Default: 100',
     )
     parser.add_argument(
-        '--test-freq',
+        '--eval-freq',
         type=int,
         default=10,
         help='Set frequency of model evaluation. Default: 10',
@@ -238,20 +238,20 @@ def get_base_parser():
     parser.add_argument(
         '--learning-starts',
         type=int,
-        default=1000,
-        help='Time step to start learning. Default: 1000',
+        default=4096, # 2^12
+        help='Time step to start learning. Default: 2^12',
     )
     parser.add_argument(
-        '--test-batch-size',
+        '--eval-batch-size',
         type=int,
         default=10,
-        help='Set number of trajectories in each test batch. Default: 10',
+        help='Set number of trajectories in each model evaluation. Default: 10',
     )
     parser.add_argument(
         '--replay-size',
         type=int,
-        default=int(1e6),
-        help='Set number of data slices in the replay buffer. Default: 10^6',
+        default=262144, # 2^18
+        help='Set number of data slices in the replay buffer. Default: 2^18',
     )
     parser.add_argument(
         '--h-state',

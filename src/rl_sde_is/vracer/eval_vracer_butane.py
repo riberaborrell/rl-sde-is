@@ -21,10 +21,10 @@ def main():
         gamma=10.0,
         T=args.T,
     )
-    env = RecordEpisodeStatistics(env, args.test_batch_size)
+    env = RecordEpisodeStatistics(env, args.eval_batch_size)
 
     # create object to store the is statistics of the learning
-    is_stats = ISStatistics(args.test_freq, args.test_batch_size, n_episdoes=args.n_episodes)
+    is_stats = ISStatistics(args.eval_freq, args.eval_batch_size, n_episdoes=args.n_episodes)
 
     for i in range(is_stats.n_epochs):
 
@@ -36,7 +36,7 @@ def main():
 
         # evaluate policy
         env.reset_statistics()
-        evaluate_policy(env, model.policy, args.test_batch_size)
+        evaluate_policy(env, model.policy, args.eval_batch_size)
 
         # save and log epoch 
         is_functional = compute_is_functional(
