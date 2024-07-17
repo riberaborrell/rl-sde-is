@@ -64,12 +64,18 @@ class GaussianPolicy(StochasticPolicy):
     '''Gaussian Policy
     '''
 
-    def mean_and_cov(self, state):
+    def mean_and_std(self, state):
+        raise NotImplementedError
+
+    def mean(self, state):
+        raise NotImplementedError
+
+    def std(self, state):
         raise NotImplementedError
 
     def distribution(self, state):
-        mean, cov = self.mean_and_cov(state)
-        return Normal(mean, cov)
+        mean, std = self.mean_and_std(state)
+        return Normal(mean, std)
 
     def log_prob_from_distribution(self, dist, action):
         return dist.log_prob(action).sum(axis=-1)
@@ -86,17 +92,24 @@ class GaussianPolicyConstantCov(GaussianPolicy):
 
         # mean nn
         self.sizes = [state_dim] + list(hidden_sizes) + [action_dim]
-        self.mean = mlp(self.sizes, activation)
+        self.mean_fn = mlp(self.sizes, activation)
         self.apply(self.init_last_layer_weights)
 
         # constant covariance matrix
-        self.std = std
-        self.cov = torch.ones(action_dim) * std**2
+        self.std = torch.ones(action_dim) * std
 
-    def mean_and_cov(self, state):
-        cov = torch.empty_like(state)
-        cov[:] = self.cov
-        return self.mean.forward(state), cov#torch.full_like(state, self.cov)
+    def mean_and_std(self, state):
+        std = torch.empty_like(state)
+        std[:] = self.std
+        return self.mean_fn.forward(state), std
+
+    def mean(self, state):
+        return self.mean_fn.forward(state)
+
+    def std(self, state):
+        std = torch.empty_like(state)
+        std[:] = self.std
+        return std
 
 
 class GaussianPolicyLearntCov(GaussianPolicy):
@@ -111,18 +124,25 @@ class GaussianPolicyLearntCov(GaussianPolicy):
         # mean nn
         sizes = [state_dim] + list(hidden_sizes)
         self.net = mlp(sizes, activation, activation)
-        self.mean = nn.Linear(hidden_sizes[-1], action_dim)
-        self.log_cov = nn.Linear(hidden_sizes[-1], action_dim)
-        #self.cov = nn.Linear(hidden_sizes[-1], action_dim)
+        self.mean_layer = nn.Linear(hidden_sizes[-1], action_dim)
+        self.log_std_layer = nn.Linear(hidden_sizes[-1], action_dim)
+        #self.std_fn = nn.Linear(hidden_sizes[-1], action_dim)
 
-    def mean_and_cov(self, state):
+    def mean_and_std(self, state):
         y = self.net.forward(state)
-        mean = self.mean.forward(y)
-        log_cov = self.log_cov.forward(y)
-        return mean, torch.exp(log_cov)
+        mean = self.mean_layer.forward(y)
+        log_std = self.log_std_layer.forward(y)
+        return mean, torch.exp(log_std)
         #cov = nn.functional.softplus(self.cov.forward(y))
         #return mean, cov
 
+    def mean(self, state):
+        y = self.net.forward(state)
+        return self.mean_layer.forward(y)
+
+    def std(self, state):
+        y = self.net.forward(state)
+        return self.log_std_layer.forward(y)
 
 class QValueFunction(nn.Module):
 

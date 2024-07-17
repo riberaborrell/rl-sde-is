@@ -689,7 +689,7 @@ def plot_det_policy_1d(env, policy, policy_opt=None, loc=None):
     ax.legend(loc=loc)
     plt.show()
 
-def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
+def plot_det_policies_1d(env, policies, policy_opt=None, labels=None, colors=None,
                          ylim=None, loc='upper right', file_path=None):
 
     n_policies = len(policies)
@@ -712,7 +712,8 @@ def plot_det_policies_1d(env, policies, policy_opt, labels=None, colors=None,
     x = env.state_space_h
     for i in range(n_policies):
         ax.plot(x, policies[i], c=colors[i], label=labels[i])
-    ax.plot(x, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=labels[i+1])
+    if policy_opt is not None:
+        ax.plot(x, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=labels[i+1])
 
     if labels[0]:
         #plt.legend(loc=loc, fontsize=10)
