@@ -6,6 +6,23 @@ from rl_sde_is.tabular.tabular_methods import compute_tables
 from rl_sde_is.utils.path import save_data
 from rl_sde_is.utils.plots import *
 
+
+def evaluate_det_policy_model(env, model):
+    state_space_h = torch.FloatTensor(env.state_space_h)
+    with torch.no_grad():
+        return model.forward(state_space_h).numpy()
+
+def evaluate_stoch_policy_model(env, model):
+    state_space_h = torch.FloatTensor(env.state_space_h)
+    with torch.no_grad():
+        means, stds = model.mean_and_std(state_space_h)
+        return means.numpy(), stds.numpy()
+
+def evaluate_value_function_model(env, model):
+    state_space_h = torch.FloatTensor(env.state_space_h)
+    with torch.no_grad():
+        return model.forward(state_space_h).numpy()
+
 def get_epsilon_greedy_discrete_action(env, model, state, epsilon):
 
     # pick greedy action (exploitation)
@@ -71,14 +88,6 @@ def compute_value_advantage_and_greedy_actions(q_table):
     return v_table, a_table, actions_idx
 
 
-def compute_v_table_1d(env, model):
-    states = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-
-    # compute v table
-    with torch.no_grad():
-        v_table = model.forward(states).numpy()
-
-    return v_table
 
 def compute_q_table_continuous_actions_1d(env, model):
 
@@ -142,18 +151,6 @@ def compute_det_policy_actions(env, model, states):
     with torch.no_grad():
         return model.forward(states).numpy()
 
-def compute_table_det_policy_1d(env, model):
-
-    state_space_h = torch.FloatTensor(env.state_space_h)
-
-    with torch.no_grad():
-        return model.forward(state_space_h).numpy()
-
-def compute_table_stoch_policy_1d(env, policy):
-    state_space_h = torch.FloatTensor(env.state_space_h)
-    with torch.no_grad():
-        means, stds = policy.mean_and_std(state_space_h)
-        return means.numpy(), stds.numpy()
 
 def compute_tables_critic_1d(env, critic):
 
@@ -228,11 +225,11 @@ def compute_v_value_critic_1d(env, critic, state):
     return np.max(q_values)
 
 def load_dp_tables_data(env, dt=1e-4, h_state=1e-2, h_action=1e-2):
-    from rl_sde_is.environments import DoubleWellStoppingTime1D
     from rl_sde_is.tabular_dp_tables import dynamic_programming_tables
 
     # initialize environment
-    env_dp = DoubleWellStoppingTime1D(alpha=env.alpha, beta=env.beta, dt=dt)
+    #TODO: revise for gymnasium env
+    env_dp = copy.deepcopy(env)
 
     # set action space bounds
     env_dp.set_action_space_bounds()

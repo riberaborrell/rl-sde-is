@@ -17,11 +17,11 @@ class ISStatistics(object):
         if 'n_episodes' in kwargs.keys():
             self.n_episodes = kwargs['n_episodes']
             self.n_epochs = self.n_episodes // eval_freq + 1
-            self.iter_str = 'ep. :'
+            self.iter_str = 'ep.:'
         elif 'n_iterations' in kwargs.keys():
             self.n_iterations = kwargs['n_iterations']
             self.n_epochs = self.n_iterations // eval_freq + 1
-            self.iter_str = 'it. :'
+            self.iter_str = 'it.:'
         elif 'n_total_steps' in kwargs.keys():
             self.n_total_steps = kwargs['n_total_steps']
             self.n_epochs = self.n_total_steps // eval_freq + 1
@@ -49,10 +49,12 @@ class ISStatistics(object):
         if track_is:
             self.mean_I_us = np.empty(self.n_epochs)
             self.var_I_us = np.empty(self.n_epochs)
+            self.re_I_us = np.empty(self.n_epochs)
 
         # losses
         if track_loss:
             self.losses = np.empty(self.n_epochs)
+            self.loss_vars = np.empty(self.n_epochs)
 
         # l2 error
         if track_l2_error:
@@ -63,10 +65,10 @@ class ISStatistics(object):
             self.cts = np.empty(self.n_epochs)
 
     def save_epoch(self, i, lengths, fhts, returns, is_functional=None,
-                   l2_errors=None, loss=None, ct=None):
+                   l2_errors=None, loss=None, loss_var=None, ct=None):
 
         if self.track_is:
-            assert  is_functional is not None, 'IS functional is not provided'
+            assert is_functional is not None, 'IS functional is not provided'
         if self.track_l2_error:
             assert l2_errors is not None, 'L2 error is not provided'
         if self.track_loss:
@@ -78,9 +80,10 @@ class ISStatistics(object):
         self.mean_fhts[i], self.var_fhts[i], _, _ = compute_array_statistics(fhts)
         self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(returns)
         if self.track_is:
-            self.mean_I_us[i], self.var_I_us[i], _, _ = compute_array_statistics(is_functional)
+            self.mean_I_us[i], self.var_I_us[i], _, self.re_I_us[i] = compute_array_statistics(is_functional)
         if self.track_loss:
             self.losses[i] = loss
+            self.loss_vars[i] = loss_var
         if self.track_l2_error:
             self.policy_l2_errors[i] = np.mean(l2_errors)
         if self.track_ct:
@@ -89,7 +92,7 @@ class ISStatistics(object):
     def log_epoch(self, i):
         j = i * self.eval_freq
         _, re_I_us = compute_std_and_re(self.mean_I_us[i], self.var_I_us[i])
-        msg = self.iter_str + ': {:2d}, '.format(j)
+        msg = self.iter_str + ' {:2d}, '.format(j)
         msg += 'mean return: {:.3e}, var return: {:.1e}, '.format(self.mean_returns[i], self.var_returns[i])
         msg += 'mfht: {:.3e}, '.format(self.mean_fhts[i])
         if self.track_loss:
