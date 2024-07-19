@@ -20,11 +20,10 @@ def main():
     env = gym.make(
         'sde-is-{}-{}-v0'.format(args.problem, args.setting),
         dt=args.dt,
-        alpha=np.array(args.alpha),
+        alpha=args.alpha,
         beta=args.beta,
         state_init_dist=args.state_init_dist,
     )
-    env = RecordEpisodeStatisticsVect(env, args.batch_size, args.track_l2_error)
 
     # discretize state and action space (plot purposes only)
     h_coarse = 0.05
@@ -32,13 +31,13 @@ def main():
     env.discretize_action_space(h_action=h_coarse)
 
     # compute corresponding beta
-    beta = 2 / (env.dt + env.sigma**2)
-    sigma = np.sqrt(2 / beta)
+    #beta = 2 / (env.dt + env.sigma**2)
+    #sigma = np.sqrt(2 / beta)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver(beta=beta)
+    sol_hjb = env.get_hjb_solver(beta=2)
     sol_hjb.coarse_solution(h_coarse)
-    policy_opt = sol_hjb.u_opt * env.sigma / sigma
+    policy_opt = sol_hjb.u_opt #* env.sigma / sigma
 
     # run reinforce with initial return
     data = reinforce_initial_return(
@@ -50,7 +49,7 @@ def main():
         lr=args.lr,
         batch_size=args.batch_size,
         seed=args.seed,
-        n_iterations=args.n_iterations,
+        n_grad_iterations=args.n_grad_iterations,
         backup_freq=args.backup_freq,
         policy_opt=policy_opt,
         load=args.load,
@@ -66,12 +65,13 @@ def main():
     means = get_means(env, data, iterations[::10])
 
     # plot avg returns and mfht
+    """
     x = np.arange(data['n_iterations'])
     plot_y_per_x(x, data['objectives'], title='Objective function', xlabel='Iterations')
     plot_y_per_x(x, data['losses'], title='Effective loss', xlabel='Iterations')
     plot_y_per_x(x, data['loss_vars'], title='Effective loss (variance)', xlabel='Iterations')
     plot_y_per_x(x, data['mfhts'], title='MFHT', xlabel='Iterations')
-
+    """
 
     # plot policy
     if env.d == 1:

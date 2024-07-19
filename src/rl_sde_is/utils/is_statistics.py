@@ -18,10 +18,10 @@ class ISStatistics(object):
             self.n_episodes = kwargs['n_episodes']
             self.n_epochs = self.n_episodes // eval_freq + 1
             self.iter_str = 'ep.:'
-        elif 'n_iterations' in kwargs.keys():
-            self.n_iterations = kwargs['n_iterations']
-            self.n_epochs = self.n_iterations // eval_freq + 1
-            self.iter_str = 'it.:'
+        elif 'n_grad_iterations' in kwargs.keys():
+            self.n_grad_iterations = kwargs['n_grad_iterations']
+            self.n_epochs = self.n_grad_iterations // eval_freq + 1
+            self.iter_str = 'grad. it.:'
         elif 'n_total_steps' in kwargs.keys():
             self.n_total_steps = kwargs['n_total_steps']
             self.n_epochs = self.n_total_steps // eval_freq + 1

@@ -8,43 +8,15 @@ import torch.optim as optim
 import torch.nn as nn
 
 from rl_sde_is.approximate_methods import *
-from rl_sde_is.models import mlp#, GaussianAnsatzModel
+from rl_sde_is.dpg.dpg_utils import DeterministicPolicy
 from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.utils.plots import *
 from rl_sde_is.utils.path import *
 from rl_sde_is.utils.numeric import logistic_torch
 
-class DeterministicPolicy(nn.Module):
 
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
-        super().__init__()
-        self.sizes = [state_dim] + list(hidden_sizes) + [action_dim]
-        self.policy = mlp(sizes=self.sizes, activation=activation)
-        self.apply(self.init_last_layer_weights)
-
-    def init_last_layer_weights(self, module):
-        if isinstance(module, nn.Linear):
-            if module.out_features == self.sizes[-1]:
-                nn.init.uniform_(module.weight, -5e-3, 5e-3)
-                nn.init.uniform_(module.bias, -5e-3, 5e-3)
-
-    def forward(self, state):
-        return self.policy.forward(state)
-        #mu = self.policy.forward(state)
-        #xi = logistic_torch(state, k=10, x0=self.target_set[0])
-        #xi = logistic_torch(state, k=10, x0=1)
-        #return (1 - xi) * mu
-
-
-def load_backup_model(data, it=0):
-    try:
-        load_model(data['model'], data['dir_path'], file_name='model_n-it{}'.format(it))
-    except FileNotFoundError as e:
-        print('there is no backup for iteration {:d}'.format(it))
-
-
-def reinforce_deterministic(env, gamma=1., n_layers=3, d_hidden_layer=256, batch_size=1000,
-                            lr=1e-3, n_iterations=100, seed=None, backup_freq=None,
+def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_size=1000,
+                            lr=1e-3, n_grad_iterations=100, seed=None, backup_freq=None,
                             live_plot_freq=None, policy_opt=None, track_l2_error=False, load=False):
 
     # get dir path
@@ -56,7 +28,7 @@ def reinforce_deterministic(env, gamma=1., n_layers=3, d_hidden_layer=256, batch
         d_hidden_layer=d_hidden_layer,
         batch_size=batch_size,
         lr=lr,
-        n_iterations=n_iterations,
+        n_grad_iterations=n_grad_iterations,
         seed=seed,
     )
 
@@ -70,17 +42,14 @@ def reinforce_deterministic(env, gamma=1., n_layers=3, d_hidden_layer=256, batch
         torch.manual_seed(seed)
 
     # vectorized environment
-    env = RecordEpisodeStatisticsVect(env, batch_size)
+    env = RecordEpisodeStatisticsVect(env, batch_size, track_l2_error)
 
     # get dimensions of each layer
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
     # initialize nn model 
-    #"""
     model = DeterministicPolicy(state_dim=env.d, action_dim=env.d,
                                 hidden_sizes=d_hidden_layers, activation=nn.Tanh())
-    #"""
-    #model = GaussianAnsatzModel(env, m_i=20, sigma_i=0.5, normalized=True, seed=seed)
 
     # define optimizer
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -92,7 +61,7 @@ def reinforce_deterministic(env, gamma=1., n_layers=3, d_hidden_layer=256, batch
         'd_hidden_layer': d_hidden_layer,
         'batch_size': batch_size,
         'lr': lr,
-        'n_iterations': n_iterations,
+        'n_grad_iterations': n_grad_iterations,
         'seed': seed,
         'backup_freq': backup_freq,
         'model': model,
@@ -107,7 +76,7 @@ def reinforce_deterministic(env, gamma=1., n_layers=3, d_hidden_layer=256, batch
     is_stats = ISStatistics(
         eval_freq=1,
         eval_batch_size=batch_size,
-        n_iterations=n_iterations,
+        n_grad_iterations=n_grad_iterations,
         track_l2_error=track_l2_error,
         track_loss=True,
         track_ct=True,
@@ -127,7 +96,7 @@ def reinforce_deterministic(env, gamma=1., n_layers=3, d_hidden_layer=256, batch
         elif env.d == 2:
             Q_policy = initialize_2d_figures(env, model, policy_opt)
 
-    for i in np.arange(n_iterations):
+    for i in np.arange(n_grad_iterations):
 
         # start timer
         ct_initial = time.time()
@@ -179,10 +148,8 @@ def reinforce_deterministic(env, gamma=1., n_layers=3, d_hidden_layer=256, batch
         )
         is_stats.log_epoch(i)
 
-        # backupa models and results
+        # backup models and results
         if backup_freq is not None and (i + 1) % backup_freq == 0:
-
-            # save model
             save_model(model, dir_path, 'model_n-it{}'.format(i + 1))
             stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
             save_data(data | stats_dict, dir_path)
@@ -197,7 +164,6 @@ def reinforce_deterministic(env, gamma=1., n_layers=3, d_hidden_layer=256, batch
     # add learning results
     stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
     data = data | stats_dict
-
     save_data(data, dir_path)
     return data
 
@@ -231,6 +197,12 @@ def update_2d_figures(env, model, Q_policy):
     states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, model, states)
     update_det_policy_2d_figure(env, policy, Q_policy)
+
+def load_backup_model(data, i=0):
+    try:
+        load_model(data['model'], data['dir_path'], file_name='model_n-it{}'.format(i))
+    except FileNotFoundError as e:
+        print('there is no backup for iteration {:d}'.format(i))
 
 def get_policies(env, data, iterations):
 

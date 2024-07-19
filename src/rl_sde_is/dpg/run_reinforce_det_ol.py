@@ -15,6 +15,7 @@ def main():
     # create gym environment
     env = gym.make(
         'sde-is-{}-{}-v0'.format(args.problem, args.setting),
+        dt=args.dt,
         beta=args.beta,
         alpha=(args.alpha),
         state_init_dist=args.state_init_dist,
@@ -38,7 +39,7 @@ def main():
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,
         lr=args.lr,
-        n_iterations=args.n_iterations,
+        n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
         backup_freq=args.backup_freq,
         live_plot_freq=args.live_plot_freq,
@@ -57,7 +58,7 @@ def main():
 
     # plot policy
     if env.d <= 2:
-        policies = get_policies(env, data, iterations_backup[::2])
+        policies = get_policies(env, data, iterations_backup[::20])
 
     if env.d == 1:
         plot_det_policies_1d(env, policies, sol_hjb.u_opt)

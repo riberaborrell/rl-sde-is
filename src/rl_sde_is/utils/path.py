@@ -136,8 +136,8 @@ def get_iter_str(**kwargs):
         string = 'n-episodes{:.0e}_'.format(kwargs['n_episodes'])
     elif 'n_total_steps' in kwargs.keys():
         string = 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps'])
-    elif 'n_iterations' in kwargs.keys():
-        string = 'n-iter{:.0e}_'.format(kwargs['n_iterations'])
+    elif 'n_grad_iterations' in kwargs.keys():
+        string = 'n-grad-iter{:.0e}_'.format(kwargs['n_grad_iterations'])
     else:
         string = ''
     return string
@@ -227,6 +227,7 @@ def get_sarsa_lambda_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
+              + 'dt{:.0e}_'.format(env.dt) \
               + get_lr_and_batch_size_str(**kwargs) \
               + 'lambda{:0.1f}_'.format(kwargs['lam']) \
               + get_eps_str(**kwargs) \
@@ -241,6 +242,7 @@ def get_mc_learning_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
+              + 'dt{:.0e}_'.format(env.dt) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_eps_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
@@ -255,6 +257,7 @@ def get_qlearning_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
+              + 'dt{:.0e}_'.format(env.dt) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_eps_str(**kwargs) \
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
@@ -270,6 +273,7 @@ def get_qlearning_batch_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-state{:.0e}_'.format(env.h_state) \
               + 'h-action{:.0e}_'.format(env.h_action) \
+              + 'dt{:.0e}_'.format(env.dt) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_eps_str(**kwargs) \
               + 'epochs{:.0e}_'.format(kwargs['n_epochs']) \
@@ -325,7 +329,8 @@ def get_reinforce_det_dir_path(env, **kwargs):
     '''
     '''
     # set parameters string
-    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
@@ -338,7 +343,8 @@ def get_dpg_dir_path(env, **kwargs):
     '''
 
     # set parameters string
-    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
@@ -351,7 +357,8 @@ def get_ddpg_dir_path(env, **kwargs):
     '''
 
     # set parameters string
-    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'noise-scale{:.1e}_'.format(kwargs['noise_scale']) \
               + get_lr_and_batch_size_str(**kwargs) \
@@ -365,7 +372,8 @@ def get_td3_dir_path(env, **kwargs):
     '''
 
     # set parameters string
-    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \

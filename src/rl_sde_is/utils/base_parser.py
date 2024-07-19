@@ -158,15 +158,27 @@ def get_base_parser():
         help='Set maximum value for epsilon. Default: 1',
     )
     parser.add_argument(
+        '--n-iterations',
+        type=int,
+        default=1000,
+        help='Set number of iterations. Default: 1000',
+    )
+    parser.add_argument(
+        '--n-avg-iterations',
+        type=int,
+        default=10,
+        help='Set number last iterations to averaged the statistics. Default: 10',
+    )
+    parser.add_argument(
         '--n-total-steps',
         type=int,
-        default=10**6,
-        help='Set number of maximum steps for the algorithm. Default: 1,000,000',
+        default=10**8,
+        help='Set number of maximum steps for the algorithm. Default: 100,000,000',
     )
     parser.add_argument(
         '--n-steps-lim',
         type=int,
-        default=int(1e6),
+        default=10**6,
         help='Set number of maximum steps for an episode. Default: 1,000,000',
     )
     parser.add_argument(
@@ -182,6 +194,18 @@ def get_base_parser():
         help='Set number last episodes to averaged the statistics. Default: 100',
     )
     parser.add_argument(
+        '--n-grad-iterations',
+        type=int,
+        default=1000,
+        help='Set number of gradient iterations. Default: 1000',
+    )
+    parser.add_argument(
+        '--n-steps-per-epoch',
+        type=int,
+        default=1000,
+        help='Set number of time steps per epoch. Default: 1000',
+    )
+    parser.add_argument(
         '--eval-freq',
         type=int,
         default=10,
@@ -192,30 +216,6 @@ def get_base_parser():
         type=int,
         default=100,
         help='Set frequency of backups. Default: 10',
-    )
-    parser.add_argument(
-        '--n-iterations',
-        type=int,
-        default=1000,
-        help='Set number of iterations. Default: 1000',
-    )
-    parser.add_argument(
-        '--n-avg-iterations',
-        type=int,
-        default=10,
-        help='Set number last iterations to averaged the statistics. Default: 10',
-    )
-    parser.add_argument(
-        '--n-epochs',
-        type=int,
-        default=100,
-        help='Set number of epochs. Default: 100',
-    )
-    parser.add_argument(
-        '--n-steps-per-epoch',
-        type=int,
-        default=1000,
-        help='Set number of time steps per epoch. Default: 1000',
     )
     parser.add_argument(
         '--update-freq',
