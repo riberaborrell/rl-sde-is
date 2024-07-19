@@ -96,11 +96,11 @@ class GaussianPolicyConstantCov(GaussianPolicy):
         self.apply(self.init_last_layer_weights)
 
         # constant covariance matrix
-        self.std = torch.ones(action_dim) * std
+        self.std_const = torch.ones(action_dim) * std
 
     def mean_and_std(self, state):
         std = torch.empty_like(state)
-        std[:] = self.std
+        std[:] = self.std_const
         return self.mean_fn.forward(state), std
 
     def mean(self, state):
@@ -108,7 +108,7 @@ class GaussianPolicyConstantCov(GaussianPolicy):
 
     def std(self, state):
         std = torch.empty_like(state)
-        std[:] = self.std
+        std[:] = self.std_const
         return std
 
 

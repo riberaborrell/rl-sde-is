@@ -185,7 +185,8 @@ def get_means(env, data, iterations):
     n_iterations = len(iterations)
     means = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
     for i, it in enumerate(iterations):
-        load_backup_model(data, i)
-        means[i], _ = evaluate_stoch_policy_model(env, data['policy']).reshape(env.n_states, env.d)
+        load_backup_model(data, it)
+        mean, _ = evaluate_stoch_policy_model(env, data['policy'])
+        means[i] = mean.reshape(env.n_states, env.d)
     return means
 
