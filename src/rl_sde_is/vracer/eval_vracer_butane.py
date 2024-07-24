@@ -20,6 +20,7 @@ def main():
         temperature=args.temperature,
         gamma=10.0,
         T=args.T,
+        state_init_dist=args.state_init_dist,
     )
     env = RecordEpisodeStatistics(env, args.eval_batch_size)
 

@@ -16,8 +16,9 @@ def main():
     # create gym environment
     env = gym.make(
         'sde-is-{}-{}-v0'.format(args.problem, args.setting),
+        dt=args.dt,
         beta=args.beta,
-        alpha=np.array(args.alpha),
+        alpha=args.alpha,
         T=args.T,
         reward_type=args.reward_type,
         baseline_scale_factor=args.baseline_scale_factor,
