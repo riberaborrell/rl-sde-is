@@ -1,8 +1,6 @@
 import gymnasium as gym
 import gym_sde_is
-from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 import numpy as np
-import korali
 
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
@@ -25,20 +23,9 @@ def main():
         baseline_scale_factor=args.baseline_scale_factor,
         state_init_dist=args.state_init_dist,
     )
-    env = RecordEpisodeStatistics(env, args.n_episodes)
 
-    # define Korali experiment 
-    e = korali.Experiment()
-
-    # define Problem Configuration
-    set_korali_problem(e, env, args)
-
-    # Set V-RACER training parameters
-    set_vracer_train_params(e, env, args)
-    set_vracer_variables_toy(e, env, args)
-
-    # vracer
-    data = vracer(e, env, args, load=args.load)
+    # run vracer
+    data = vracer(env, args, load=args.load)
 
     # plots
     if not args.plot: return

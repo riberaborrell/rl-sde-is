@@ -91,12 +91,11 @@ def get_dir_path(env_str, algorithm_name, param_str):
 
     return dir_path
 
-def get_baseline_str(env):
+def get_baseline_str(env, **kwargs):
     if env.reward_type == 'baseline':
-        string = 'baseline_'
+        string = 'baseline-factor{}_'.format(kwargs['baseline_scale_factor'])
     else:
         string = ''
-
     return string
 
 def get_eps_str(**kwargs):
@@ -376,6 +375,7 @@ def get_td3_dir_path(env, **kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
+              + 'action-limit{:.1f}_'.format(kwargs['action_limit']) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \
               + 'target-noise{:.1f}_'.format(kwargs['target_noise']) \
@@ -385,3 +385,21 @@ def get_td3_dir_path(env, **kwargs):
               + get_seed_str(**kwargs)
 
     return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+
+def get_vracer_dir_path(env, **kwargs):
+
+    # set parameters string
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_baseline_str(env, **kwargs) \
+              + get_model_arch_str(**kwargs) \
+              + 'action-limit{:.1f}_'.format(kwargs['action_limit']) \
+              + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \
+              + 'cut-off{:.3f}_'.format(kwargs['cutoff_scale']) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(env.unwrapped.__str__(), 'vracer', param_str)
+

@@ -321,6 +321,12 @@ def get_base_parser():
         help='Set polyak parameter for soft target updates. Default: 0.995',
     )
     parser.add_argument(
+        '--cutoff-scale',
+        type=float,
+        default=4.0,
+        help='Set cut-off scale for remember and forget algorithms. Default: 4.0',
+    )
+    parser.add_argument(
         '--dense',
         dest='is_dense',
         action='store_true',

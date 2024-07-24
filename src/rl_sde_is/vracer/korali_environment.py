@@ -43,4 +43,4 @@ def env(s, gym_env, args):
 
         # save results
         data = collect_vracer_results(gym_env)
-        save_data(data, args.rel_dir_path)
+        save_data(data, args.dir_path)

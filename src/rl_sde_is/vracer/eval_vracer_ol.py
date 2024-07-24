@@ -24,6 +24,9 @@ def main():
     )
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
 
+    # load vracer
+    data = vracer(env, args, load=True)
+
     # create object to store the is statistics of the learning
     is_stats = ISStatistics(args.eval_freq, args.eval_batch_size,
                             n_episodes=args.n_episodes, track_l2_error=args.track_l2_error)
@@ -33,8 +36,7 @@ def main():
 
         # load policy
         ep = i * is_stats.eval_freq
-        results_dir = get_vracer_rel_dir_path(env, args)
-        model = load_model(results_dir + '/model{}.json'.format(str(ep).zfill(8)))
+        model = load_model(args.rel_dir_path + '/model{}.json'.format(str(ep).zfill(8)))
 
         # evaluate policy
         evaluate_policy_vect(env, model.policy, args.eval_batch_size)
@@ -49,8 +51,7 @@ def main():
         env.close()
 
     # save is statistics
-    dir_path = get_vracer_dir_path(env, args)
-    is_stats.save_stats(dir_path)
+    is_stats.save_stats(args.dir_path)
 
 
 if __name__ == '__main__':
