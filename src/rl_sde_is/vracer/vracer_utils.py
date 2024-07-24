@@ -34,15 +34,15 @@ def set_vracer_train_params(e, env, args):
     e["Solver"]["Mode"] = "Training"
     e["Solver"]["Episodes Per Generation"] = 1 #args.n_episodes
     e["Solver"]["Experiences Between Policy Updates"] = args.policy_freq
-    e["Solver"]["Learning Rate"] = 0.0001
-    e["Solver"]["Discount Factor"] = 1.0
+    e["Solver"]["Learning Rate"] = args.lr
+    e["Solver"]["Discount Factor"] = args.gamma
 
     # set L2 regularization
     #e["Solver"]["L2 Regularization"]["Enabled"] = False
     #e["Solver"]["L2 Regularization"]["Importance"] = 0.0001
 
     # set mini batch
-    e["Solver"]["Mini Batch"]["Size"] = 256
+    e["Solver"]["Mini Batch"]["Size"] = args.batch_size
 
     # set Experience Replay, REFER and policy settings
     e["Solver"]["Experience Replay"]["Start Size"] = 4096 # (2**12)
