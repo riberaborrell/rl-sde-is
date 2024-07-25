@@ -13,7 +13,13 @@ from rl_sde_is.utils.plots import *
 
 def main():
     parser = get_base_parser()
-    parser.description = 'Run reinforce with initial returns for the sde importance sampling environment'
+    parser.description = 'Run reinforce stochastic for the sde importance sampling environment'
+    parser.add_argument(
+        '--algorithm-type',
+        choices=['initial-return', 'n-return'],
+        default='initial-return',
+        help='Set reinforce stoch algorithm type. Default: initial-return',
+    )
     args = parser.parse_args()
 
     # create gym environment
@@ -28,20 +34,20 @@ def main():
     # discretize state and action space (plot purposes only)
     h_coarse = 0.05
     env.discretize_state_space(h_state=h_coarse)
-    env.discretize_action_space(h_action=h_coarse)
 
     # compute corresponding beta
-    #beta = 2 / (env.dt + env.sigma**2)
-    #sigma = np.sqrt(2 / beta)
+    beta = 2 / (env.dt*args.policy_noise**2 + env.sigma**2)
+    sigma = np.sqrt(2 / beta)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver(beta=2)
+    sol_hjb = env.get_hjb_solver(beta=1)
     sol_hjb.coarse_solution(h_coarse)
-    policy_opt = sol_hjb.u_opt #* env.sigma / sigma
+    policy_opt = sol_hjb.u_opt * sigma
 
     # run reinforce with initial return
-    data = reinforce_initial_return(
+    data = reinforce_stochastic(
         env,
+        algorithm_type=args.algorithm_type,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         policy_type=args.policy_type,

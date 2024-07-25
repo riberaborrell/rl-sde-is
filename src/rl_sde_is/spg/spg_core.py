@@ -1,7 +1,7 @@
 import time
 
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
-from gym_sde_is.utils.sde import compute_is_functional
+from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,17 +10,91 @@ import torch.optim as optim
 from rl_sde_is.approximate_methods import evaluate_stoch_policy_model
 from rl_sde_is.spg.spg_utils import *
 from rl_sde_is.utils.is_statistics import ISStatistics
+from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
 
-def reinforce_initial_return(env, gamma=1., n_layers=3, d_hidden_layer=32, policy_type='const-cov',
+def sample_loss_initial_return(env, policy, batch_size):
+
+    # initialization
+    state, _ = env.reset(batch_size=batch_size)
+
+    # preallocate log probs
+    log_probs = torch.zeros(batch_size)
+
+    # terminal state flag
+    done = np.full((batch_size,), False)
+    while not done.all():
+
+        # sample action
+        state_torch = torch.FloatTensor(state)
+        action, _ = policy.sample_action(state_torch)
+        action_torch = torch.FloatTensor(action)
+        _, log_probs_n = policy.forward(state_torch, action_torch)
+
+        # env step
+        state, _, _, truncated, _ = env.step_vect(action)
+        done = np.logical_or(env.been_terminated, truncated)
+
+        # save log probs 
+        idx = ~env.been_terminated
+        log_probs[idx] = log_probs[idx] + log_probs_n[idx]
+
+    # calculate loss
+    returns_torch = torch.FloatTensor(env.returns)
+    eff_loss = - torch.mean(log_probs * returns_torch)
+    eff_loss_var = - np.var(log_probs.detach().numpy() * env.returns)
+
+    return eff_loss, eff_loss_var
+
+def sample_loss_n_step_return(env, policy, batch_size):
+
+    # initialization
+    state, _ = env.reset(batch_size=batch_size)
+
+    # terminal state flag
+    done = np.full((batch_size,), False)
+    while not done.all():
+
+        # sample action
+        state_torch = torch.FloatTensor(state)
+        action, _ = policy.sample_action(state_torch)
+
+        # env step
+        state, _, _, truncated, _ = env.step_vect(action)
+        done = np.logical_or(env.been_terminated, truncated)
+
+    # initialize tensor
+    phi = torch.empty(batch_size)
+
+    for i in range(batch_size):
+
+        # calculate after n step returns
+        n_returns = torch.FloatTensor(cumsum(env.trajs_rewards[i]).copy())
+
+        # calculate log probs
+        states = torch.FloatTensor(env.trajs_states[i])
+        actions = torch.FloatTensor(env.trajs_actions[i])
+        _, log_probs = policy.forward(states, actions)
+
+        phi[i] = - torch.dot(log_probs, n_returns)
+
+    # calculate loss
+    eff_loss = phi.mean()
+    with torch.no_grad():
+        eff_loss_var = phi.var().numpy()
+
+    return eff_loss, eff_loss_var
+
+
+def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layers=3, d_hidden_layer=32, policy_type='const-cov',
                              policy_noise=1., lr=1e-4, batch_size=1, n_grad_iterations=100, seed=None,
                              backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
 
     # get dir path
     dir_path = get_reinforce_dir_path(
         env,
-        agent='reinforce-initial-return',
+        agent='reinforce-{}'.format(algorithm_type),
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
@@ -44,6 +118,10 @@ def reinforce_initial_return(env, gamma=1., n_layers=3, d_hidden_layer=32, polic
     # vectorized environment
     env = RecordEpisodeStatisticsVect(env, batch_size)
 
+    # record states and action from the trajectories wrapper
+    if algorithm_type == 'n-return':
+        env = SaveEpisodeTrajectoryVect(env, batch_size, track_rewards=True)
+
     # initialize model and optimizer
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
 
@@ -56,6 +134,12 @@ def reinforce_initial_return(env, gamma=1., n_layers=3, d_hidden_layer=32, polic
             state_dim=env.d, action_dim=env.d, hidden_sizes=hidden_sizes, activation=nn.Tanh(),
         )
     optimizer = optim.Adam(policy.parameters(), lr=lr)
+
+    # sample loss function
+    if algorithm_type == 'initial-return':
+        sample_loss_fn = sample_loss_initial_return
+    elif algorithm_type == 'n-return':
+        sample_loss_fn = sample_loss_initial_return
 
     # save algorithm parameters
     data = {
@@ -83,12 +167,12 @@ def reinforce_initial_return(env, gamma=1., n_layers=3, d_hidden_layer=32, polic
         eval_batch_size=batch_size,
         n_grad_iterations=n_grad_iterations,
         track_loss=True,
+        track_is=False,
         track_ct=True,
     )
     keys_chosen = [
         'mean_fhts', 'var_fhts',
         'mean_returns', 'var_returns',
-        'mean_I_us', 'var_I_us', 're_I_us',
         'losses', 'loss_vars',
         'cts',
     ]
@@ -102,42 +186,12 @@ def reinforce_initial_return(env, gamma=1., n_layers=3, d_hidden_layer=32, polic
         # start timer
         ct_initial = time.time()
 
-        # reset gradients
+        # sample loss
+        eff_loss, eff_loss_var = sample_loss_fn(env, policy, batch_size)
+
+        # reset gradients, compute gradients and update parameters
         optimizer.zero_grad()
-
-        # initialization
-        state, _ = env.reset(batch_size=batch_size)
-
-        # preallocate log probs
-        log_probs = torch.zeros(batch_size)
-
-        # terminal state flag
-        done = np.full((batch_size,), False)
-        while not done.all():
-
-            # sample action
-            state_torch = torch.FloatTensor(state)
-            action, _ = policy.sample_action(state_torch)
-            action_torch = torch.FloatTensor(action)
-            _, log_probs_n = policy.forward(state_torch, action_torch)
-
-            # env step
-            state, _, _, truncated, _ = env.step_vect(action)
-            done = np.logical_or(env.been_terminated, truncated)
-
-            # save log probs 
-            idx = ~env.been_terminated
-            log_probs[idx] = log_probs[idx] + log_probs_n[idx]
-
-        # calculate loss
-        returns_torch = torch.FloatTensor(env.returns)
-        eff_loss = - torch.mean(log_probs * returns_torch)
-        eff_loss_var = - np.var(log_probs.detach().numpy() * env.returns)
-
-        # calculate gradients
         eff_loss.backward()
-
-        # update coefficients
         optimizer.step()
 
         # end timer
@@ -145,14 +199,8 @@ def reinforce_initial_return(env, gamma=1., n_layers=3, d_hidden_layer=32, polic
 
         # save and log epoch 
         env.statistics_to_numpy()
-        is_functional = compute_is_functional(
-            env.girs_stoch_int,
-            env.running_rewards,
-            env.terminal_rewards,
-        )
         is_stats.save_epoch(
             i, env.lengths, env.lengths*env.dt, env.returns,
-            is_functional=is_functional,
             loss=eff_loss.detach().numpy(), loss_var=eff_loss_var,
             ct=ct_final - ct_initial,
         )

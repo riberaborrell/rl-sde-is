@@ -91,13 +91,13 @@ class ISStatistics(object):
 
     def log_epoch(self, i):
         j = i * self.eval_freq
-        _, re_I_us = compute_std_and_re(self.mean_I_us[i], self.var_I_us[i])
         msg = self.iter_str + ' {:2d}, '.format(j)
         msg += 'mean return: {:.3e}, var return: {:.1e}, '.format(self.mean_returns[i], self.var_returns[i])
         msg += 'mfht: {:.3e}, '.format(self.mean_fhts[i])
         if self.track_loss:
             msg += 'loss: {:.3e}, '.format(self.losses[i])
         if self.track_is:
+            _, re_I_us = compute_std_and_re(self.mean_I_us[i], self.var_I_us[i])
             msg += 'is: mean I^u: {:.3e}, var I^u: {:.1e}, re I^u: {:.1e}, '.format(
                 self.mean_I_us[i], self.var_I_us[i], re_I_us
             )

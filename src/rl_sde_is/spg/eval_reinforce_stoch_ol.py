@@ -10,7 +10,14 @@ from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.spg.spg_core import *
 
 def main():
-    args = get_base_parser().parse_args()
+    parser = get_base_parser()
+    parser.add_argument(
+        '--algorithm-type',
+        choices=['initial-return', 'n-return'],
+        default='initial-return',
+        help='Set reinforce stoch algorithm type. Default: initial-return',
+    )
+    args = parser.parse_args()
 
     # create gym envs 
     env = gym.make(
@@ -31,8 +38,9 @@ def main():
     )
 
     # load reinforce initial return data
-    data = reinforce_initial_return(
+    data = reinforce_stochastic(
         env,
+        algorithm_type=args.algorithm_type,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         policy_type=args.policy_type,
