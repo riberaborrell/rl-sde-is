@@ -212,3 +212,4 @@ def get_policies(env, data, iterations):
         load_backup_model(data, it)
         policies[i] = evaluate_det_policy_model(env, data['model']).reshape(env.n_states, env.d)
     return policies
+

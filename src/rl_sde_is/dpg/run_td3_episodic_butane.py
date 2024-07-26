@@ -20,7 +20,6 @@ def main():
         gamma=10.0,
         T=args.T,
     )
-    env = RecordEpisodeStatistics(env, args.n_episodes)
 
     # run td3
     data = td3_episodic(

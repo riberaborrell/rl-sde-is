@@ -1,6 +1,7 @@
 from copy import deepcopy
 import time
 
+from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -169,8 +170,8 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32,
         gamma=gamma,
         d_hidden_layer=d_hidden_layer,
         expl_noise_init=expl_noise_init,
-        target_noise=target_noise,
         policy_freq=policy_freq,
+        target_noise=target_noise,
         polyak=polyak,
         batch_size=batch_size,
         lr_actor=lr_actor,
@@ -189,6 +190,8 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32,
         torch.manual_seed(seed)
         np.random.seed(seed)
 
+    # record statistics wrapper
+    env = RecordEpisodeStatistics(env, n_episodes)
 
     # initialize actor representations
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]

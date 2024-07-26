@@ -22,7 +22,7 @@ def main():
     )
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
 
-    # create object to store the is statistics of the learning
+    # create object to store the is statistics of the evaluation
     is_stats = ISStatistics(
         eval_freq=args.eval_freq,
         eval_batch_size=args.eval_batch_size,

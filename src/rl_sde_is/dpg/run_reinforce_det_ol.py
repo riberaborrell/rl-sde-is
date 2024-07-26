@@ -30,7 +30,6 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
     sol_hjb.coarse_solution(h_coarse)
-    policy_opt = np.expand_dims(sol_hjb.u_opt, axis=1) if env.d == 1 else sol_hjb.u_opt
 
     # run reinforve algorithm with a deterministic policy
     data = reinforce_deterministic(
@@ -43,7 +42,7 @@ def main():
         seed=args.seed,
         backup_freq=args.backup_freq,
         live_plot_freq=args.live_plot_freq,
-        policy_opt=policy_opt,
+        policy_opt=sol_hjb.u_opt,
         track_l2_error=args.track_l2_error,
         load=args.load,
     )
@@ -64,7 +63,7 @@ def main():
         plot_det_policies_1d(env, policies, sol_hjb.u_opt)
 
     if env.d == 2:
-        plot_det_policy_2d(env, policies[0].reshape(env.n_states_axis+(env.d,)), policy_opt)
+        plot_det_policy_2d(env, policies[0].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
         plot_det_policy_2d(env, policies[-1].reshape(env.n_states_axis+(env.d,)), policy_opt)
 
 if __name__ == "__main__":

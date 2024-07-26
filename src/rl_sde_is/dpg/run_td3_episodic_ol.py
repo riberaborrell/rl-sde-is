@@ -1,6 +1,5 @@
 import gymnasium as gym
 import gym_sde_is
-from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
 from rl_sde_is.dpg.td3_core import *
 from rl_sde_is.utils.base_parser import get_base_parser
@@ -21,7 +20,6 @@ def main():
         alpha=args.alpha,
         state_init_dist=args.state_init_dist,
     )
-    env = RecordEpisodeStatistics(env, args.n_episodes)
 
     # discretize state and action space (plot purposes only)
     h_coarse = 0.1
@@ -31,7 +29,7 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
     sol_hjb.coarse_solution(h_coarse)
-    policy_opt = np.expand_dims(sol_hjb.u_opt, axis=1) if env.d == 1 else sol_hjb.u_opt
+    policy_opt = sol_hjb.u_opt
     value_function_opt = -sol_hjb.value_function
 
     # run td3
