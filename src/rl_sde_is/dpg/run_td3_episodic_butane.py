@@ -24,6 +24,7 @@ def main():
     # run td3
     data = td3_episodic(
         env=env,
+        n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,
         lr_actor=args.lr_actor,
@@ -42,7 +43,6 @@ def main():
         polyak=args.polyak,
         backup_freq=args.backup_freq,
         load=args.load,
-        live_plot=args.live_plot,
     )
 
     # plots

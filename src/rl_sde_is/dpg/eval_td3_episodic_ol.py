@@ -29,10 +29,12 @@ def main():
     # load td3
     data = td3_episodic(
         env,
+        n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         n_steps_lim=args.n_steps_lim,
         policy_freq=args.policy_freq,
         target_noise=args.target_noise,
+        action_limit=args.action_limit,
         expl_noise_init=args.expl_noise_init,
         polyak=args.polyak,
         batch_size=args.batch_size,
@@ -60,11 +62,12 @@ def main():
         is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
                             is_functional=is_functional, l2_errors=l2_errors)
         is_stats.log_epoch(i)
-        env.close()
 
     # save is statistics
     is_stats.save_stats(data['dir_path'])
 
+    # close env
+    env.close()
 
 if __name__ == '__main__':
     main()

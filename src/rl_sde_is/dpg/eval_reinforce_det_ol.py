@@ -58,10 +58,12 @@ def main():
         is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
                             is_functional=is_functional, l2_errors=l2_errors)
         is_stats.log_epoch(i)
-        env.close()
 
     # save is statistics
     is_stats.save_stats(data['dir_path'])
+
+    # close env
+    env.close()
 
 
 if __name__ == '__main__':
