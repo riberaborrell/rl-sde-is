@@ -80,7 +80,6 @@ class GaussianPolicy(StochasticPolicy):
     def log_prob_from_distribution(self, dist, action):
         return dist.log_prob(action).sum(axis=-1)
 
-
 class GaussianPolicyConstantCov(GaussianPolicy):
     '''Gaussian Policy with constant covariance matrix
     '''
@@ -111,11 +110,13 @@ class GaussianPolicyConstantCov(GaussianPolicy):
         std[:] = self.std_const
         return std
 
+def vracer_softplus_fn(x):
+    return x + torch.sqrt(x**2 + 1)
 
 class GaussianPolicyLearntCov(GaussianPolicy):
     '''Gaussian Policy with learnt covariance matrix
     '''
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation, seed=0):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation, std_init=1.0, seed=0):
         super().__init__()
 
         # fix seed
@@ -125,16 +126,23 @@ class GaussianPolicyLearntCov(GaussianPolicy):
         sizes = [state_dim] + list(hidden_sizes)
         self.net = mlp(sizes, activation, activation)
         self.mean_layer = nn.Linear(hidden_sizes[-1], action_dim)
-        self.log_std_layer = nn.Linear(hidden_sizes[-1], action_dim)
-        #self.std_fn = nn.Linear(hidden_sizes[-1], action_dim)
+        self.std_layer = nn.Linear(hidden_sizes[-1], action_dim)
+        self.std_init = std_init
+
+        # initialize mean weights to "zero"
+        nn.init.uniform_(self.mean_layer.weight, -5e-3, 5e-3)
+        nn.init.uniform_(self.mean_layer.bias, -5e-3, 5e-3)
+
+        # initialize std weights to "zero"
+        nn.init.uniform_(self.std_layer.weight, -5e-3, 5e-3)
+        nn.init.uniform_(self.std_layer.bias, -5e-3, 5e-3)
 
     def mean_and_std(self, state):
         y = self.net.forward(state)
         mean = self.mean_layer.forward(y)
-        log_std = self.log_std_layer.forward(y)
-        return mean, torch.exp(log_std)
-        #cov = nn.functional.softplus(self.cov.forward(y))
-        #return mean, cov
+        z = self.std_layer.forward(y)
+        std = self.std_init * vracer_softplus_fn(z)
+        return mean, std
 
     def mean(self, state):
         y = self.net.forward(state)
@@ -142,7 +150,8 @@ class GaussianPolicyLearntCov(GaussianPolicy):
 
     def std(self, state):
         y = self.net.forward(state)
-        return self.log_std_layer.forward(y)
+        z = self.std_layer.forward(y)
+        return self.std_init * vracer_softplus_fn(z)
 
 class QValueFunction(nn.Module):
 

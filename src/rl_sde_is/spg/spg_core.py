@@ -7,8 +7,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_sde_is.approximate_methods import evaluate_stoch_policy_model
-from rl_sde_is.spg.spg_utils import *
+from rl_sde_is.approximate_methods import evaluate_stoch_policy_model, \
+                                          train_stochastic_policy_from_hjb
+from rl_sde_is.spg.spg_utils import GaussianPolicyConstantCov, GaussianPolicyLearntCov
 from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_dir_path, load_data, save_data, save_model, load_model
@@ -131,9 +132,13 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layer
                                            std=policy_noise)
     else:
         policy = GaussianPolicyLearntCov(
-            state_dim=env.d, action_dim=env.d, hidden_sizes=hidden_sizes, activation=nn.Tanh(),
+            state_dim=env.d, action_dim=env.d, hidden_sizes=hidden_sizes,
+            activation=nn.Tanh(), std_init=policy_noise,
         )
     optimizer = optim.Adam(policy.parameters(), lr=lr)
+
+    # train params?
+    #train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False)
 
     # sample loss function
     if algorithm_type == 'initial-return':
@@ -228,13 +233,15 @@ def load_backup_model(data, i=0):
     except FileNotFoundError as e:
         print('The iteration {:d} has no backup '.format(i))
 
-def get_means(env, data, iterations):
+def get_means_and_stds(env, data, iterations):
 
     n_iterations = len(iterations)
     means = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
+    stds = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
     for i, it in enumerate(iterations):
         load_backup_model(data, it)
-        mean, _ = evaluate_stoch_policy_model(env, data['policy'])
+        mean, std = evaluate_stoch_policy_model(env, data['policy'])
         means[i] = mean.reshape(env.n_states, env.d)
-    return means
+        stds[i] = std#.reshape(env.n_states, env.d)
+    return means, stds
 
