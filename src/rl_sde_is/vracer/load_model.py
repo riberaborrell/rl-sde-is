@@ -1,4 +1,6 @@
 import json
+from os import path
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,33 +8,35 @@ import torch.nn as nn
 from rl_sde_is.vracer.vracer_utils import get_vracer_rel_dir_path
 from rl_sde_is.models import mlp
 
-def square_plus(x, b=1):
-    return 0.5 * (x + torch.sqrt(x**2 + b))
+def vracer_softplus_fn(x):
+    return 0.5 * (x + torch.sqrt(x**2 + 1))
 
 class OutputActivation(nn.Module):
-    def __init__(self, idx):
+    def __init__(self, idx, std_params_scaling):
         super().__init__()
         self.idx = idx
-        #self.stds_output_activation = square_plus
-        self.stds_output_activation = nn.Softplus()
+        self.std_output_activation = vracer_softplus_fn
+        self.std_params_scaling = torch.tensor(std_params_scaling, dtype=torch.float32)
 
     def forward(self, x):
         if x.ndim == 1:
-            x[self.idx] = self.stds_output_activation(x[self.idx])
+            x[self.idx] = self.std_output_activation(self.params_scaling*x[self.idx])
         elif x.ndim == 2:
-            x[:, self.idx] = self.stds_output_activation(x[:, self.idx])
+            x[:, self.idx] = self.std_params_scaling * self.std_output_activation(x[:, self.idx])
+            #x[:, self.idx] = self.std_output_activation((self.params_scaling*x)[:, self.idx])
         return x
 
 
 class VracerModel(nn.Module):
 
-    def __init__(self, d_in, d_out, hidden_sizes, activation):
+    def __init__(self, d_in, d_out, hidden_sizes, activation, policy_params_scaling):
         super().__init__()
         self.d_in = d_in
         self.d_out = d_out
         self.d_out_tot = 1 + 2 * d_out # V, mus, stds
         self.sizes = [d_in] + list(hidden_sizes) + [self.d_out_tot]
-        output_activation = OutputActivation(slice(1+self.d_out, self.d_out_tot))
+        output_activation = OutputActivation(idx=slice(1+self.d_out, self.d_out_tot),
+                                             std_params_scaling=policy_params_scaling[d_in:])
         self.model = mlp(self.sizes, activation, output_activation)
 
     def forward(self, state):
@@ -51,11 +55,17 @@ class VracerModel(nn.Module):
     def value_function(self, state):
         return self.evaluate(state, slice(0, 1))
 
-    def policy(self, state):
+    def mean(self, state):
         return self.evaluate(state, slice(1, 1+self.d_out))
 
-    def stds(self, state):
+    def std(self, state):
         return self.evaluate(state, slice(1+self.d_out, self.d_out_tot))
+
+def get_policy_hyperparameters(file: str):
+    with open(file, "r") as f:
+        dd = json.load(f)
+    policy_params_scaling = dd["Solver"]["Policy"]["Parameter Scaling"]
+    return policy_params_scaling
 
 
 def get_model_hyperparameters(file: str):
@@ -129,10 +139,15 @@ def get_model_hyperparameters_from_korali(korali_file: str):
 
 def load_model(file: str):
 
+    # load policy hyperparameters
+    vracer_file = path.dirname(file) + '/latest'
+    policy_params_scaling = get_policy_hyperparameters(vracer_file)
+    #model_params_scaling = [1.] + policy_params_scaling
+
     d_in, d_out, hidden_sizes, activations, params = get_model_hyperparameters(file)
 
     # load model
-    model = VracerModel(d_in, d_out, hidden_sizes, nn.Tanh())
+    model = VracerModel(d_in, d_out, hidden_sizes, nn.Tanh(), policy_params_scaling)
     state_dict = model.state_dict()
 
     # build state dict
@@ -150,9 +165,9 @@ def load_model(file: str):
 
     return model
 
-def get_policies(env, args, episodes):
+def get_means(env, args, episodes):
     results_dir = get_vracer_rel_dir_path(env, args)
-    policies = []
+    means = []
 
     for ep in episodes:
 
@@ -160,9 +175,9 @@ def get_policies(env, args, episodes):
         model = load_model(results_dir + '/model{:08d}.json'.format(ep))
 
         # append actions following policy
-        policies.append(model.policy(env.state_space_h))
+        means.append(model.mean(env.state_space_h))
 
-    return policies
+    return means
 
 def get_value_functions(env, args, episodes):
     results_dir = get_vracer_rel_dir_path(env, args)
@@ -180,16 +195,16 @@ def get_value_functions(env, args, episodes):
 
 def eval_model_state_space(env, args, episodes):
     results_dir = get_vracer_rel_dir_path(env, args)
-    value_functions, policies, stds = [], [], []
+    value_functions, means, stds = [], [], []
     for ep in episodes:
 
         # load model
         model = load_model(results_dir + '/model{:08d}.json'.format(ep))
 
         # append actions following policy
-        policies.append(model.policy(env.state_space_h))
         value_functions.append(model.value_function(env.state_space_h).squeeze())
-        stds.append(model.stds(env.state_space_h))
+        means.append(model.mean(env.state_space_h))
+        stds.append(model.std(env.state_space_h))
 
-    return policies, value_functions, stds
+    return value_functions, means, stds
 

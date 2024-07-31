@@ -38,7 +38,7 @@ def main():
 
         # evaluate policy
         env.reset_statistics()
-        evaluate_policy(env, model.policy, args.eval_batch_size)
+        evaluate_policy(env, model.mean, args.eval_batch_size)
 
         # save and log epoch 
         is_functional = compute_is_functional(
