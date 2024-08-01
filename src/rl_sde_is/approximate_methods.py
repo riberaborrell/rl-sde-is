@@ -2,10 +2,9 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from rl_sde_is.tabular.tabular_methods import compute_tables
+from rl_sde_is.tabular.tabular_methods import compute_tables, compute_value_advantage_and_greedy_actions
 from rl_sde_is.utils.path import save_data
 from rl_sde_is.utils.plots import *
-
 
 def evaluate_det_policy_model(env, model):
     state_space_h = torch.FloatTensor(env.state_space_h)
@@ -22,6 +21,22 @@ def evaluate_value_function_model(env, model):
     state_space_h = torch.FloatTensor(env.state_space_h)
     with torch.no_grad():
         return model.forward(state_space_h).numpy()
+
+def evaluate_qvalue_function_model_1d(env, model):
+    # discretized states and actions
+    state_space_h = torch.FloatTensor(env.state_space_h.squeeze())
+    action_space_h = torch.FloatTensor(env.action_space_h.squeeze())
+    grid_states, grid_actions = torch.meshgrid(state_space_h, action_space_h, indexing='ij')
+
+    n_states = env.state_space_h.shape[0]
+    n_actions = env.action_space_h.shape[0]
+
+    grid_states = grid_states.reshape(n_states * n_actions, 1)
+    grid_actions = grid_actions.reshape(n_states * n_actions, 1)
+
+    # compute q table
+    with torch.no_grad():
+        return model.forward(grid_states, grid_actions).numpy().reshape(n_states, n_actions)
 
 def get_epsilon_greedy_discrete_action(env, model, state, epsilon):
 
@@ -72,20 +87,6 @@ def get_epsilon_greedy_continuous_action(env, model, state, epsilon):
     # pick random action (exploration)
     else:
         return np.random.uniform(env.action_space_bounds[0], env.action_space_bounds[1], (1,))
-
-def compute_value_advantage_and_greedy_actions(q_table):
-    ''' computes the value table, the advantage table and the greedy action indices.
-    '''
-    # compute value function
-    v_table = np.max(q_table, axis=1)
-
-    # compute advantage table
-    a_table = q_table - np.expand_dims(v_table, axis=1)
-
-    # compute greedy action indices
-    actions_idx = np.argmax(q_table, axis=1)
-
-    return v_table, a_table, actions_idx
 
 
 
@@ -154,20 +155,7 @@ def compute_det_policy_actions(env, model, states):
 
 def compute_tables_critic_1d(env, critic):
 
-    # discretized states and actions
-    state_space_h = torch.FloatTensor(env.state_space_h.squeeze())
-    action_space_h = torch.FloatTensor(env.action_space_h.squeeze())
-    grid_states, grid_actions = torch.meshgrid(state_space_h, action_space_h, indexing='ij')
-
-    n_states = env.state_space_h.shape[0]
-    n_actions = env.action_space_h.shape[0]
-
-    grid_states = grid_states.reshape(n_states * n_actions, 1)
-    grid_actions = grid_actions.reshape(n_states * n_actions, 1)
-
-    # compute q table
-    with torch.no_grad():
-        q_table = critic.forward(grid_states, grid_actions).numpy().reshape(n_states, n_actions)
+    q_table = evaluate_qvalue_function_model_1d(env, critic)
 
     # compute value table, advantage table and greedy actions
     v_table, a_table, actions_idx = compute_value_advantage_and_greedy_actions(q_table)
@@ -244,36 +232,82 @@ def load_dp_tables_data(env, dt=1e-4, h_state=1e-2, h_action=1e-2):
 
     return env_dp, data
 
-def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, load=False):
+def train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False):
 
-    from rl_sde_is.plots import initialize_qvalue_function_1d_figure, \
+    from rl_sde_is.utils.plots import initialize_det_policy_1d_figure
+
+    # optimizer
+    optimizer = optim.Adam(policy.parameters(), lr=1e-3)
+
+    # train
+    n_iterations = int(1e4)
+
+    # minibatch size
+    batch_size = int(1e3)
+    for i in range(n_iterations):
+
+        idx = np.random.randint(0, env.n_states, batch_size)
+
+        # sample data
+        states = torch.tensor(env.state_space_h[idx], dtype=torch.float32)
+
+        # compute q values
+        means = policy.mean(states)
+
+        # targets
+        mean_targets = torch.tensor(policy_opt[idx], dtype=torch.float32)
+
+        # compute mse loss
+        loss = ((means - mean_targets)**2).mean()
+
+        # compute gradient
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if i % int(1e3) == 0:
+            print('iteration: {:d}, loss: {:1.4e}'.format(i, loss))
+
+    print('Policy mean trained to be the optimal policy')
+    return policy
+
+def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, load=False):
+    from rl_sde_is.utils.plots import initialize_qvalue_function_1d_figure, \
                                 initialize_advantage_function_1d_figure, \
                                 update_imshow_figure
 
     # load q value table from dynamic programming
-    env_dp, data = load_dp_tables_data(env)#, dt=1e-2, h_state=5e-1, h_action=5e-1)
+    env_dp, data = load_dp_tables_data(env, dt=1e-3, h_state=1e-2, h_action=1e-2)
 
     # load critic if already trained
     if load and 'q_function_approx' in data:
-        return data['q_function_approx_dis']
+        return data['q_function_approx']
         print('Critic load to be the actual q-value function (from dp)')
 
     q_table_dp = data['q_table']
+    _, _, policy_dp = compute_tables(env_dp, q_table_dp)
 
     # initialize figures
-    q_table, _, a_table, _ = compute_tables_discrete_actions_1d(env, critic)
+    q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
     im_q = initialize_qvalue_function_1d_figure(env, q_table)
-    im_a = initialize_advantage_function_1d_figure(env, a_table, policy_opt)
+    im_a, line = initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy)
+    #im_a, line = initialize_advantage_function_1d_figure(env, a_table, policy_dp, policy)
 
     # optimizer
-    optimizer = optim.Adam(critic.parameters(), lr=1e-3)
+    optimizer = optim.Adam(critic.parameters(), lr=1e-2)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9999)
 
-    # train
+    def get_lr(optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
+
+    # train q-value function parameters
     n_iterations = int(1e5)
+    batch_size = int(1e3)
+
     for i in range(n_iterations):
 
         # sample data
-        batch_size = int(1e3)
         state_actions_idx = np.random.randint(0, env_dp.n_states_actions, batch_size)
         state_actions = env_dp.state_action_space_h_flat[state_actions_idx]
         states = torch.tensor(state_actions[:, 0], dtype=torch.float32).unsqueeze(dim=1)
@@ -285,7 +319,7 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
         )[state_actions_idx]
 
         # compute q values
-        q_values = critic.forward(states)
+        q_values = critic.forward(states, actions)
 
         # compute mse loss
         loss = ((q_values - q_values_target)**2).mean()
@@ -294,15 +328,16 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         if i % int(1e3) == 0:
-            print('iteration: {:d}, loss: {:1.4e}'.format(i, loss))
-            q_table, _, a_table, _ = compute_tables_discrete_actions_1d(env, critic)
+            print('iteration: {:d}, loss: {:1.4e}, lr: {:1.4e}'.format(i, loss, get_lr(optimizer)))
+            q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
             update_imshow_figure(env, q_table, im_q)
-            update_imshow_figure(env, a_table, im_a)
+            update_advantage_function_1d_figure(env, a_table, im_a, policy, line)
 
     # save
-    data['q_function_approx_dis'] = critic
+    data['q_function_approx'] = critic
     save_data(data, data['rel_dir_path'])
 
     print('Critic trained to be the actual q-value function (from dp)')
@@ -310,7 +345,7 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
 
 def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False):
 
-    from rl_sde_is.plots import initialize_qvalue_function_1d_figure, \
+    from rl_sde_is.utils.plots import initialize_qvalue_function_1d_figure, \
                                 initialize_advantage_function_1d_figure, \
                                 update_imshow_figure
 
@@ -383,7 +418,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
 
 def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, policy_opt, load=False):
 
-    from rl_sde_is.plots import initialize_value_function_1d_figure, \
+    from rl_sde_is.utils.plots import initialize_value_function_1d_figure, \
                                 initialize_qvalue_function_1d_figure, \
                                 initialize_advantage_function_1d_figure, \
                                 update_value_function_1d_figure, \

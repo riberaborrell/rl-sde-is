@@ -53,6 +53,23 @@ def get_epsilons_exp_decay(n_episodes, eps_init, eps_decay):
 def get_epsilons_harmonic(n_episodes):
     return np.array([1 / (ep + 1) for ep in np.arange(n_episodes)])
 
+def compute_value_function(q_table):
+    return np.max(q_table, axis=1)
+
+def compute_value_advantage_and_greedy_actions(q_table):
+    ''' computes the value table, the advantage table and the greedy action indices.
+    '''
+    # compute value function
+    v_table = compute_value_function(q_table)
+
+    # compute advantage table
+    a_table = q_table - np.expand_dims(v_table, axis=1)
+
+    # compute greedy action indices
+    actions_idx = np.argmax(q_table, axis=1)
+
+    return v_table, a_table, actions_idx
+
 def compute_tables(env, q_table):
     ''' computes the value table, the advantage table and the greedy action indices.
     '''
