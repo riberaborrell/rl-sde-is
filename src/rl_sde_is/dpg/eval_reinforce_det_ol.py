@@ -42,6 +42,10 @@ def main():
         load=True,
     )
 
+    # evaluate policy by fixing the initial position
+    if args.state_init_dist == 'uniform':
+        env.unwrapped.state_init_dist = 'delta'
+
     for i in range(is_stats.n_epochs):
 
         # load policy

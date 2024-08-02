@@ -1,8 +1,8 @@
 import gymnasium as gym
 import gym_sde_is
-from gym_sde_is.utils.evaluate import evaluate_policy
+from gym_sde_is.utils.evaluate import evaluate_policy_vect
 from gym_sde_is.utils.sde import compute_is_functional
-from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
+from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 import numpy as np
 
 from rl_sde_is.utils.base_parser import get_base_parser
@@ -22,13 +22,17 @@ def main():
         T=args.T,
         state_init_dist=args.state_init_dist,
     )
-    env = RecordEpisodeStatistics(env, args.eval_batch_size)
+    env = RecordEpisodeStatisticsVect(env, args.eval_batch_size)
 
     # load vracer
     data = vracer(env, args, load=True)
 
     # create object to store the is statistics of the learning
     is_stats = ISStatistics(args.eval_freq, args.eval_batch_size, n_episodes=args.n_episodes)
+
+    # evaluate policy by fixing the initial position
+    if args.state_init_dist == 'uniform':
+        env.unwrapped.state_init_dist = 'delta'
 
     for i in range(is_stats.n_epochs):
 
@@ -37,8 +41,7 @@ def main():
         model = load_model(args.rel_dir_path + '/model{}.json'.format(str(ep).zfill(8)))
 
         # evaluate policy
-        env.reset_statistics()
-        evaluate_policy(env, model.mean, args.eval_batch_size)
+        evaluate_policy_vect(env, model.mean, args.eval_batch_size)
 
         # save and log epoch 
         is_functional = compute_is_functional(

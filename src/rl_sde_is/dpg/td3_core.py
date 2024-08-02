@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from rl_sde_is.tabular.tabular_methods import compute_value_function
 from rl_sde_is.approximate_methods import *
 from rl_sde_is.models import mlp
 from rl_sde_is.dpg.replay_buffers import ReplayBuffer
@@ -437,20 +438,22 @@ def get_policy(env, data, ep=None):
     if ep is not None:
         load_backup_models(data, ep)
         actor = data['actor']
-
-    state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-    with torch.no_grad():
-        policy = actor.forward(state_space_h).numpy().squeeze()
-    return policy
+    return evaluate_det_policy_model(env, data['actor'])
 
 def get_policies(env, data, episodes):
-
-    Nx = env.n_states
-    policies = np.empty((0, Nx), dtype=np.float32)
-
-    for ep in episodes:
+    n_episodes = len(episodes)
+    policies = np.empty((n_episodes, env.n_states, env.d), dtype=np.float32)
+    for i, ep in enumerate(episodes):
         load_backup_models(data, ep)
-        policies = np.vstack((policies, get_policy(env, data).reshape(1, Nx)))
-
+        policies[i] = evaluate_det_policy_model(env, data['actor'])
     return policies
+
+def get_value_functions(env, data, episodes):
+    n_episodes = len(episodes)
+    value_functions = np.empty((n_episodes, env.n_states), dtype=np.float32)
+    for i, ep in enumerate(episodes):
+        load_backup_models(data, ep)
+        qvalue = evaluate_qvalue_function_model_1d(env, data['critic1'])
+        value_functions[i] = compute_value_function(qvalue)
+    return value_functions
 

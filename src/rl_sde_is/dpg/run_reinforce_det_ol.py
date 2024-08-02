@@ -52,19 +52,25 @@ def main():
         return
 
     # get backup iterations
-    iterations = np.arange(args.n_iterations + 1)
-    iterations_backup = iterations[::data['backup_freq']]
+    iterations = np.arange(0, args.n_grad_iterations + args.backup_freq, args.backup_freq)
+
+    # plot statistics
+    x = np.arange(data['n_grad_iterations'])
+    plot_y_per_grad_iteration(x, data['mean_returns'][:-1], title='Objective function')
+    plot_y_per_grad_iteration(x, data['losses'][:-1], title='Effective loss')
+    plot_y_per_grad_iteration(x, data['loss_vars'][:-1], title='Effective loss (variance)')
+    plot_y_per_grad_iteration(x, data['mean_fhts'][:-1], title='MFHT')
 
     # plot policy
     if env.d <= 2:
-        policies = get_policies(env, data, iterations_backup[::20])
+        policies = get_policies(env, data, iterations)
 
     if env.d == 1:
         plot_det_policies_1d(env, policies, sol_hjb.u_opt)
 
     if env.d == 2:
         plot_det_policy_2d(env, policies[0].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
-        plot_det_policy_2d(env, policies[-1].reshape(env.n_states_axis+(env.d,)), policy_opt)
+        plot_det_policy_2d(env, policies[-1].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
 
 if __name__ == "__main__":
     main()

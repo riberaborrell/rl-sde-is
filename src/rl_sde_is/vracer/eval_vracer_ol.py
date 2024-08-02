@@ -33,7 +33,9 @@ def main():
                             n_episodes=args.n_episodes, track_l2_error=args.track_l2_error)
 
     # evaluate policy by fixing the initial position
-    env.state_init_dist = 'delta'
+    if args.state_init_dist == 'uniform':
+        env.unwrapped.state_init_dist = 'delta'
+
     for i in range(is_stats.n_epochs):
 
         # load policy

@@ -19,6 +19,7 @@ def main():
         temperature=args.temperature,
         gamma=10.0,
         T=args.T,
+        state_init_dist=args.state_init_dist,
     )
 
     # run td3

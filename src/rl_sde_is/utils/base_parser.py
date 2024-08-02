@@ -268,8 +268,8 @@ def get_base_parser():
     parser.add_argument(
         '--n-layers',
         type=int,
-        default=3,
-        help='Set total number of layers. Default: 3',
+        default=2,
+        help='Set total number of layers. Default: 2',
     )
     parser.add_argument(
         '--d-hidden',
