@@ -1,6 +1,46 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+
+def compute_value_function(q_table):
+    return np.max(q_table, axis=1)
+
+def compute_advantage_function(v_table, q_table):
+    return q_table - np.expand_dims(v_table, axis=1)
+
+def compute_greed_action_indices(q_table):
+    return np.argmax(q_table, axis=1)
+
+def compute_value_advantage_and_greedy_actions(q_table):
+    ''' computes the value table, the advantage table and the greedy action indices.
+    '''
+    v_table = compute_value_function(q_table)
+    a_table = compute_advantage_function(v_table, q_table)
+    actions_idx = compute_greed_action_indices(q_table)
+
+    return v_table, a_table, actions_idx
+
+def compute_value_advantage_and_greedy_policy(env, q_table):
+    ''' computes the value table, the advantage table and the greedy policy.
+    '''
+
+    v_table = compute_value_function(q_table)
+    a_table = compute_advantage_function(v_table, q_table)
+    actions_idx = compute_greed_action_indices(q_table)
+    greedy_policy = env.action_space_h[actions_idx]
+    greedy_policy[env.target_set_idx] = 0
+
+    return v_table, a_table, greedy_policy
+
+def get_det_policy_indices(env, policy):
+    return env.get_action_idx(policy)
+
+def compute_rms_error(table, appr_table):
+
+    # get number of states
+    n_states = table.shape[0]
+
+    return np.linalg.norm(table - appr_table) / np.sqrt(n_states)
+    # return np.linalg.norm(table - appr_table)
 
 def get_epsilon_greedy_action(env, q_table, state_idx, epsilon):
 
@@ -53,46 +93,6 @@ def get_epsilons_exp_decay(n_episodes, eps_init, eps_decay):
 def get_epsilons_harmonic(n_episodes):
     return np.array([1 / (ep + 1) for ep in np.arange(n_episodes)])
 
-def compute_value_function(q_table):
-    return np.max(q_table, axis=1)
-
-def compute_value_advantage_and_greedy_actions(q_table):
-    ''' computes the value table, the advantage table and the greedy action indices.
-    '''
-    # compute value function
-    v_table = compute_value_function(q_table)
-
-    # compute advantage table
-    a_table = q_table - np.expand_dims(v_table, axis=1)
-
-    # compute greedy action indices
-    actions_idx = np.argmax(q_table, axis=1)
-
-    return v_table, a_table, actions_idx
-
-def compute_tables(env, q_table):
-    ''' computes the value table, the advantage table and the greedy action indices.
-    '''
-
-    # compute value function
-    v_table = np.max(q_table, axis=1)
-
-    # compute advantage table
-    a_table = q_table - np.expand_dims(v_table, axis=1)
-
-    # compute greedy actions
-    greedy_policy = env.get_greedy_actions(q_table)
-    greedy_policy[env.ts_idx] = 0
-
-    return v_table, a_table, greedy_policy
-
-def compute_rms_error(table, appr_table):
-
-    # get number of states
-    n_states = table.shape[0]
-
-    return np.linalg.norm(table - appr_table) / np.sqrt(n_states)
-    # return np.linalg.norm(table - appr_table)
 
 def evaluate_policy_vectorized(env, policy, batch_size=10, k_max=10**7):
 

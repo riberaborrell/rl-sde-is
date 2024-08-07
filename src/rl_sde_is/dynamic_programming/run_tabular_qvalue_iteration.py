@@ -1,22 +1,22 @@
+import gymnasium as gym
 import numpy as np
 
-from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.plots import *
-from rl_sde_is.tabular_methods import *
-from rl_sde_is.utils_path import *
+import gym_sde_is
+from gym_sde_is.wrappers.tabular_env import TabularEnv
 
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
+from rl_sde_is.utils.tabular_methods import compute_value_advantage_and_greedy_policy, compute_rms_error
+from rl_sde_is.utils.base_parser import get_base_parser
+from rl_sde_is.utils.path import get_dynamic_programming_tables_dir_path, \
+                                 get_dynamic_programming_dir_path, save_data, load_data
+from rl_sde_is.utils.plots import *
+
 
 def q_table_update_semi_vect(env, r_table, p_tensor, q_table, gamma):
 
     # copy value function table
     q_table_i = q_table.copy()
 
-    d = np.where(env.is_in_ts, 1, 0)
+    d = np.where(env.is_target_set(env.state_space_h), 1, 0).squeeze()
 
     # loop over states not in the target set 
     for state_idx in range(env.n_states):
@@ -32,23 +32,26 @@ def q_table_update_semi_vect(env, r_table, p_tensor, q_table, gamma):
 
             q_table[state_idx, action_idx] = value
 
+    return q_table
+
 def q_table_update_vect(env, r_table, p_tensor, q_table, gamma):
 
-    d = np.where(env.is_in_ts, 1, 0)[:, None]
+    d = np.where(env.is_target_set(env.state_space_h), 1, 0)
     q_table = r_table \
             + (1 - d) * gamma * np.matmul(
-                np.swapaxes(p_tensor, 0, 2), np.max(q_table, axis=1)
+                np.swapaxes(p_tensor, 0, 2),
+                np.max(q_table, axis=1)
             ).transpose()
 
     return q_table
 
-def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
-                     value_function_opt=None, policy_opt=None, load=False, live_plot=False):
+def qvalue_iteration(env, gamma=1.0, n_iterations=100, eval_freq=10,
+                     value_function_opt=None, policy_opt=None, live_plot_freq=False, load=False):
 
     ''' Dynamic programming q-value iteration.
     '''
     # get dir path
-    rel_dir_path = get_dynamic_programming_dir_path(
+    dir_path = get_dynamic_programming_dir_path(
         env,
         agent='dp-q-value-iteration',
         n_iterations=n_iterations,
@@ -56,8 +59,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
 
     # load results
     if load:
-        data = load_data(rel_dir_path)
-        return data
+        return load_data(dir_path)
 
     # load dp tables
     tables_data = load_data(get_dynamic_programming_tables_dir_path(env))
@@ -68,36 +70,35 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
     q_table = - np.random.rand(env.n_states, env.n_actions)
 
     # preallocate value function rms errors
-    n_test_iterations = n_iterations // test_freq_iterations + 1
+    n_test_iterations = n_iterations // eval_freq + 1
     v_rms_errors = np.empty(n_test_iterations)
     p_rms_errors = np.empty(n_test_iterations)
 
     # compute tables
-    v_table, a_table, policy = compute_tables(env, q_table)
+    v_table, a_table, policy = compute_value_advantage_and_greedy_policy(env, q_table)
 
     # compute errors
     v_rms_errors[0] = compute_rms_error(value_function_opt, v_table)
     p_rms_errors[0] = compute_rms_error(policy_opt, policy)
 
     # initialize live figures
-    if live_plot:
+    if live_plot_freq:
         lines = initialize_tabular_figures(env, q_table, v_table, a_table, policy,
                                            value_function_opt, policy_opt)
     # for each iteration
     for i in np.arange(n_iterations):
 
-
         #q_table_update_semi_vect(env, r_table, p_tensor, q_table, gamma)
         q_table = q_table_update_vect(env, r_table, p_tensor, q_table, gamma)
 
         # test
-        if (i + 1) % test_freq_iterations == 0:
+        if (i + 1) % eval_freq == 0:
 
             # compute tables
-            v_table, a_table, policy = compute_tables(env, q_table)
+            v_table, a_table, policy = compute_value_advantage_and_greedy_policy(env, q_table)
 
             # compute root mean square error of value function and policy
-            j = (i + 1) // test_freq_iterations
+            j = (i + 1) // eval_freq
             v_rms_errors[j] = compute_rms_error(value_function_opt, v_table)
             p_rms_errors[j] = compute_rms_error(policy_opt, policy)
 
@@ -106,7 +107,7 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
             print(msg)
 
             # update live figures
-            if live_plot:
+            if live_plot_freq and (i + 1) % live_plot_freq == 0:
                 update_tabular_figures(env, q_table, v_table, a_table, policy, lines)
 
     data = {
@@ -115,36 +116,39 @@ def qvalue_iteration(env, gamma=1.0, n_iterations=100, test_freq_iterations=10,
         'v_rms_errors' : v_rms_errors,
         'p_rms_errors' : p_rms_errors,
     }
-    save_data(data, rel_dir_path)
+    save_data(data, dir_path)
     return data
 
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
 
-    # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
-
-    # set action space bounds
-    env.set_action_space_bounds()
-
-    # discretize state and action space
-    env.discretize_state_space(args.h_state)
-    env.discretize_action_space(args.h_action)
+    # create gym environment
+    env = gym.make(
+        'sde-is-{}-{}-v0'.format(args.problem, args.setting),
+        dt=args.dt,
+        beta=args.beta,
+        alpha=args.alpha,
+        state_init_dist=args.state_init_dist,
+        reward_type=args.reward_type,
+        baseline_scale_factor=args.baseline_scale_factor,
+    )
+    env = TabularEnv(env, args.h_state, args.h_action)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
+    sol_hjb.coarse_solution(args.h_state)
 
     # run dynamic programming q-value iteration
     data = qvalue_iteration(
         env,
         gamma=args.gamma,
         n_iterations=args.n_iterations,
-        test_freq_iterations=args.test_freq_iterations,
+        eval_freq=args.eval_freq,
         value_function_opt=-sol_hjb.value_function,
         policy_opt=sol_hjb.u_opt,
+        live_plot_freq=args.live_plot_freq,
         load=args.load,
-        live_plot=args.live_plot,
     )
 
     # plot
@@ -153,15 +157,15 @@ def main():
 
     # compute tables
     q_table = data['q_table']
-    v_table, a_table, policy_greedy = compute_tables(env, q_table)
+    v_table, a_table, policy_greedy = compute_value_advantage_and_greedy_policy(env, q_table)
 
     # do plots
     plot_value_function_1d(env, v_table, -sol_hjb.value_function)
     plot_q_value_function_1d(env, q_table)
     plot_advantage_function_1d(env, a_table)
     plot_det_policy_1d(env, policy_greedy, sol_hjb.u_opt)
-    plot_value_rms_error_iterations(data['v_rms_errors'], args.test_freq_iterations)
-    plot_policy_rms_error_iterations(data['p_rms_errors'], args.test_freq_iterations)
+    plot_value_rms_error_iterations(data['v_rms_errors'], args.eval_freq)
+    plot_policy_rms_error_iterations(data['p_rms_errors'], args.eval_freq)
 
 if __name__ == '__main__':
     main()

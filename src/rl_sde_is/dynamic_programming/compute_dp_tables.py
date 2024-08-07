@@ -1,16 +1,14 @@
 import numpy as np
+import gymnasium as gym
 
-from rl_sde_is.base_parser import get_base_parser
-from rl_sde_is.dynamic_programming import compute_p_tensor_batch, compute_r_table
-from rl_sde_is.environments import DoubleWellStoppingTime1D
-from rl_sde_is.tabular_methods import compute_tables
-from rl_sde_is.plots import *
-from rl_sde_is.utils_path import *
+import gym_sde_is
+from gym_sde_is.wrappers.tabular_env import TabularEnv
 
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
+from rl_sde_is.dynamic_programming.dp_utils import compute_p_tensor_batch, compute_r_table
+from rl_sde_is.utils.tabular_methods import compute_value_advantage_and_greedy_policy
+from rl_sde_is.utils.base_parser import get_base_parser
+from rl_sde_is.utils.path import get_dynamic_programming_tables_dir_path, save_data, load_data
+from rl_sde_is.utils.plots import *
 
 def check_p_tensor(env, p_tensor):
     sum_probs = np.sum(p_tensor, axis=0)
@@ -20,10 +18,10 @@ def compute_optimal_v_table(env, r_table, p_tensor, value_function_opt, policy_o
 
     # get states and actions
     states_idx = np.arange(env.n_states)
-    actions_idx = env.get_action_idx(np.expand_dims(policy_opt, axis=1))
+    actions_idx = env.get_action_idx(policy_opt)
 
     # bellman expectation equation following optimal policy
-    d = np.where(env.is_in_ts, 1, 0)
+    d = np.where(env.is_target_set(env.state_space_h.flatten()), 1, 0)[0]
     v_table = (1 - d) * np.matmul(
        p_tensor[:, states_idx, actions_idx].T,
        value_function_opt,
@@ -31,10 +29,10 @@ def compute_optimal_v_table(env, r_table, p_tensor, value_function_opt, policy_o
 
     return v_table
 
-def compute_optimal_q_table(env, r_table, p_tensor, value_function_opt, policy_opt):
+def compute_optimal_q_table(env, r_table, p_tensor, value_function_opt):
 
     # bellman expectation equation following optimal policy
-    d = np.expand_dims(np.where(env.is_in_ts, 1, 0), axis=1)
+    d = np.where(env.is_target_set(env.state_space_h), 1, 0)
     q_table = (1 - d) * np.dot(
         np.moveaxis(p_tensor, 0, -1),
         value_function_opt,
@@ -43,12 +41,14 @@ def compute_optimal_q_table(env, r_table, p_tensor, value_function_opt, policy_o
 
 def dynamic_programming_tables(env, value_function_opt=None, policy_opt=None, load=False):
 
+    assert env.d == 1, 'only 1-dimensional problems is supported'
+
     # get dir path
-    rel_dir_path = get_dynamic_programming_tables_dir_path(env)
+    dir_path = get_dynamic_programming_tables_dir_path(env)
 
     # load results
     if load:
-        return load_data(rel_dir_path)
+        return load_data(dir_path)
 
     # compute r table and p tensor
     r_table = compute_r_table(env)
@@ -58,34 +58,43 @@ def dynamic_programming_tables(env, value_function_opt=None, policy_opt=None, lo
     assert check_p_tensor(env, p_tensor)
 
     v_table = compute_optimal_v_table(env, r_table, p_tensor, value_function_opt, policy_opt)
-    q_table = compute_optimal_q_table(env, r_table, p_tensor, value_function_opt, policy_opt)
+    q_table = compute_optimal_q_table(env, r_table, p_tensor, value_function_opt)
 
     #array = np.isclose(v_table, np.max(q_table, axis=1))
 
     data = {
+        'dt': env.dt,
+        'h_state': env.h_state,
+        'h_action': env.h_action,
         'r_table': r_table,
         'p_tensor': p_tensor,
+        'v_table': v_table,
         'q_table': q_table,
-        'rel_dir_path': rel_dir_path,
+        'dir_path': dir_path,
     }
-    save_data(data, rel_dir_path)
+    save_data(data, dir_path)
     return data
 
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
 
-    # initialize environment
-    env = DoubleWellStoppingTime1D(alpha=args.alpha, beta=args.beta, dt=args.dt)
-
-    # discretize observation and action space
-    env.set_action_space_bounds()
-    env.discretize_state_space(args.h_state)
-    env.discretize_action_space(args.h_action)
+    # create gym environment
+    env = gym.make(
+        'sde-is-{}-{}-v0'.format(args.problem, args.setting),
+        dt=args.dt,
+        beta=args.beta,
+        alpha=args.alpha,
+        state_init_dist=args.state_init_dist,
+        reward_type=args.reward_type,
+        baseline_scale_factor=args.baseline_scale_factor,
+    )
+    env = TabularEnv(env, args.h_state, args.h_action)
 
     # get hjb solver
     sol_hjb = env.get_hjb_solver()
-    value_function_opt = -sol_hjb.value_function
+    sol_hjb.coarse_solution(args.h_state)
+    value_function_opt = - sol_hjb.value_function
     policy_opt = sol_hjb.u_opt
 
     # compute dp tables
@@ -98,7 +107,7 @@ def main():
     r_table = data['r_table']
     p_tensor = data['p_tensor']
     q_table = data['q_table']
-    v_table, a_table, policy = compute_tables(env, q_table)
+    v_table, a_table, policy = compute_value_advantage_and_greedy_policy(env, q_table)
 
     # plot reward table and p_tensor
     plot_reward_table(env, r_table)
@@ -109,7 +118,7 @@ def main():
     # plot value function and reward following the optimal policy
     plot_value_function_1d(env, v_table, value_function_opt)
     states_idx = np.arange(env.n_states)
-    actions_idx = env.get_action_idx(np.expand_dims(policy_opt, axis=1))
+    actions_idx = env.get_action_idx(policy_opt)[0]
     plot_reward_following_policy(env, r_table[states_idx, actions_idx])
 
     # plot q value function and advantage value
