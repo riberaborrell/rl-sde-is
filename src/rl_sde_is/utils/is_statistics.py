@@ -34,35 +34,35 @@ class ISStatistics(object):
         self.track_ct = track_ct
 
         # steps
-        self.mean_lengths = np.empty(self.n_epochs)
-        self.var_lengths = np.empty(self.n_epochs)
+        self.mean_lengths = np.full(self.n_epochs, np.nan)
+        self.var_lengths = np.full(self.n_epochs, np.nan)
 
         # fht
-        self.mean_fhts = np.empty(self.n_epochs)
-        self.var_fhts = np.empty(self.n_epochs)
+        self.mean_fhts = np.full(self.n_epochs, np.nan)
+        self.var_fhts = np.full(self.n_epochs, np.nan)
 
         # returns
-        self.mean_returns = np.empty(self.n_epochs)
-        self.var_returns = np.empty(self.n_epochs)
+        self.mean_returns = np.full(self.n_epochs, np.nan)
+        self.var_returns = np.full(self.n_epochs, np.nan)
 
         # importance sampling estimator
         if track_is:
-            self.mean_I_us = np.empty(self.n_epochs)
-            self.var_I_us = np.empty(self.n_epochs)
-            self.re_I_us = np.empty(self.n_epochs)
+            self.mean_I_us = np.full(self.n_epochs, np.nan)
+            self.var_I_us = np.full(self.n_epochs, np.nan)
+            self.re_I_us = np.full(self.n_epochs, np.nan)
 
         # losses
         if track_loss:
-            self.losses = np.empty(self.n_epochs)
-            self.loss_vars = np.empty(self.n_epochs)
+            self.losses = np.full(self.n_epochs, np.nan)
+            self.loss_vars = np.full(self.n_epochs, np.nan)
 
         # l2 error
         if track_l2_error:
-            self.policy_l2_errors = np.empty(self.n_epochs)
+            self.policy_l2_errors = np.full(self.n_epochs, np.nan)
 
         # computational time
         if track_ct:
-            self.cts = np.empty(self.n_epochs)
+            self.cts = np.full(self.n_epochs, np.nan)
 
     def save_epoch(self, i, lengths, fhts, returns, is_functional=None,
                    l2_errors=None, loss=None, loss_var=None, ct=None):
@@ -103,6 +103,8 @@ class ISStatistics(object):
             )
         if self.track_l2_error:
             msg += 'l2 error: {:.3e}'.format(self.policy_l2_errors[i])
+        if self.track_ct:
+            msg += 'ct: {:.3e}'.format(self.cts[i])
         print(msg)
 
     def save_stats(self, dir_path):

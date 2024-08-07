@@ -1,14 +1,15 @@
 import time
 
-from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
-from gym_sde_is.utils.sde import compute_is_functional
 import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
 
-from rl_sde_is.approximate_methods import *
+from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
+from gym_sde_is.utils.sde import compute_is_functional
+
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy
+from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.utils.plots import *
 from rl_sde_is.utils.path import *
@@ -96,7 +97,7 @@ def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_
         elif env.d == 2:
             Q_policy = initialize_2d_figures(env, model, policy_opt)
 
-    for i in np.arange(n_grad_iterations):
+    for i in np.arange(n_grad_iterations+1):
 
         # start timer
         ct_initial = time.time()

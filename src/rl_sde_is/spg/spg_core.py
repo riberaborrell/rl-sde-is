@@ -1,15 +1,16 @@
 import time
 
-from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
-from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_sde_is.approximate_methods import evaluate_stoch_policy_model, \
-                                          train_stochastic_policy_from_hjb
+from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
+from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
+
 from rl_sde_is.spg.spg_utils import GaussianPolicyConstantCov, GaussianPolicyLearntCov
+from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, \
+                                                train_stochastic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_dir_path, load_data, save_data, save_model, load_model
@@ -88,9 +89,10 @@ def sample_loss_n_step_return(env, policy, batch_size):
     return eff_loss, eff_loss_var
 
 
-def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layers=3, d_hidden_layer=32, policy_type='const-cov',
-                             policy_noise=1., lr=1e-4, batch_size=1, n_grad_iterations=100, seed=None,
-                             backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
+def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layers=2,
+                         d_hidden_layer=32, policy_type='const-cov', policy_noise=1., lr=1e-4,
+                         batch_size=1, n_grad_iterations=100, seed=None,
+                         backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
 
     # get dir path
     dir_path = get_reinforce_dir_path(
@@ -137,8 +139,8 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layer
         )
     optimizer = optim.Adam(policy.parameters(), lr=lr)
 
-    # train params?
-    #train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False)
+    # train params to fit hjb solution
+    #train_stochastic_policy_from_hjb(env, policy, policy_opt, load=True)
 
     # sample loss function
     if algorithm_type == 'initial-return':
@@ -186,7 +188,7 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layer
         mean, sigma = evaluate_stoch_policy_model(env, policy)
         lines = initialize_gaussian_policy_1d_figure(env, mean, sigma, policy_opt=policy_opt)
 
-    for i in np.arange(n_grad_iterations):
+    for i in np.arange(n_grad_iterations+1):
 
         # start timer
         ct_initial = time.time()

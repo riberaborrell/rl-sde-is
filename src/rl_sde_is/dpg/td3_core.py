@@ -1,17 +1,18 @@
 from copy import deepcopy
 import time
 
-from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_sde_is.tabular.tabular_methods import compute_value_function
-from rl_sde_is.approximate_methods import *
+from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
+
 from rl_sde_is.models import mlp
 from rl_sde_is.dpg.replay_buffers import ReplayBuffer
+from rl_sde_is.utils.tabular_methods import compute_value_function
+from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_td3_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import *
 

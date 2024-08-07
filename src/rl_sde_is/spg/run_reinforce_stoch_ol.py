@@ -32,17 +32,12 @@ def main():
     )
 
     # discretize state and action space (plot purposes only)
-    h_coarse = 0.05
-    env.discretize_state_space(h_state=h_coarse)
-
-    # compute corresponding beta
-    beta = 2 / (env.dt*args.policy_noise**2 + env.sigma**2)
-    sigma = np.sqrt(2 / beta)
+    env.discretize_state_space(h_state=args.h_state)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver(beta=1)
-    sol_hjb.coarse_solution(h_coarse)
-    policy_opt = sol_hjb.u_opt * sigma
+    sol_hjb = env.get_hjb_solver()
+    sol_hjb.coarse_solution(args.h_state)
+    policy_opt = sol_hjb.u_opt
 
     # run reinforce with initial return
     data = reinforce_stochastic(
@@ -67,17 +62,17 @@ def main():
         return
 
     # get backup policies
-    iterations = np.arange(0, args.n_iterations + args.backup_freq, args.backup_freq)
-    means = get_means(env, data, iterations[::10])
+    iterations = np.arange(0, args.n_grad_iterations + args.backup_freq, args.backup_freq)
 
-    # plot avg returns and mfht
-    """
-    x = np.arange(data['n_iterations'])
-    plot_y_per_x(x, data['objectives'], title='Objective function', xlabel='Iterations')
-    plot_y_per_x(x, data['losses'], title='Effective loss', xlabel='Iterations')
-    plot_y_per_x(x, data['loss_vars'], title='Effective loss (variance)', xlabel='Iterations')
-    plot_y_per_x(x, data['mfhts'], title='MFHT', xlabel='Iterations')
-    """
+    # plot statistics
+    x = np.arange(data['n_grad_iterations']+1)
+    plot_y_per_grad_iteration(x, data['mean_returns'], title='Objective function')
+    plot_y_per_grad_iteration(x, data['losses'], title='Effective loss')
+    plot_y_per_grad_iteration(x, data['loss_vars'], title='Effective loss (variance)')
+    plot_y_per_grad_iteration(x, data['mean_fhts'], title='MFHT')
+
+    if env.d <= 2:
+        means, stds = get_means_and_stds(env, data, iterations[::10])
 
     # plot policy
     if env.d == 1:

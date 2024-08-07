@@ -2,7 +2,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from rl_sde_is.tabular.tabular_methods import compute_tables, compute_value_advantage_and_greedy_actions
+from rl_sde_is.utils.tabular_methods import compute_value_advantage_and_greedy_policy, \
+                                            compute_value_advantage_and_greedy_actions
 from rl_sde_is.utils.path import save_data
 from rl_sde_is.utils.plots import *
 
@@ -285,7 +286,7 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
         print('Critic load to be the actual q-value function (from dp)')
 
     q_table_dp = data['q_table']
-    _, _, policy_dp = compute_tables(env_dp, q_table_dp)
+    _, _, policy_dp = compute_value_advantage_and_greedy_policy(env_dp, q_table_dp)
 
     # initialize figures
     q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
@@ -358,7 +359,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
         print('Critic load to be the actual q-value function (from dp)')
 
     q_table_dp = data['q_table']
-    _, _, policy_dp = compute_tables(env_dp, q_table_dp)
+    _, _, policy_dp = compute_value_advantage_and_greedy_policy(env_dp, q_table_dp)
 
     # initialize figures
     q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
@@ -436,7 +437,7 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
     q_table_dp = data['q_table']
     #v_table_dp = np.max(q_table_dp, axis=1)
     #a_table_dp = q_table_dp - np.expand_dims(v_table_dp, axis=1)
-    v_table_dp, a_table_dp, policy_dp = compute_tables(env_dp, q_table_dp)
+    v_table_dp, a_table_dp, policy_dp = compute_value_advantage_and_greedy_policy(env_dp, q_table_dp)
 
     # initialize figures
     v_table = compute_v_table_1d(env, critic_v)
