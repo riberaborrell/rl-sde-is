@@ -55,11 +55,11 @@ def main():
     iterations = np.arange(0, args.n_grad_iterations + args.backup_freq, args.backup_freq)
 
     # plot statistics
-    x = np.arange(data['n_grad_iterations'])
-    plot_y_per_grad_iteration(x, data['mean_returns'][:-1], title='Objective function')
-    plot_y_per_grad_iteration(x, data['losses'][:-1], title='Effective loss')
-    plot_y_per_grad_iteration(x, data['loss_vars'][:-1], title='Effective loss (variance)')
-    plot_y_per_grad_iteration(x, data['mean_fhts'][:-1], title='MFHT')
+    x = np.arange(data['n_grad_iterations']+1)
+    plot_y_per_grad_iteration(x, data['mean_returns'], title='Objective function')
+    plot_y_per_grad_iteration(x, data['losses'], title='Effective loss')
+    plot_y_per_grad_iteration(x, data['loss_vars'], title='Effective loss (variance)')
+    plot_y_per_grad_iteration(x, data['mean_fhts'], title='MFHT')
 
     # plot policy
     if env.d <= 2:

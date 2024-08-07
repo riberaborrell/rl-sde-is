@@ -157,7 +157,7 @@ def get_action(env, actor, state, noise_scale, action_limit):
     return action
 
 
-def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32,
+def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
                  n_episodes=100, n_steps_lim=1000, learning_starts=1000,
                  expl_noise_init=1.0, expl_noise_decay=1., replay_size=50000,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
@@ -254,13 +254,9 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32,
     save_model(critic2, dir_path, 'critic2_n-ep{}'.format(0))
 
     # preallocate arrays
-
-    # returns, time steps and ct per episode
-    returns = np.empty(n_episodes, dtype=np.float32)
-    returns.fill(np.nan)
-    time_steps = np.zeros(n_episodes, dtype=np.int32)
-    cts = np.empty(n_episodes, dtype=np.float32)
-    cts.fill(np.nan)
+    returns = np.full(n_episodes, np.nan, dtype=np.float32)
+    time_steps = np.full(n_episodes, np.nan, dtype=np.int32)
+    cts = np.full(n_episodes, np.nan, dtype=np.float32)
 
     # total number of time steps
     k_total = 0
