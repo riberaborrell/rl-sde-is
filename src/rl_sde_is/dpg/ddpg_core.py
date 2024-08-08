@@ -10,101 +10,10 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, QValueFunction
 from rl_sde_is.dpg.replay_buffers import ReplayBuffer
-from rl_sde_is.utils.tabular_methods import compute_value_function
 from rl_sde_is.utils.approximate_methods import *
-from rl_sde_is.utils.path import get_td3_dir_path, load_data, save_data, save_model, load_model
+from rl_sde_is.utils.path import get_ddpg_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import *
 
-def update_parameters(actor, actor_target, actor_optimizer,
-                      critic1, critic_target1, critic2, critic_target2, critic_optimizer,
-                      batch, gamma, policy_freq, timer,
-                      action_limit, target_noise, polyak):
-
-    # unpack tuples in batch
-    states = torch.tensor(batch['states'])
-    actions = torch.tensor(batch['actions'])
-    rewards = torch.tensor(batch['rewards'])
-    next_states = torch.tensor(batch['next_states'])
-    done = torch.tensor(batch['done'])
-
-    # get batch size
-    batch_size = states.shape[0]
-
-    # 1) run 1 gradient descent step for Q1 and Q2 (critics)
-
-    # q value for the given pairs of states and actions (forward pass of the critic network)
-    q_vals1 = critic1.forward(states, actions)
-    q_vals2 = critic2.forward(states, actions)
-
-    with torch.no_grad():
-
-        # next actions following the target actor
-        next_actions = actor_target.forward(next_states).detach()
-
-        # target policy smoothing
-        epsilon = torch.randn_like(next_actions) * target_noise
-        next_actions_smoothed = next_actions + epsilon
-        next_actions_smoothed = torch.clamp(next_actions_smoothed, -action_limit, action_limit)
-
-        # q value for the corresponding next pair of states and actions (using target networks)
-        q_vals_next1 = critic_target1.forward(next_states, next_actions_smoothed)
-        q_vals_next2 = critic_target2.forward(next_states, next_actions_smoothed)
-
-        # compute target (using target networks)
-        d = torch.where(done, 1., 0.)
-        q_vals_next = torch.min(q_vals_next1, q_vals_next2)
-        target = rewards + gamma * (1. - d) * q_vals_next
-
-    # critic loss
-    critic_loss1 = (q_vals1 - target).pow(2).mean()
-    critic_loss2 = (q_vals2 - target).pow(2).mean()
-    critic_loss = critic_loss1 + critic_loss2
-
-    # update critic network
-    critic_optimizer.zero_grad()
-    critic_loss.backward()
-    critic_optimizer.step()
-
-    # 2) run 1 gradient descent step for mu (actor)
-
-    # Possibly update pi and target networks
-    actor_loss = None
-    if timer % policy_freq == 0:
-
-        # freeze q-networks to save computational effort 
-        for param in critic1.parameters():
-            param.requires_grad = False
-        for param in critic2.parameters():
-            param.requires_grad = False
-
-        # actor loss
-        actor_loss = - critic1.forward(states, actor.forward(states)).mean()
-
-        # update actor network
-        actor_optimizer.zero_grad()
-        actor_loss.backward()
-        actor_optimizer.step()
-
-        # unfreeze q-network to save computational effort 
-        for param in critic1.parameters():
-            param.requires_grad = True
-        for param in critic2.parameters():
-            param.requires_grad = True
-
-        # update actor and critic target networks "softly”
-        with torch.no_grad():
-            for param, target_param in zip(actor.parameters(), actor_target.parameters()):
-                target_param.data.copy_(target_param.data * polyak + param.data * (1. - polyak))
-
-            for param, target_param in zip(critic1.parameters(), critic_target1.parameters()):
-                target_param.data.copy_(target_param.data * polyak + param.data * (1. - polyak))
-
-            for param, target_param in zip(critic2.parameters(), critic_target2.parameters()):
-                target_param.data.copy_(target_param.data * polyak + param.data * (1. - polyak))
-
-        actor_loss = actor_loss.detach().item()
-
-    return actor_loss, critic_loss.detach().item()
 
 def get_action(env, actor, state, noise_scale, action_limit):
 
@@ -118,27 +27,87 @@ def get_action(env, actor, state, noise_scale, action_limit):
     action = np.clip(action, -action_limit, action_limit)
     return action
 
+def update_parameters(actor, actor_target, actor_optimizer, critic, critic_target,
+                      critic_optimizer, batch, gamma, polyak):
 
-def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
-                 n_episodes=100, n_steps_lim=1000, learning_starts=1000,
-                 expl_noise_init=1.0, expl_noise_decay=1., replay_size=50000,
-                 batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
-                 update_freq=10, policy_freq=2, target_noise=0.2, polyak=0.95, action_limit=None,
-                 backup_freq=None, live_plot_freq=None,
-                 value_function_opt=None, policy_opt=None, load=False):
+    # unpack tuples in batch
+    states = torch.tensor(batch['states'])
+    actions = torch.tensor(batch['actions'])
+    rewards = torch.tensor(batch['rewards'])
+    next_states = torch.tensor(batch['next_states'])
+    done = torch.tensor(batch['done'])
+
+    # get batch size
+    batch_size = states.shape[0]
+
+    # 1) run 1 gradient descent step for Q (critic)
+
+    # q value for the given pairs of states and actions (forward pass of the critic network)
+    q_vals = critic.forward(states, actions)
+
+    with torch.no_grad():
+
+        # q value for the corresponding next pair of states and actions (using target networks)
+        next_actions = actor_target.forward(next_states).detach()
+        q_vals_next = critic_target.forward(next_states, next_actions)
+
+        # compute target (using target networks)
+        d = torch.where(done, 1., 0.)
+        target = rewards + gamma * (1. - d) * q_vals_next
+
+    # critic loss
+    critic_loss = (q_vals - target).pow(2).mean()
+
+    # update critic network
+    critic_optimizer.zero_grad()
+    critic_loss.backward()
+    critic_optimizer.step()
+
+    # 2) run 1 gradient descent step for mu (actor)
+
+    # freeze Q-network to save computational effort 
+    for param in critic.parameters():
+        param.requires_grad = False
+
+    # actor loss
+    actor_loss = - critic.forward(states, actor.forward(states)).mean()
+
+    # update actor network
+    actor_optimizer.zero_grad()
+    actor_loss.backward()
+    actor_optimizer.step()
+
+    # unfreeze Q-network to save computational effort 
+    for param in critic.parameters():
+        param.requires_grad = True
+
+    # update actor and critic target networks "softly”
+    with torch.no_grad():
+        for param, target_param in zip(actor.parameters(), actor_target.parameters()):
+            target_param.data.copy_(target_param.data * polyak + param.data * (1. - polyak))
+
+        for param, target_param in zip(critic.parameters(), critic_target.parameters()):
+            target_param.data.copy_(target_param.data * polyak + param.data * (1. - polyak))
+
+    return actor_loss.detach().item(), critic_loss.detach().item()
+
+
+def ddpg_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
+         n_episodes=100, n_steps_lim=1000, learning_starts=1000, replay_size=50000,
+         batch_size=512, lr_actor=1e-4, lr_critic=1e-4, seed=None,
+         update_freq=100, polyak=0.95, expl_noise=0., action_limit=None,
+         backup_freq=None, live_plot_freq=None,
+         value_function_opt=None, policy_opt=None, load=False):
 
     # get dir path
-    dir_path = get_td3_dir_path(
+    dir_path = get_ddpg_dir_path(
         env,
-        agent='td3-episodic',
+        agent='ddpg-episodic',
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
-        n_steps_lim=n_steps_lim,
+        expl_noise=expl_noise,
         action_limit=action_limit,
-        expl_noise_init=expl_noise_init,
-        policy_freq=policy_freq,
-        target_noise=target_noise,
         polyak=polyak,
         batch_size=batch_size,
         lr_actor=lr_actor,
@@ -166,17 +135,13 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
     actor_target = deepcopy(actor)
 
     # initialize critic representations
-    critic1 = QValueFunction(state_dim=env.d, action_dim=env.d,
-                             hidden_sizes=hidden_sizes, activation=nn.Tanh())
-    critic_target1 = deepcopy(critic1)
-    critic2 = QValueFunction(state_dim=env.d, action_dim=env.d,
-                             hidden_sizes=hidden_sizes, activation=nn.Tanh())
-    critic_target2 = deepcopy(critic2)
+    critic = QValueFunction(state_dim=env.d, action_dim=env.d,
+                            hidden_sizes=hidden_sizes, activation=nn.Tanh())
+    critic_target = deepcopy(critic)
 
     # set optimizers
     actor_optimizer = optim.Adam(actor.parameters(), lr=lr_actor)
-    critic_params = list(critic1.parameters()) + list(critic2.parameters())
-    critic_optimizer = optim.Adam(critic_params, lr=lr_critic)
+    critic_optimizer = optim.Adam(critic.parameters(), lr=lr_critic)
 
     # initialize replay buffer
     replay_buffer = ReplayBuffer(state_dim=env.d, action_dim=env.d, size=replay_size)
@@ -188,34 +153,27 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
         'd_hidden_layer': d_hidden_layer,
         'n_episodes': n_episodes,
         'n_steps_lim': n_steps_lim,
-        'expl_noise_init': expl_noise_init,
-        'expl_noise_decay': expl_noise_decay,
+        'expl_noise': expl_noise,
+        'action_limit': action_limit,
         'replay_size': replay_size,
-        'replay_states': replay_buffer.states[:replay_buffer.size],
-        'replay_actions': replay_buffer.actions[:replay_buffer.size],
         'batch_size' : batch_size,
         'lr_actor' : lr_actor,
         'lr_critic' : lr_critic,
         'seed': seed,
         'learning_starts': learning_starts,
         'update_freq': update_freq,
-        'policy_freq': policy_freq,
-        'target_noise': target_noise,
-        'action_limit': action_limit,
-        'polyak': polyak,
         'actor': actor,
-        'critic1': critic1,
-        'critic2': critic2,
+        'critic': critic,
         'dir_path': dir_path,
     }
     save_data(data, dir_path)
 
-    # save models initial parameters
-    save_model(actor, dir_path, 'actor_n-ep{}'.format(0))
-    save_model(critic1, dir_path, 'critic1_n-ep{}'.format(0))
-    save_model(critic2, dir_path, 'critic2_n-ep{}'.format(0))
 
-    # preallocate arrays
+    # save models initial parameters
+    save_model(actor, dir_path, 'actor_n-epi{}'.format(0))
+    save_model(critic, dir_path, 'critic_n-epi{}'.format(0))
+
+    # define list to store results
     returns = np.full(n_episodes, np.nan, dtype=np.float32)
     time_steps = np.full(n_episodes, np.nan, dtype=np.int32)
     cts = np.full(n_episodes, np.nan, dtype=np.float32)
@@ -223,20 +181,15 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
     # total number of time steps
     k_total = 0
 
-    # set noise scale parameters
-    expl_noises = np.array([
-        expl_noise_init * (expl_noise_decay ** ep)
-        for ep in np.arange(n_episodes)
-    ])
-
-    # initialize figures if plot
+    # initialize figures if plot:
     if live_plot_freq and env.d == 1:
-        lines_actor_critic = initialize_1d_figures(env, actor, critic1, value_function_opt, policy_opt)
+        lines_actor_critic = initialize_1d_figures(env, actor, critic, value_function_opt, policy_opt)
         tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
         lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
     elif live_plot_freq and env.d == 2:
         Q_policy = initialize_2d_figures(env, actor, policy_opt)
         lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
+
 
     # sample trajectories
     for ep in range(n_episodes):
@@ -269,7 +222,7 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, expl_noises[ep], action_limit)
+                action = get_action(env, actor, state, expl_noise, action_limit)
 
             # env step
             next_state, r, done, _, info = env.step(action)
@@ -279,8 +232,7 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
 
             # time to update
             if k_total >= learning_starts and (k_total + 1) % update_freq == 0:
-
-                for l in range(update_freq):
+                for _ in range(update_freq):
 
                     # sample minibatch of transition uniformlly from the replay buffer
                     batch = replay_buffer.sample_batch(batch_size)
@@ -288,9 +240,8 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
                     # update actor and critic parameters
                     actor_loss, critic_loss = update_parameters(
                         actor, actor_target, actor_optimizer,
-                        critic1, critic_target1, critic2, critic_target2, critic_optimizer,
-                        batch, gamma, policy_freq, l,
-                        action_limit, target_noise, polyak,
+                        critic, critic_target, critic_optimizer,
+                        batch, gamma, polyak,
                     )
 
             # save action and reward
@@ -305,7 +256,7 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
         # end timer
         ct_final = time.time()
 
-        # save statistics
+        # save episode
         returns[ep] = ep_return
         time_steps[ep] = k
         cts[ep] = ct_final - ct_initial
@@ -322,21 +273,19 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
         if backup_freq is not None and (ep + 1) % backup_freq == 0:
 
             # save actor and critic models
-            save_model(actor, dir_path, 'actor_n-ep{}'.format(ep + 1))
-            save_model(critic1, dir_path, 'critic1_n-ep{}'.format(ep + 1))
-            save_model(critic2, dir_path, 'critic2_n-ep{}'.format(ep + 1))
+            save_model(actor, dir_path, 'actor_n-epi{}'.format(ep + 1))
+            save_model(critic, dir_path, 'critic_n-epi{}'.format(ep + 1))
 
             # save test results
             data['returns'] = returns
             data['time_steps'] = time_steps
             data['cts'] = cts
-
             save_data(data, dir_path)
 
         # update plots
         if live_plot_freq and (ep + 1) % live_plot_freq == 0:
             if env.d == 1:
-                update_1d_figures(env, actor, critic1, lines_actor_critic)
+                update_1d_figures(env, actor, critic, lines_actor_critic)
                 update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
                 update_return_and_time_steps_figures(env, returns[:ep], time_steps[:ep], lines_returns)
 
@@ -350,7 +299,6 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
     data['cts'] = cts
     data['replay_states'] = replay_buffer.states[:replay_buffer.size]
     data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
-
     save_data(data, dir_path)
     return data
 
@@ -381,37 +329,11 @@ def update_2d_figures(env, actor, Q_policy):
 
 def load_backup_models(data, ep=0):
     actor = data['actor']
-    critic1 = data['critic1']
-    critic2 = data['critic2']
+    critic = data['critic']
     dir_path = data['dir_path']
     try:
-        load_model(actor, dir_path, file_name='actor_n-ep{}'.format(ep))
-        load_model(critic1, dir_path, file_name='critic1_n-ep{}'.format(ep))
-        load_model(critic2, dir_path, file_name='critic2_n-ep{}'.format(ep))
+        load_model(actor, dir_path, file_name='actor_n-epi{}'.format(ep))
+        load_model(critic, dir_path, file_name='critic_n-epi{}'.format(ep))
     except FileNotFoundError as e:
         print('The episode {:d} has no backup '.format(ep))
-
-def get_policy(env, data, ep=None):
-    actor = data['actor']
-    if ep is not None:
-        load_backup_models(data, ep)
-        actor = data['actor']
-    return evaluate_det_policy_model(env, data['actor'])
-
-def get_policies(env, data, episodes):
-    n_episodes = len(episodes)
-    policies = np.empty((n_episodes, env.n_states, env.d), dtype=np.float32)
-    for i, ep in enumerate(episodes):
-        load_backup_models(data, ep)
-        policies[i] = evaluate_det_policy_model(env, data['actor'])
-    return policies
-
-def get_value_functions(env, data, episodes):
-    n_episodes = len(episodes)
-    value_functions = np.empty((n_episodes, env.n_states), dtype=np.float32)
-    for i, ep in enumerate(episodes):
-        load_backup_models(data, ep)
-        qvalue = evaluate_qvalue_function_model_1d(env, data['critic1'])
-        value_functions[i] = compute_value_function(qvalue)
-    return value_functions
 

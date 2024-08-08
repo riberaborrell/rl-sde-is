@@ -26,10 +26,19 @@ class QValueFunction(nn.Module):
         super().__init__()
         self.sizes = [state_dim + action_dim] + list(hidden_sizes) + [1]
         self.q = mlp(self.sizes, activation)
+        self.apply(self.init_last_layer_weights)
+
+    def init_last_layer_weights(self, module):
+        if isinstance(module, nn.Linear):
+            if module.out_features == self.sizes[-1]:
+                nn.init.uniform_(module.weight, -5e-4, 5e-4)
+                nn.init.uniform_(module.bias, -5e-4, 5e-4)
 
     def forward(self, state, action):
         q = self.q(torch.cat([state, action], dim=-1))
         return torch.squeeze(q, axis=-1)
+
+
 
 class ValueFunction(nn.Module):
 

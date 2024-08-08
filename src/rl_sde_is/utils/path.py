@@ -359,12 +359,14 @@ def get_ddpg_dir_path(env, **kwargs):
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
-              + 'noise-scale{:.1e}_'.format(kwargs['noise_scale']) \
+              + 'action-limit{:.1f}_'.format(kwargs['action_limit']) \
+              + 'expl-noise{:.1f}_'.format(kwargs['expl_noise']) \
+              + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_td3_dir_path(env, **kwargs):
     '''
@@ -379,6 +381,24 @@ def get_td3_dir_path(env, **kwargs):
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \
               + 'target-noise{:.1f}_'.format(kwargs['target_noise']) \
+              + 'polyak{:.3f}_'.format(kwargs['polyak']) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+
+def get_naf_dir_path(env, **kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
+              + 'action-limit{:.1f}_'.format(kwargs['action_limit']) \
+              + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
