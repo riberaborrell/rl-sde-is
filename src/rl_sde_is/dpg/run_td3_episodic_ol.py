@@ -71,8 +71,8 @@ def main():
     x = np.arange(n_episodes)
 
     # plot returns and time steps
-    plot_y_per_episode_with_run_mean(x, returns, run_window=10, title='Returns', legend=True)
-    plot_y_per_episode_with_run_mean(x, time_steps, run_window=10, title='Time steps')
+    plot_y_per_episode(x, returns, run_window=10, title='Returns', legend=True)
+    plot_y_per_episode(x, time_steps, run_window=10, title='Time steps')
 
     # get models
     actor = data['actor']

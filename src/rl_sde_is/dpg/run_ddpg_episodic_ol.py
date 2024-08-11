@@ -33,6 +33,7 @@ def main():
     # run ddpg
     data = ddpg_episodic(
         env=env,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,
@@ -66,8 +67,8 @@ def main():
     x = np.arange(n_episodes)
 
     # plot returns and time steps
-    plot_y_per_episode_with_run_mean(x, returns, run_window=10, title='Returns', legend=True)
-    plot_y_per_episode_with_run_mean(x, time_steps, run_window=10, title='Time steps')
+    plot_y_per_episode_with(x, returns, run_window=10, title='Returns', legend=True)
+    plot_y_per_episode_with(x, time_steps, run_window=10, title='Time steps')
 
     # get models
     actor = data['actor']

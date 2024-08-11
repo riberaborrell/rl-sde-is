@@ -8,8 +8,8 @@ import torch.optim as optim
 
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
-from rl_sde_is.models import mlp
 from rl_sde_is.dpg.replay_buffers import ReplayBuffer
+from rl_sde_is.utils.models import mlp
 from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_naf_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import *
@@ -107,7 +107,7 @@ def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
         expl_noise_init=1.0, expl_noise_decay=1., replay_size=50000,
         batch_size=1000, lr=1e-4, seed=None,
         polyak=0.95, action_limit=None,
-        backup_freq=None, live_plot_freq=None,
+        backup_freq=None, live_plot_freq=None, run_window=10,
         value_function_opt=None, policy_opt=None, load=False):
 
     # get dir path
@@ -258,9 +258,11 @@ def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
         time_steps[ep] = k
         cts[ep] = ct_final - ct_initial
 
-        msg = 'ep.: {:2d}, return: {:.3e}, time steps: {:.3e}, ct: {:.3f}'.format(
+        msg = 'ep.: {:2d}, return: {:.3e} (avg. {:.2e}, max. {:.2e}), time steps: {:.3e}, ct: {:.3f}'.format(
             ep,
             returns[ep],
+            np.mean(returns[:ep+1][-run_window:]),
+            np.max(returns[:ep+1][-run_window:]),
             time_steps[ep],
             cts[ep],
         )

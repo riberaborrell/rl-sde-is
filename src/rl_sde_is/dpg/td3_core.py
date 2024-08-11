@@ -124,7 +124,7 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
                  expl_noise_init=1.0, expl_noise_decay=1., replay_size=50000,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
                  update_freq=10, policy_freq=2, target_noise=0.2, polyak=0.95, action_limit=None,
-                 backup_freq=None, live_plot_freq=None,
+                 backup_freq=None, live_plot_freq=None, run_window=10,
                  value_function_opt=None, policy_opt=None, load=False):
 
     # get dir path
@@ -310,9 +310,11 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
         time_steps[ep] = k
         cts[ep] = ct_final - ct_initial
 
-        msg = 'ep.: {:2d}, return: {:.3e}, time steps: {:.3e}, ct: {:.3f}'.format(
+        msg = 'ep.: {:2d}, return: {:.3e} (avg. {:.2e}, max. {:.2e}), time steps: {:.3e}, ct: {:.3f}'.format(
             ep,
             returns[ep],
+            np.mean(returns[:ep+1][-run_window:]),
+            np.max(returns[:ep+1][-run_window:]),
             time_steps[ep],
             cts[ep],
         )
