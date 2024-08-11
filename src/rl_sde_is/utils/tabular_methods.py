@@ -52,11 +52,10 @@ def get_epsilon_greedy_action(env, q_table, state_idx, epsilon):
     else:
         action_idx = np.random.choice(np.arange(env.n_actions))
 
-    action = env.action_space_h[[[action_idx]]]
-
+    action = env.action_space_h[action_idx]
     return action_idx, action
 
-def get_epsilon_greedy_actions_vectorized(env, q_table, states_idx, epsilon):
+def get_epsilon_greedy_actions_vect(env, q_table, states_idx, epsilon):
 
     # get batch size
     batch_size = states_idx.shape[0]
@@ -92,57 +91,3 @@ def get_epsilons_exp_decay(n_episodes, eps_init, eps_decay):
 
 def get_epsilons_harmonic(n_episodes):
     return np.array([1 / (ep + 1) for ep in np.arange(n_episodes)])
-
-
-def evaluate_policy_vectorized(env, policy, batch_size=10, k_max=10**7):
-
-    # preallocate returns and time steps
-    cum_rewards = np.zeros(batch_size)
-    returns = np.empty(batch_size)
-    time_steps = np.empty(batch_size)
-
-    # are episodes done
-    already_done = np.full((batch_size,), False)
-    done = np.full((batch_size,), False)
-
-    # initialize episodes
-    states = np.full((batch_size, env.d), env.state_init)
-
-    # sample episodes
-    for k in np.arange(k_max):
-
-        # get index of the states
-        states_idx = env.get_state_idx(states)
-
-        # actions
-        actions = np.expand_dims(env.action_space_h[policy[states_idx]], axis=1)
-
-        # step dynamics forward
-        next_states, rewards, done, dbt = env.step(states, actions)
-
-        # update cumulative rewards for all trajectories
-        cum_rewards += np.squeeze(rewards)
-
-        # get indices of episodes which are new to the target set
-        idx = env.get_new_in_ts_idx(done, already_done)
-
-        # if there are episodes which are done
-        if idx.shape[0] != 0:
-
-            # fix episode returns
-            returns[idx] = cum_rewards[idx]
-
-            # fix episode time steps
-            time_steps[idx] = k
-
-        # stop if xt_traj in target set
-        if already_done.all() == True:
-           break
-
-        # update states
-        states = next_states
-
-    if not already_done.all():
-        return np.nan, np.nan
-    else:
-        return returns, time_steps

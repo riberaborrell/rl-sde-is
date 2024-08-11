@@ -57,6 +57,7 @@ class ReplayBuffer:
         n_transitions = states.shape[0]
         i = self.ptr
         j = self.ptr + n_transitions
+        if j > self.max_size: breakpoint()
 
         self.states[i:j] = states
         self.actions[i:j] = actions
@@ -88,29 +89,3 @@ class ReplayBuffer:
 
     def estimate_episode_length(self):
         return self.done.sum() / self.size
-
-
-Transition = namedtuple(
-    'Transition',
-    ('state', 'action', 'next_state', 'reward', 'done')
-)
-
-class ReplayMemory(object):
-
-    def __init__(self, max_size):
-        self.max_size = max_size
-        self.memory = deque([], maxlen=max_size)
-
-    def reset(self):
-        self.memory = deque([], maxlen=self.max_size)
-
-    def push(self, *args):
-        """Save a transition"""
-        self.memory.append(Transition(*args))
-
-    def sample(self, batch_size):
-        transitions = random.sample(self.memory, batch_size)
-        return Transition(*zip(*transitions))
-
-    def __len__(self):
-        return len(self.memory)

@@ -1,6 +1,10 @@
+import copy
+
 import numpy as np
 import torch
 import torch.optim as optim
+
+from gym_sde_is.wrappers.tabular_env import TabularEnv
 
 from rl_sde_is.utils.tabular_methods import compute_value_advantage_and_greedy_policy, \
                                             compute_value_advantage_and_greedy_actions
@@ -168,10 +172,10 @@ def compute_tables_critic_1d(env, critic):
 
 def compute_tables_critic_2d(env, critic):
 
-    env.discretize_state_action_space()
+    env.discretize_state_action_space(env.h_state, env.h_action)
 
-    grid_states = torch.tensor(env.state_action_space_h_flat[:, :2], dtype=torch.float32)
-    grid_actions = torch.tensor(env.state_action_space_h_flat[:, 2:], dtype=torch.float32)
+    grid_states = torch.tensor(env.state_action_space_h[:, :2], dtype=torch.float32)
+    grid_actions = torch.tensor(env.state_action_space_h[:, 2:], dtype=torch.float32)
 
     # compute q table
     with torch.no_grad():
@@ -214,19 +218,14 @@ def compute_v_value_critic_1d(env, critic, state):
     return np.max(q_values)
 
 def load_dp_tables_data(env, dt=1e-4, h_state=1e-2, h_action=1e-2):
-    from rl_sde_is.tabular_dp_tables import dynamic_programming_tables
+    from rl_sde_is.dynamic_programming.compute_dp_tables import dynamic_programming_tables
 
     # initialize environment
-    #TODO: revise for gymnasium env
     env_dp = copy.deepcopy(env)
 
-    # set action space bounds
-    env_dp.set_action_space_bounds()
-
     # discretize state and action space
-    env_dp.discretize_state_space(h_state)
-    env_dp.discretize_action_space(h_action)
-    env_dp.discretize_state_action_space()
+    env_dp = TabularEnv(env_dp, h_state, h_action)
+    env_dp.discretize_state_action_space(h_state, h_action)
 
     # run dynamic programming q-value iteration
     data = dynamic_programming_tables(env_dp, load=True)
@@ -339,7 +338,7 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
 
     # save
     data['q_function_approx'] = critic
-    save_data(data, data['rel_dir_path'])
+    save_data(data, data['dir_path'])
 
     print('Critic trained to be the actual q-value function (from dp)')
     return critic
@@ -359,6 +358,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
         print('Critic load to be the actual q-value function (from dp)')
 
     q_table_dp = data['q_table']
+    breakpoint()
     _, _, policy_dp = compute_value_advantage_and_greedy_policy(env_dp, q_table_dp)
 
     # initialize figures
@@ -376,7 +376,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
             return param_group['lr']
 
     # train q-value function parameters
-    n_iterations = int(1e5)
+    n_iterations = int(1e3)
     batch_size = int(1e3)
 
     for i in range(n_iterations):
@@ -412,7 +412,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
 
     # save
     data['q_function_approx'] = critic
-    save_data(data, data['rel_dir_path'])
+    save_data(data, data['dir_path'])
 
     print('Critic trained to be the actual q-value function (from dp)')
     return critic
@@ -528,7 +528,7 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
     # save
     data['v_function_approx'] = critic_v
     data['a_function_approx'] = critic_a
-    save_data(data, data['rel_dir_path'])
+    save_data(data, data['dir_path'])
 
     return critic_v, critic_a
 
@@ -551,10 +551,10 @@ def sample_trajectories_buffer(env, policy, replay_buffer, n_episodes, n_steps_l
                 break
 
             # get action following the actor
-            action = policy.forward(torch.FloatTensor(state)).detach().numpy()
+            with torch.no_grad():
+                action = policy.forward(torch.FloatTensor(state)).numpy()
 
             # env step
-            #next_state, r, done, _ = env.step(state, action)
             next_state, r, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
 
@@ -564,8 +564,7 @@ def sample_trajectories_buffer(env, policy, replay_buffer, n_episodes, n_steps_l
             # update state
             state = next_state
 
-#TODO: revise for gymnasium env
-def sample_trajectories_buffer_vectorized(env, model, replay_buffer, n_episodes, n_steps_lim):
+def sample_trajectories_buffer_vectorized_old(env, model, replay_buffer, n_episodes, n_steps_lim):
 
     # are episodes done
     already_done = np.full((batch_size,), False)
@@ -595,6 +594,31 @@ def sample_trajectories_buffer_vectorized(env, model, replay_buffer, n_episodes,
         # stop if all episodes already in target set
         if already_done.all() == True:
            break
+
+        # update states
+        states = next_states
+
+def sample_trajectories_buffer_vect(env, policy, replay_buffer, n_episodes, n_steps_lim):
+
+    # reset environment
+    states, _ = env.reset(batch_size=n_episodes)#, seed=seed)
+
+    done = np.full((n_episodes,), False)
+    while not done.all():
+
+        # take the action following the policy
+        states_torch = torch.tensor(states, dtype=torch.float32)
+        with torch.no_grad():
+            actions = policy(states_torch).numpy()
+
+        # step dynamics forward
+        next_states, rewards, _, truncated, _ = env.step_vect(actions)
+        done = np.logical_or(env.been_terminated, truncated)
+
+        # store experiences at given time step
+        idx = np.where(~env.been_terminated)[0]
+        replay_buffer.store_vectorized(states[idx], actions[idx], rewards[idx],
+                                       next_states[idx], done[idx])
 
         # update states
         states = next_states

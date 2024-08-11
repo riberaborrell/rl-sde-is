@@ -121,6 +121,13 @@ def get_model_arch_str(**kwargs):
         string += 'hidden-size{:d}_'.format(kwargs['d_hidden_layer'])
     return string
 
+def get_action_limit_str(**kwargs):
+    if 'action_limit' in kwargs.keys() and kwargs['action_limit'] is not None:
+        string = 'action-limit{:.1f}_'.format(kwargs['action_limit'])
+    else:
+        string = ''
+    return string
+
 def get_lr_and_batch_size_str(**kwargs):
     string = ''
     string += 'lr{:.1e}_'.format(kwargs['lr']) if 'lr' in kwargs.keys() else ''
@@ -204,7 +211,7 @@ def get_semi_gradient_td_prediction_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_tabular_mc_prediction_dir_path(env, **kwargs):
     '''
@@ -217,7 +224,7 @@ def get_tabular_mc_prediction_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 
 def get_sarsa_lambda_dir_path(env, **kwargs):
@@ -233,7 +240,7 @@ def get_sarsa_lambda_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_mc_learning_dir_path(env, **kwargs):
     '''
@@ -247,7 +254,7 @@ def get_mc_learning_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_qlearning_dir_path(env, **kwargs):
     '''
@@ -262,7 +269,7 @@ def get_qlearning_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 #TODO: check
 def get_qlearning_batch_dir_path(env, **kwargs):
@@ -278,9 +285,8 @@ def get_qlearning_batch_dir_path(env, **kwargs):
               + 'epochs{:.0e}_'.format(kwargs['n_epochs']) \
               + 'K{:.0e}'.format(kwargs['n_episodes'])
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
-#TODO: revise
 def get_dqn_dir_path(env, **kwargs):
     '''
     '''
@@ -288,10 +294,16 @@ def get_dqn_dir_path(env, **kwargs):
     # set parameters string
     param_str = 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'expl-noise{:.1f}_'.format(kwargs['expl_noise']) \
+              + get_action_limit_str(**kwargs) \
+              + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
 
-    return get_dir_path(env, kwargs['agent'], param_str)
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
 def get_reinforce_discrete_dir_path(env, **kwargs):
     '''
@@ -359,7 +371,7 @@ def get_ddpg_dir_path(env, **kwargs):
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
-              + 'action-limit{:.1f}_'.format(kwargs['action_limit']) \
+              + get_action_limit_str(**kwargs) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
@@ -377,7 +389,7 @@ def get_td3_dir_path(env, **kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
-              + 'action-limit{:.1f}_'.format(kwargs['action_limit']) \
+              + get_action_limit_str(**kwargs) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \
               + 'target-noise{:.1f}_'.format(kwargs['target_noise']) \
@@ -397,7 +409,7 @@ def get_naf_dir_path(env, **kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
-              + 'action-limit{:.1f}_'.format(kwargs['action_limit']) \
+              + get_action_limit_str(**kwargs) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
@@ -413,7 +425,7 @@ def get_vracer_dir_path(env, **kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_baseline_str(env, **kwargs) \
               + get_model_arch_str(**kwargs) \
-              + 'action-limit{:.1f}_'.format(kwargs['action_limit']) \
+              + get_action_limit_str(**kwargs) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \

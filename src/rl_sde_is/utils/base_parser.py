@@ -311,8 +311,8 @@ def get_base_parser():
     parser.add_argument(
         '--action-limit',
         type=float,
-        default=10,
-        help='Set action limit. Default: 10',
+        default=None,
+        help='Set action limit. Default: None',
     )
     parser.add_argument(
         '--polyak',

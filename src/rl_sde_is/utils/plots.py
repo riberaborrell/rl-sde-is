@@ -49,6 +49,198 @@ def get_plot_function(ax, plot_scale):
     else:
         raise ValueError('plot_scale must be one of: lineal, semilogx, semilogy, loglog')
 
+def plot_y_per_x(x, y, run_window: int = 1, hlines=None, title: str = '', xlabel: str = '',
+                 xlim=None, ylim=None, plot_scale='linear', legend: bool = False, loc=None):
+
+    run_mean_y = compute_running_mean(y, run_window) if run_window > 1 else None
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plot_fn = get_plot_function(ax, plot_scale)
+    plot_fn(x, y, c='tab:blue', alpha=0.5)
+    if run_window > 1:
+        plot_fn(x, run_mean_y, label='running mean', c='tab:blue')
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
+
+def plot_y_per_episode(x, y, **kwargs):
+    plot_y_per_x(x, y, xlabel='Episodes', **kwargs)
+
+def plot_y_per_grad_iteration(x, y, **kwargs):
+    plot_y_per_x(x, y, xlabel='Grad. iterations.', **kwargs)
+
+def plot_y_per_time_steps(x, y, **kwargs):
+    plot_y_per_x(x, y, xlabel='Time steps', **kwargs)
+
+def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
+                     plot_scale='linear', legend: bool = False, loc: str = 'upper right'):
+    y = np.mean(ys, axis=0)
+    error = np.sqrt(np.var(ys, axis=0))
+    fig, ax = plt.subplots()
+    plot_fn = get_plot_function(ax, plot_scale)
+    ax.set_title(title, size=20)
+    ax.set_xlabel(xlabel)
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plot_fn(x, y, label='Mean')
+    ax.fill_between(x, y-error, y+error, alpha=0.4, label='Standard deviation')
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
+def plot_y_avg_per_episode(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+
+def plot_y_avg_per_grad_iteration(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+
+def plot_y_avg_per_time_steps(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Time steps', **kwargs)
+
+def plot_mean_and_std_per_x(x, mean_y, std_y, hlines=None, title: str = '', xlabel: str = '',
+                            xlim=None, ylim=None, plot_scale='linear', legend: bool = False,
+                            loc: str = 'upper right'):
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plot_fn = get_plot_function(ax, plot_scale)
+    plot_fn(x, mean_y, label='mean')
+    ax.fill_between(x, mean_y-std_y, mean_y+std_y, alpha=0.4, label='standard deviation')
+    if hlines:
+        for (hline, std_hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
+def plot_mean_and_std_per_episode(x, mean_y, std_y, **kwargs):
+    plot_mean_and_std_per_x(x, y, xlabel='Episodes', **kwargs)
+
+def plot_mean_and_std_per_grad_iteration(x, mean_y, std_y, **kwargs):
+    plot_mean_and_std_per_x(x, mean_y, std_y, xlabel='Grad. iterations.', **kwargs)
+
+def plot_mean_and_std_per_time_steps(x, mean_y, std_y, **kwargs):
+    plot_mean_and_std_per_x(x, mean_y, std_y, xlabel='Time steps', **kwargs)
+
+
+def plot_ys_per_x(x, ys, run_window: int = 100, title: str = '', xlabel: str = '',
+                  xlim=None, ylim=None, labels=None, legend: bool = False, loc=None):
+    n_lines = len(ys)
+    if labels is None:
+        labels = [None for i in range(n_lines)]
+    run_mean_ys = np.array([compute_running_mean(y, run_window) for y in ys])
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    for i in range(n_lines):
+        plt.plot(run_mean_ys[i], label=labels[i])
+    if legend: plt.legend(loc=loc)
+    plt.show()
+
+def plot_ys_per_episode(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Episodes', **kwargs)
+
+def plot_ys_per_grad_iteration(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+
+def plot_ys_per_time_steps(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Time steps', **kwargs)
+
+def plot_time_steps_histogram(time_steps):
+    n_steps_max = np.max(time_steps)
+    x = np.arange(1, n_steps_max+1, 10)
+    fig, ax = plt.subplots()
+    ax.set_xlabel('m')
+    counts, bins = np.histogram(time_steps, bins=x, density=True)
+    ax.hist(bins[:-1], bins, weights=counts, alpha=0.5, label=r'Histogram')
+    #ax.legend(fontsize=12)
+    plt.show()
+
+def plot_value_rms_error_episodes(rms_errors, test_freq_episodes, ylim=None):
+    n_test_episodes = rms_errors.shape[0]
+    episodes = np.arange(n_test_episodes) * test_freq_episodes
+    plot_y_per_episode(episodes, rms_errorsy, title=TITLES_FIG['value-rms-error'], lim=ylim)
+
+def plot_value_rms_error_iterations(rms_errors, test_freq_iterations, ylim=None):
+    n_test_iterations = rms_errors.shape[0]
+    iterations = np.arange(n_test_iterations) * test_freq_iterations
+    plot_y_per_x(iterations, rms_errors, title=TITLES_FIG['value-rms-error'], xlabel='Iterations', ylim=ylim)
+
+def plot_policy_rms_error(x, y, xlabel=None, ylim=None):
+    fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['policy-rms-error'])
+    ax.set_xlabel(xlabel)
+    ax.plot(x, y)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    plt.show()
+
+def plot_policy_rms_error_episodes(rms_errors, test_freq_episodes, ylim=None):
+    n_test_episodes = rms_errors.shape[0]
+    episodes = np.arange(n_test_episodes) * test_freq_episodes
+    plot_policy_rms_error(episodes, rms_errors, xlabel='Episodes', ylim=ylim)
+
+def plot_policy_rms_error_iterations(rms_errors, test_freq_iterations, ylim=None):
+    n_test_iterations = rms_errors.shape[0]
+    iterations = np.arange(n_test_iterations) * test_freq_iterations
+    plot_policy_rms_error(iterations, rms_errors, xlabel='Iterations', ylim=ylim)
+
+def plot_det_policy_l2_error_epochs(l2_errors, ylim=None):
+    fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['policy-l2-error'])
+    ax.set_xlabel('Epochs')
+    #ax.set_xlim(0, l2_errors.shape[0])
+    ax.semilogy(l2_errors)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    plt.show()
+
+def plot_det_policy_l2_error_ct_epochs(cts, l2_errors, ylim=None):
+    fig, ax = plt.subplots()
+    ax.set_title(TITLES_FIG['policy-l2-error'])
+    ax.set_xlabel('CT(s)')
+    #ax.set_xlim(0, l2_errors.shape[0])
+    ax.semilogy(cts, l2_errors)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    plt.show()
+
+def plot_det_policy_l2_error_iterations(l2_errors, iterations=None, ylim=None):
+    fig, ax = plt.subplots()
+    #ax.set_title(TITLES_FIG['policy-l2-error'])
+    ax.set_xlabel('Gradient steps')
+    #ax.set_xlim(0, l2_errors.shape[0])
+    if iterations is not None:
+        plt.semilogy(iterations, l2_errors)
+    else:
+        plt.semilogy(l2_errors)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    plt.show()
+
+def plot_det_policy_l2_error_episodes(l2_errors, episodes=None, ylim=None):
+    fig, ax = plt.subplots()
+    #ax.set_title(TITLES_FIG['policy-l2-error'])
+    ax.set_xlabel('Trajectories')
+    if episodes is not None:
+        plt.semilogy(episodes, l2_errors)
+    else:
+        plt.semilogy(l2_errors)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    plt.show()
+
 def get_state_action_1d_extent(env):
     ''' set extent bounds for 1d state space in the x-axis and
         1d action space in the y-axis
@@ -120,317 +312,6 @@ def plot_episode_states_2d(env, ep_states):
     ax.scatter(ep_states[:, 0], ep_states[:, 1], alpha=.1, c='black', marker='o', s=100)
     plt.show()
 
-def plot_y_per_x(x, y, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
-                       plot_scale='linear', legend: bool = False, loc=None):
-
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    if xlim: ax.set_xlim(xlim)
-    if ylim: ax.set_ylim(ylim)
-    plot_fn = get_plot_function(ax, plot_scale)
-    plot_fn(x, y, c='tab:blue')
-    if hlines:
-        for (hline, color, ls, label) in hlines:
-            ax.axhline(y=hline, c=color, ls=ls, label=label)
-    if legend: plt.legend(loc=loc)
-    plt.show()
-
-
-def plot_y_per_episode(x, y, hlines=None, title: str = '', xlim=None, ylim=None,
-                       plot_scale='linear', legend: bool = False, loc=None):
-
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-    ax.set_xlabel('Episodes')
-    if xlim: ax.set_xlim(xlim)
-    if ylim: ax.set_ylim(ylim)
-    plot_fn = get_plot_function(ax, plot_scale)
-    plot_fn(x, y, c='tab:blue')
-    if hlines:
-        for (hline, color, ls, label) in hlines:
-            ax.axhline(y=hline, c=color, ls=ls, label=label)
-    if legend: plt.legend(loc=loc)
-    plt.show()
-
-def plot_y_per_episode_with_run_mean(x, y, run_window: int = 1, title: str = '', xlim=None,
-                                     ylim=None, legend: bool = False, loc=None):
-
-    run_mean_y = compute_running_mean(y, run_window)
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-    ax.set_xlabel('Episodes')
-    if xlim: ax.set_xlim(xlim)
-    if ylim: ax.set_ylim(ylim)
-    plt.plot(x, y, alpha=0.4, c='tab:blue')
-    if run_window > 0:
-        plt.plot(x, run_mean_y, label='running mean of last returns', c='tab:blue')
-    if legend: plt.legend(loc=loc)
-    plt.show()
-
-def plot_y_avg_per_episode(ys, x=None, hlines=None, title: str = '', xlim=None, ylim=None,
-                           plot_scale='linear', legend: bool = False, loc: str = 'upper right'):
-    if x is None:
-        x = np.arange(ys.shape[1])
-    y = np.mean(ys, axis=0)
-    error = np.sqrt(np.var(ys, axis=0))
-    fig, ax = plt.subplots()
-    plot_fn = get_plot_function(ax, plot_scale)
-    ax.set_title(title, size=20)
-    ax.set_xlabel('Episodes')
-    if xlim: ax.set_xlim(xlim)
-    if ylim: ax.set_ylim(ylim)
-    plot_fn(x, y, label='Mean')
-    ax.fill_between(x, y-error, y+error, alpha=0.4, label='Standard deviation')
-    if hlines:
-        for (hline, color, ls, label) in hlines:
-            ax.axhline(y=hline, c=color, ls=ls, label=label)
-    if legend: plt.legend(loc=loc)
-    plt.show()
-
-def plot_y_per_episode_std(y, run_window: int = 100, hlines=None, title: str = '', xlim=None,
-                           ylim=None, plot_scale='linear', legend: bool = False, loc: str = 'upper right'):
-    run_mean_y = compute_running_mean(y, run_window)
-    run_var_y = compute_running_variance(y, run_window)
-
-    fig, ax = plt.subplots()
-    plot_fn = get_plot_function(ax, plot_scale)
-    ax.set_title(title)
-    ax.set_xlabel('Episodes')
-    if xlim: ax.set_xlim(xlim)
-    if ylim: ax.set_ylim(ylim)
-    n_episodes = run_mean_y.shape[0]
-    x = np.arange(n_episodes)
-    y = run_mean_y
-    error = np.sqrt(run_var_y)
-    ax.plot(x, y, label='running mean')
-    ax.fill_between(x, y-error, y+error, alpha=0.4, label='standard deviation')
-    if hlines:
-        for (hline, color, ls, label) in hlines:
-            ax.axhline(y=hline, c=color, ls=ls, label=label)
-    if legend: plt.legend(loc=loc)
-    plt.show()
-
-def plot_mean_y_per_episode_with_std(x, mean_y, std_y=None, hlines=None, title: str = '', xlim=None,
-                                     ylim=None, plot_scale='linear', legend: bool = False,
-                                     loc: str = 'upper right'):
-    fig, ax = plt.subplots()
-    plot_fn = get_plot_function(ax, plot_scale)
-    ax.set_title(title)
-    ax.set_xlabel('Episodes')
-    if xlim: ax.set_xlim(xlim)
-    if ylim: ax.set_ylim(ylim)
-    plot_fn(x, mean_y, label='running mean')
-    if std_y is not None:
-        ax.fill_between(x, mean_y-std_y, mean_y+std_y, alpha=0.4, label='standard deviation')
-    if hlines:
-        for (hline, std_hline, color, ls, label) in hlines:
-            ax.axhline(y=hline, c=color, ls=ls, label=label)
-            #ax.fill_between(x, hline-std_hline, hline+std_hline, alpha=0.4)#, label='standard deviation')
-    if legend: plt.legend(loc=loc)
-    plt.show()
-
-def plot_ys_per_episode(ys, run_window: int = 100, title: str = '', xlim=None, ylim=None,
-                        labels=None, legend: bool = False, loc=None):
-    n_lines = len(ys)
-    if labels is None:
-        labels = [None for i in range(n_lines)]
-    run_mean_ys = np.array([compute_running_mean(y, run_window) for y in ys])
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-    ax.set_xlabel('Episodes')
-    if xlim: ax.set_xlim(xlim)
-    if ylim: ax.set_ylim(ylim)
-    for i in range(n_lines):
-        plt.plot(run_mean_ys[i], label=labels[i])
-    if legend: plt.legend(loc=loc)
-    plt.show()
-
-
-def plot_return_per_episode(returns, **kwargs):
-    plot_y_per_episode(returns, title='Returns', **kwargs)
-
-def plot_return_per_episode_std(returns, **kwargs):
-    plot_y_per_episode_std(returns, title='Returns', **kwargs)
-
-def plot_fht_per_episode(fhts, **kwargs):
-    plot_y_per_episode(fhts, title=r'$\tau$', **kwargs)
-
-def plot_fht_per_episode_std(fhts, **kwargs):
-    plot_y_per_episode_std(fhts, title=r'$\tau$', **kwargs)
-
-def plot_psi_is_per_episode(psi, **kwargs):
-    plot_y_per_episode(psi, title=r'$\Psi$', **kwargs)
-
-def plot_psi_is_per_episode_std(psi, **kwargs):
-    plot_y_per_episode_std(psi, title=r'$\Psi$', **kwargs)
-
-def plot_expected_returns_epochs(test_mean_returns):
-    fig, ax = plt.subplots()
-    ax.set_title('Expected return')
-    ax.set_xlabel('Epochs')
-    ax.set_ylim(-10, 0)
-
-    plt.plot(test_mean_returns)
-    #plt.legend()
-    plt.show()
-
-def plot_var_returns_epochs(test_var_returns):
-    fig, ax = plt.subplots()
-    ax.set_title('Sample variance return')
-    ax.set_xlabel('Epochs')
-
-    plt.semilogy(test_var_returns)
-    #plt.legend()
-    plt.show()
-
-def plot_expected_returns_with_error_epochs(test_mean_returns, test_var_returns):
-    fig, ax = plt.subplots()
-    ax.set_title('Expected Return')
-    ax.set_xlabel('Epochs')
-    ax.set_ylim(-10, 0)
-
-    n_epochs = test_mean_returns.shape[0]
-    x = np.arange(n_epochs)
-    y = test_mean_returns
-    error = np.sqrt(test_var_returns)
-    ax.plot(x, y, label='expected return')
-    ax.fill_between(x, y-error, y+error, alpha=0.5, label='standard deviation')
-    plt.legend()
-    plt.show()
-
-def plot_loss_epochs(losses):
-    fig, ax = plt.subplots()
-    ax.set_title('Loss function')
-    ax.set_xlabel('Epochs') #ax.set_ylim(-10, 0)
-    plt.plot(losses)
-    #plt.legend()
-    plt.show()
-
-def plot_var_losses_epochs(var_losses):
-    fig, ax = plt.subplots()
-    ax.set_title('Sample variance loss')
-    ax.set_xlabel('Epochs')
-
-    plt.semilogy(test_var_returns)
-    #plt.legend()
-    plt.show()
-
-def plot_losses_with_errors_epochs(losses, var_losses):
-    fig, ax = plt.subplots()
-    ax.set_title('Estimated Loss function')
-    ax.set_xlabel('Epochs')
-    #ax.set_ylim(-10, 0)
-    n_epochs = len(losses)
-    x = np.arange(n_epochs)
-    y = losses
-    error = np.sqrt(var_losses)
-    ax.plot(x, y, label='estimated loss')
-    ax.fill_between(x, y-error, y+error, alpha=0.5, label='standard deviation')
-    plt.legend()
-    plt.show()
-
-def plot_time_steps_epochs(time_steps):
-    fig, ax = plt.subplots()
-    ax.set_title('Estimated time steps')
-    ax.set_xlabel('Epochs')
-    plt.plot(time_steps)
-    #plt.legend()
-    plt.show()
-
-def plot_time_steps_histogram(time_steps):
-    n_steps_max = np.max(time_steps)
-    x = np.arange(1, n_steps_max+1, 10)
-    fig, ax = plt.subplots()
-    ax.set_xlabel('m')
-    counts, bins = np.histogram(time_steps, bins=x, density=True)
-    ax.hist(bins[:-1], bins, weights=counts, alpha=0.5, label=r'Histogram')
-    #ax.legend(fontsize=12)
-    plt.show()
-
-def plot_value_rms_error(x, y, xlabel=None, ylim=None):
-    fig, ax = plt.subplots()
-    ax.set_title(TITLES_FIG['value-rms-error'])
-    ax.set_xlabel(xlabel)
-    ax.plot(x, y)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    plt.show()
-
-def plot_value_rms_error_episodes(rms_errors, test_freq_episodes, ylim=None):
-    n_test_episodes = rms_errors.shape[0]
-    episodes = np.arange(n_test_episodes) * test_freq_episodes
-    plot_value_rms_error(episodes, rms_errors, xlabel='Episodes', ylim=ylim)
-
-def plot_value_rms_error_iterations(rms_errors, test_freq_iterations, ylim=None):
-    n_test_iterations = rms_errors.shape[0]
-    iterations = np.arange(n_test_iterations) * test_freq_iterations
-    plot_value_rms_error(iterations, rms_errors, xlabel='Iterations', ylim=ylim)
-
-def plot_policy_rms_error(x, y, xlabel=None, ylim=None):
-    fig, ax = plt.subplots()
-    ax.set_title(TITLES_FIG['policy-rms-error'])
-    ax.set_xlabel(xlabel)
-    ax.plot(x, y)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    plt.show()
-
-def plot_policy_rms_error_episodes(rms_errors, test_freq_episodes, ylim=None):
-    n_test_episodes = rms_errors.shape[0]
-    episodes = np.arange(n_test_episodes) * test_freq_episodes
-    plot_policy_rms_error(episodes, rms_errors, xlabel='Episodes', ylim=ylim)
-
-def plot_policy_rms_error_iterations(rms_errors, test_freq_iterations, ylim=None):
-    n_test_iterations = rms_errors.shape[0]
-    iterations = np.arange(n_test_iterations) * test_freq_iterations
-    plot_policy_rms_error(iterations, rms_errors, xlabel='Iterations', ylim=ylim)
-
-def plot_det_policy_l2_error_epochs(l2_errors, ylim=None):
-    fig, ax = plt.subplots()
-    ax.set_title(TITLES_FIG['policy-l2-error'])
-    ax.set_xlabel('Epochs')
-    #ax.set_xlim(0, l2_errors.shape[0])
-    ax.semilogy(l2_errors)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    plt.show()
-
-def plot_det_policy_l2_error_ct_epochs(cts, l2_errors, ylim=None):
-    fig, ax = plt.subplots()
-    ax.set_title(TITLES_FIG['policy-l2-error'])
-    ax.set_xlabel('CT(s)')
-    #ax.set_xlim(0, l2_errors.shape[0])
-    ax.semilogy(cts, l2_errors)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    plt.show()
-
-def plot_det_policy_l2_error_iterations(l2_errors, iterations=None, ylim=None):
-    fig, ax = plt.subplots()
-    #ax.set_title(TITLES_FIG['policy-l2-error'])
-    ax.set_xlabel('Gradient steps')
-    #ax.set_xlim(0, l2_errors.shape[0])
-    if iterations is not None:
-        plt.semilogy(iterations, l2_errors)
-    else:
-        plt.semilogy(l2_errors)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    plt.show()
-
-def plot_det_policy_l2_error_episodes(l2_errors, episodes=None, ylim=None):
-    fig, ax = plt.subplots()
-    #ax.set_title(TITLES_FIG['policy-l2-error'])
-    ax.set_xlabel('Trajectories')
-    if episodes is not None:
-        plt.semilogy(episodes, l2_errors)
-    else:
-        plt.semilogy(l2_errors)
-    if ylim is not None:
-        ax.set_ylim(ylim)
-    plt.show()
-
 def plot_reward_table(env, r_table):
 
     fig, ax = plt.subplots()
@@ -483,6 +364,46 @@ def plot_frequency(env, n_table):
 
     plt.show()
 
+
+def get_colors_and_labels(iterations=None, n_lines=None, iter_str='traj.', hjb=True):
+
+    # fill epochs if not provided
+    if iterations is None and n_lines is None:
+        n_lines = 6
+    elif iterations is None and n_lines is not None:
+        iterations = [i for i in range(n_lines)] if iterations is None else iterations
+    elif iterations is not None and n_lines is None:
+        n_lines = len(iterations)
+        assert 2 <= n_lines <= 6, 'The maximum number of lines is 6'
+    elif iterations is not None and n_lines is not None:
+        assert len(iterations) == n_lines, 'The number of iterations must match the number of lines'
+
+    # set colors and labels
+    colors = [
+            'tab:blue',
+            COLORS_TAB20b[15],
+            COLORS_TAB20b[14],
+            COLORS_TAB20b[13],
+            COLORS_TAB20b[12],
+            COLORS_TAB20b[16],
+    ]
+    if n_lines <= 5:
+        colors.pop(5)
+    if n_lines <= 4:
+        colors.pop(3)
+    if n_lines <= 3:
+        colors.pop(2)
+    if n_lines <= 2:
+        colors.pop(1)
+
+    labels = ['initial'] \
+           + ['{} {:d}'.format(iter_str, i) for i in iterations[1:]]
+    if hjb:
+        colors.append(COLORS_FIG['hjb'])
+        labels.append('hjb')
+
+    return colors, labels
+
 def plot_q_value_function_1d(env, q_table, vmin=None, file_path=None):
 
     fig, ax = plt.subplots()
@@ -493,7 +414,6 @@ def plot_q_value_function_1d(env, q_table, vmin=None, file_path=None):
     #ax.plot(np.nan, alpha=0., label=r'bla')
     #ax.legend()
 
-    breakpoint()
     #im = fig.axes[0].imshow(
     im = ax.imshow(
         q_table.T,
