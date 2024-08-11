@@ -15,6 +15,19 @@ from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_td3_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import *
 
+def select_action(env, actor, state, noise_scale, action_limit):
+
+    # forward pass
+    with torch.no_grad():
+        mean = actor.forward(torch.FloatTensor(state)).numpy()
+
+    # add noise
+    action = mean + noise_scale * np.random.randn(env.action_space.shape[0])
+
+    # clip such that it lies in the valid action range
+    action = np.clip(action, -action_limit, action_limit) if action_limit is not None else action
+    return action, mean
+
 def update_parameters(actor, actor_target, actor_optimizer,
                       critic1, critic_target1, critic2, critic_target2, critic_optimizer,
                       batch, gamma, policy_freq, timer,
@@ -44,7 +57,8 @@ def update_parameters(actor, actor_target, actor_optimizer,
         # target policy smoothing
         epsilon = torch.randn_like(next_actions) * target_noise
         next_actions_smoothed = next_actions + epsilon
-        next_actions_smoothed = torch.clamp(next_actions_smoothed, -action_limit, action_limit)
+        next_actions_smoothed = torch.clip(next_actions_smoothed, -action_limit, action_limit) \
+                                if action_limit is not None else next_actions_smoothed
 
         # q value for the corresponding next pair of states and actions (using target networks)
         q_vals_next1 = critic_target1.forward(next_states, next_actions_smoothed)
@@ -106,17 +120,6 @@ def update_parameters(actor, actor_target, actor_optimizer,
 
     return actor_loss, critic_loss.detach().item()
 
-def get_action(env, actor, state, noise_scale, action_limit):
-
-    # forward pass
-    action = actor.forward(torch.FloatTensor(state)).detach().numpy()
-
-    # add noise
-    action += noise_scale * np.random.randn(env.action_space.shape[0])
-
-    # clipp such that it lies in the valid action range
-    action = np.clip(action, -action_limit, action_limit)
-    return action
 
 
 def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
@@ -269,7 +272,7 @@ def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, expl_noises[ep], action_limit)
+                action, mean = select_action(env, actor, state, expl_noises[ep], action_limit)
 
             # env step
             next_state, r, done, _, info = env.step(action)

@@ -10,22 +10,25 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, QValueFunction
 from rl_sde_is.dpg.replay_buffers import ReplayBuffer
+from rl_sde_is.utils.tabular_methods import compute_value_function
 from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_ddpg_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import *
 
 
-def get_action(env, actor, state, noise_scale, action_limit):
+def select_action(env, actor, state, noise_scale, action_limit):
 
     # forward pass
-    action = actor.forward(torch.FloatTensor(state)).detach().numpy()
+    with torch.no_grad():
+        mean = actor.forward(torch.FloatTensor(state)).numpy()
 
     # add noise
-    action += noise_scale * np.random.randn(env.action_space.shape[0])
+    action = mean + noise_scale * np.random.randn(env.action_space.shape[0])
 
-    # clipp such that it lies in the valid action range
-    action = np.clip(action, -action_limit, action_limit)
-    return action
+    # clip such that it lies in the valid action range
+    action = np.clip(action, -action_limit, action_limit) if action_limit is not None else action
+    return action, mean
+
 
 def update_parameters(actor, actor_target, actor_optimizer, critic, critic_target,
                       critic_optimizer, batch, gamma, polyak):
@@ -48,7 +51,7 @@ def update_parameters(actor, actor_target, actor_optimizer, critic, critic_targe
     with torch.no_grad():
 
         # q value for the corresponding next pair of states and actions (using target networks)
-        next_actions = actor_target.forward(next_states).detach()
+        next_actions = actor_target.forward(next_states)
         q_vals_next = critic_target.forward(next_states, next_actions)
 
         # compute target (using target networks)
@@ -96,7 +99,7 @@ def ddpg_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
          n_episodes=100, n_steps_lim=1000, learning_starts=1000, replay_size=50000,
          batch_size=512, lr_actor=1e-4, lr_critic=1e-4, seed=None,
          update_freq=100, polyak=0.95, expl_noise=0., action_limit=None,
-         backup_freq=None, live_plot_freq=None,
+         backup_freq=None, live_plot_freq=None, run_window=10,
          value_function_opt=None, policy_opt=None, load=False):
 
     # get dir path
@@ -222,7 +225,7 @@ def ddpg_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
 
             # get action following the actor
             else:
-                action = get_action(env, actor, state, expl_noise, action_limit)
+                action, mean = select_action(env, actor, state, expl_noise, action_limit)
 
             # env step
             next_state, r, done, _, info = env.step(action)
@@ -261,9 +264,11 @@ def ddpg_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
         time_steps[ep] = k
         cts[ep] = ct_final - ct_initial
 
-        msg = 'ep.: {:2d}, return: {:.3e}, time steps: {:.3e}, ct: {:.3f}'.format(
+        msg = 'ep.: {:2d}, return: {:.3e} (avg. {:.2e}, max. {:.2e}), time steps: {:.3e}, ct: {:.3f}'.format(
             ep,
             returns[ep],
+            np.mean(returns[:ep+1][-run_window:]),
+            np.max(returns[:ep+1][-run_window:]),
             time_steps[ep],
             cts[ep],
         )
@@ -336,4 +341,21 @@ def load_backup_models(data, ep=0):
         load_model(critic, dir_path, file_name='critic_n-epi{}'.format(ep))
     except FileNotFoundError as e:
         print('The episode {:d} has no backup '.format(ep))
+
+def get_policies(env, data, episodes):
+    n_episodes = len(episodes)
+    policies = np.empty((n_episodes, env.n_states, env.d), dtype=np.float32)
+    for i, ep in enumerate(episodes):
+        load_backup_models(data, ep)
+        policies[i] = evaluate_det_policy_model(env, data['actor'])
+    return policies
+
+def get_value_functions(env, data, episodes):
+    n_episodes = len(episodes)
+    value_functions = np.empty((n_episodes, env.n_states), dtype=np.float32)
+    for i, ep in enumerate(episodes):
+        load_backup_models(data, ep)
+        qvalue = evaluate_qvalue_function_model_1d(env, data['critic'])
+        value_functions[i] = compute_value_function(qvalue)
+    return value_functions
 
