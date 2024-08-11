@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from torch.distributions import Categorical, Normal, MultivariateNormal
+from torch.distributions import Categorical, Normal
 
-from rl_sde_is.models import mlp
+from rl_sde_is.utils.models import mlp
 
 class StochasticPolicy(nn.Module):
     def distribution(self, state):
@@ -153,13 +153,7 @@ class GaussianPolicyLearntCov(GaussianPolicy):
         z = self.std_layer.forward(y)
         return self.std_init * vracer_softplus_fn(z)
 
-class QValueFunction(nn.Module):
-
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
-        super().__init__()
-        self.sizes = [state_dim + action_dim] + list(hidden_sizes) + [1]
-        self.q = mlp(self.sizes, activation)
-
-    def forward(self, state, action):
-        q = self.q(torch.cat([state, action], dim=-1))
-        return torch.squeeze(q, axis=-1)
+def compute_importance_weights(action, behav_mean, behav_std, curr_mean, curr_std):
+    log_behav_policy = -0.5 * ((action - behav_mean) / behav_std)**2 - torch.log(behav_std)
+    log_curr_policy = -0.5 * ((action - curr_mean) / curr_std)**2 - torch.log(curr_std)
+    return torch.exp(log_behav_policy - log_curr_policy)

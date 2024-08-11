@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from rl_sde_is.models import mlp
+from rl_sde_is.utils.models import mlp
 
 class DeterministicPolicy(nn.Module):
 
@@ -38,6 +38,21 @@ class QValueFunction(nn.Module):
         q = self.q(torch.cat([state, action], dim=-1))
         return torch.squeeze(q, axis=-1)
 
+class DuelingCritic(nn.Module):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation):
+        super(DuelingCritic, self).__init__()
+
+        self.action_dim = action_dim
+        sizes = [state_dim + action_dim] + list(hidden_sizes)
+        self.net = mlp(sizes, activation, activation)
+        self.value_layer = nn.Linear(hidden_sizes[-1], 1)
+        self.advantage_layer = nn.Linear(hidden_sizes[-1], action_dim)
+
+    def forward(self, state, action):
+        y = self.net(torch.cat([state, action], dim=1))
+        value = self.value_layer(y)
+        advantage = self.advantage_layer(y)
+        return value + advantage - advantage.mean(dim=1, keepdim=True)
 
 
 class ValueFunction(nn.Module):
