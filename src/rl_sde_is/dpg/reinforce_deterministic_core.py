@@ -9,11 +9,35 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 from gym_sde_is.utils.sde import compute_is_functional
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy
-from rl_sde_is.utils.approximate_methods import *
+from rl_sde_is.utils.approximate_methods import compute_det_policy_actions, evaluate_det_policy_model
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.utils.plots import *
-from rl_sde_is.utils.path import *
+from rl_sde_is.utils.path import get_reinforce_det_dir_path, load_data, save_data, \
+                                 save_model, load_model
 from rl_sde_is.utils.numeric import logistic_torch
+from rl_sde_is.utils.plots import *
+
+def sample_loss(env, model, batch_size):
+
+    # initialization
+    state, _ = env.reset(batch_size=batch_size, is_torch=True)
+
+    # terminal state flag
+    done = np.full((batch_size,), False)
+    while not done.all():
+
+        # sample action
+        action = model.forward(state)
+
+        # env step
+        state, _, _, truncated, _ = env.step_vect_torch(action)
+        done = np.logical_or(env.been_terminated, truncated)
+
+    # calculate loss
+    eff_loss = torch.mean(-env.returns - env.returns.detach() * env.girs_stoch_int)
+    with torch.no_grad():
+        eff_loss_var = torch.var(-env.returns - env.returns * env.girs_stoch_int)
+
+    return eff_loss, eff_loss_var
 
 
 def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_size=1000,
@@ -83,7 +107,7 @@ def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_
         track_ct=True,
     )
     keys_chosen = [
-        'mean_fhts', 'var_fhts',
+        'max_lengths', 'mean_fhts', 'var_fhts',
         'mean_returns', 'var_returns',
         'mean_I_us', 'var_I_us', 're_I_us',
         'losses', 'loss_vars',
@@ -102,32 +126,12 @@ def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_
         # start timer
         ct_initial = time.time()
 
-        # reset gradients
-        optimizer.zero_grad()
-
-        # initialization
-        state, _ = env.reset(batch_size=batch_size, is_torch=True)
-
-        # terminal state flag
-        done = np.full((batch_size,), False)
-        while not done.all():
-
-            # sample action
-            action = model.forward(state)
-
-            # env step
-            state, _, _, truncated, _ = env.step_vect_torch(action)
-            done = np.logical_or(env.been_terminated, truncated)
-
-        # calculate loss
-        eff_loss = torch.mean(-env.returns - env.returns.detach() * env.girs_stoch_int)
-        with torch.no_grad():
-            eff_loss_var = torch.var(-env.returns - env.returns * env.girs_stoch_int)
-
         # compute effective loss
-        eff_loss.backward()
+        eff_loss, eff_loss_var = sample_loss(env, model, batch_size)
 
-        # update parameters
+        # reset gradients and update parameters
+        optimizer.zero_grad()
+        eff_loss.backward()
         optimizer.step()
 
         # end timer
@@ -184,7 +188,7 @@ def initialize_1d_figures(env, model, policy_opt):
     return policy_line
 
 def update_1d_figures(env, model, policy_line):
-    states = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
+    states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, model, states)
     update_det_policy_1d_figure(env, policy, policy_line)
 

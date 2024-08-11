@@ -17,7 +17,7 @@ def main():
         'sde-is-{}-{}-v0'.format(args.problem, args.setting),
         dt=args.dt,
         beta=args.beta,
-        alpha=(args.alpha),
+        alpha=args.alpha,
         state_init_dist=args.state_init_dist,
         is_torch=True,
     )

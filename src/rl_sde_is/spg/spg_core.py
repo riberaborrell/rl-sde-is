@@ -146,7 +146,7 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layer
     if algorithm_type == 'initial-return':
         sample_loss_fn = sample_loss_initial_return
     elif algorithm_type == 'n-return':
-        sample_loss_fn = sample_loss_initial_return
+        sample_loss_fn = sample_loss_n_step_return
 
     # save algorithm parameters
     data = {
@@ -178,7 +178,7 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layer
         track_ct=True,
     )
     keys_chosen = [
-        'mean_fhts', 'var_fhts',
+        'max_lengths', 'mean_fhts', 'var_fhts',
         'mean_returns', 'var_returns',
         'losses', 'loss_vars',
         'cts',

@@ -36,6 +36,7 @@ class ISStatistics(object):
         # steps
         self.mean_lengths = np.full(self.n_epochs, np.nan)
         self.var_lengths = np.full(self.n_epochs, np.nan)
+        self.max_lengths = np.full(self.n_epochs, np.nan)
 
         # fht
         self.mean_fhts = np.full(self.n_epochs, np.nan)
@@ -77,6 +78,7 @@ class ISStatistics(object):
             assert ct is not None, 'CT is not provided'
 
         self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(lengths)
+        self.max_lengths[i] = np.max(lengths)
         self.mean_fhts[i], self.var_fhts[i], _, _ = compute_array_statistics(fhts)
         self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(returns)
         if self.track_is:
@@ -102,7 +104,7 @@ class ISStatistics(object):
                 self.mean_I_us[i], self.var_I_us[i], re_I_us
             )
         if self.track_l2_error:
-            msg += 'l2 error: {:.3e}'.format(self.policy_l2_errors[i])
+            msg += 'l2 error: {:.3e}, '.format(self.policy_l2_errors[i])
         if self.track_ct:
             msg += 'ct: {:.3e}'.format(self.cts[i])
         print(msg)
