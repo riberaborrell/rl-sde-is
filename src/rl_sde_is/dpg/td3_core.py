@@ -122,11 +122,11 @@ def update_parameters(actor, actor_target, actor_optimizer,
 
 
 
-def td3_episodic(env, gamma=1., n_layers=2, d_hidden_layer=32,
+def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32,
                  n_episodes=100, n_steps_lim=1000, learning_starts=1000,
                  expl_noise_init=1.0, expl_noise_decay=1., replay_size=50000,
                  batch_size=1000, lr_actor=1e-4, lr_critic=1e-4, seed=None,
-                 update_freq=10, policy_freq=2, target_noise=0.2, polyak=0.95, action_limit=None,
+                 update_freq=10, policy_freq=2, target_noise=0.2, polyak=0.995, action_limit=None,
                  backup_freq=None, live_plot_freq=None, run_window=10,
                  value_function_opt=None, policy_opt=None, load=False):
 

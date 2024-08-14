@@ -14,7 +14,7 @@ from rl_sde_is.utils.plots import *
 def evaluate_det_policy_model(env, model):
     state_space_h = torch.FloatTensor(env.state_space_h)
     with torch.no_grad():
-        return model.forward(state_space_h).numpy()
+        return model.forward(state_space_h).numpy().reshape(env.n_states, env.d)
 
 def evaluate_stoch_policy_model(env, model):
     state_space_h = torch.FloatTensor(env.state_space_h)
