@@ -806,21 +806,21 @@ def plot_det_policy_1d_actor_critic(env, policy_actor, policy_critic,
     ax.legend(loc=loc)
     plt.show()
 
-def plot_det_policy_2d(env, policy, policy_hjb, file_path=None):
+def plot_det_policy_2d(env, policy, policy_opt, title: str = '',
+                       vmin=None, vmax=None, file_path=None):
     X = env.state_space_h[:, :, 0]
     Y = env.state_space_h[:, :, 1]
     U = policy[:, :, 0]
     V = policy[:, :, 1]
     X, Y, U, V = coarse_quiver_arrows(U, V, X, Y, l=25)
 
-    U_hjb = policy_hjb[:, :, 0]
-    V_hjb = policy_hjb[:, :, 1]
+    U_hjb = policy_opt[:, :, 0]
+    V_hjb = policy_opt[:, :, 1]
     _, _, U_hjb, V_hjb = coarse_quiver_arrows(U_hjb, V_hjb, l=25)
 
     # initialize figure
     fig, ax = plt.subplots()
-    #ax.set_title(TITLES_FIG['policy'])
-    ax.set_title(r'Mean $\mu_\theta$')
+    ax.set_title(TITLES_FIG['policy']) if not title else ax.set_title(title)
     ax.set_xlabel(r'$s_1$')
     ax.set_ylabel(r'$s_2$')
     ax.set_xlim(env.state_space_bounds[0, 0], env.state_space_bounds[0, 1])
@@ -829,7 +829,9 @@ def plot_det_policy_2d(env, policy, policy_hjb, file_path=None):
     # initialize norm object
     C = np.sqrt(U**2 + V**2)
     C_hjb = np.sqrt(U_hjb**2 + V_hjb**2)
-    norm = colors.Normalize(vmin=np.min(C_hjb), vmax=np.max(C_hjb))
+    vmin = np.min(C_hjb) if vmin is None else vmin
+    vmax = np.max(C_hjb) if vmax is None else vmax
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
     # vector field plot
     Q = ax.quiver(
@@ -1334,9 +1336,9 @@ def initialize_actor_critic_1d_figures(env, q_table, v_table_actor_critic, v_tab
     ax2.set_title('Value function', fontsize=10)
     ax2.set_xlabel('States', fontsize=8)
     ax2.set_xlim(env.state_space_bounds)
-    line_value_f_actor_critic = ax2.plot(env.state_space_h, v_table_actor_critic)[0]
-    line_value_f_critic = ax2.plot(env.state_space_h, v_table_critic)[0]
-    ax2.plot(env.state_space_h, value_function_opt)
+    line_value_f_actor_critic = None #ax2.plot(env.state_space_h, v_table_actor_critic)[0]
+    line_value_f_critic = ax2.plot(env.state_space_h, v_table_critic, c='tab:orange')[0]
+    ax2.plot(env.state_space_h, value_function_opt, c=COLORS_FIG['hjb'], ls=':')
 
     # a table
     ax3.set_title(TITLES_FIG['a-value-function'], fontsize=10)
@@ -1360,9 +1362,9 @@ def initialize_actor_critic_1d_figures(env, q_table, v_table_actor_critic, v_tab
     ax4.set_ylabel('Actions', fontsize=8)
     ax4.set_xlim(env.state_space_bounds)
     ax4.set_ylim(env.action_space_bounds[0], env.action_space_bounds[1])
-    line_policy_actor = ax4.plot(env.state_space_h, policy_actor)[0]
-    line_policy_critic = ax4.plot(env.state_space_h, policy_critic)[0]
-    ax4.plot(env.state_space_h, policy_opt)
+    line_policy_actor = ax4.plot(env.state_space_h, policy_actor, c='tab:blue')[0]
+    line_policy_critic = ax4.plot(env.state_space_h, policy_critic, c='tab:orange')[0]
+    ax4.plot(env.state_space_h, policy_opt, c=COLORS_FIG['hjb'], ls=':', label=r'optimal')
 
     # colorbars                                                                 
     plt.colorbar(im_q_table, ax=ax1)
@@ -1383,7 +1385,7 @@ def update_actor_critic_1d_figures(env, q_table, v_table_actor_critic, v_table_c
     # update plots
     im_q_table.set_data(q_table.T)
     im_q_table.set_clim(vmin=q_table.min(), vmax=q_table.max())
-    line_value_f_actor_critic.set_data(env.state_space_h, v_table_actor_critic)
+    #line_value_f_actor_critic.set_data(env.state_space_h, v_table_actor_critic)
     line_value_f_critic.set_data(env.state_space_h, v_table_critic)
     im_a_table.set_data(a_table.T)
     im_a_table.set_clim(vmin=a_table.min(), vmax=a_table.max())

@@ -89,9 +89,9 @@ def sample_loss_n_step_return(env, policy, batch_size):
     return eff_loss, eff_loss_var
 
 
-def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layers=2,
-                         d_hidden_layer=32, policy_type='const-cov', policy_noise=1., lr=1e-4,
-                         batch_size=1, n_grad_iterations=100, seed=None,
+def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., policy_type='const-cov',
+                         n_layers=2, d_hidden_layer=32, theta_init='null', policy_noise=1.,
+                         lr=1e-4, batch_size=1, n_grad_iterations=100, seed=None,
                          backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
 
     # get dir path
@@ -101,6 +101,7 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layer
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
+        theta_init=theta_init,
         policy_type=policy_type,
         policy_noise=policy_noise,
         batch_size=batch_size,
@@ -140,7 +141,8 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., n_layer
     optimizer = optim.Adam(policy.parameters(), lr=lr)
 
     # train params to fit hjb solution
-    #train_stochastic_policy_from_hjb(env, policy, policy_opt, load=True)
+    if theta_init == 'hjb':
+        train_stochastic_policy_from_hjb(env, policy, policy_opt, load=True)
 
     # sample loss function
     if algorithm_type == 'initial-return':

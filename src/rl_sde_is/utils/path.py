@@ -119,6 +119,8 @@ def get_model_arch_str(**kwargs):
         string += 'n-layers{:d}_'.format(kwargs['n_layers'])
     if 'd_hidden_layer' in kwargs.keys():
         string += 'hidden-size{:d}_'.format(kwargs['d_hidden_layer'])
+    if 'theta_init' in kwargs.keys():
+        string += 'theta-init-{}_'.format(kwargs['theta_init'])
     return string
 
 def get_action_limit_str(**kwargs):

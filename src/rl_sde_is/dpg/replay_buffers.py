@@ -1,8 +1,4 @@
-from collections import namedtuple, deque
-import random
-
 import numpy as np
-
 
 class ReplayBuffer:
 
@@ -22,16 +18,16 @@ class ReplayBuffer:
     def reset(self):
 
         # initialize arrays
-        self.states = np.zeros([self.max_size, self.state_dim], dtype=np.float32)
-        self.next_states = np.zeros([self.max_size, self.state_dim], dtype=np.float32)
+        self.states = np.full((self.max_size, self.state_dim), np.nan, dtype=np.float32)
+        self.next_states = np.full((self.max_size, self.state_dim), np.nan, dtype=np.float32)
 
         if self.is_action_continuous:
-            self.actions = np.zeros([self.max_size, self.action_dim], dtype=np.float32)
+            self.actions = np.full((self.max_size, self.action_dim), np.nan, dtype=np.float32)
         else:
-            self.actions = np.zeros(self.max_size, dtype=np.int64)
+            self.actions = np.full(self.max_size, np.nan, dtype=np.int64)
 
-        self.rewards = np.zeros(self.max_size, dtype=np.float32)
-        self.done = np.zeros(self.max_size, dtype=bool)
+        self.rewards = np.full(self.max_size, np.nan, dtype=np.float32)
+        self.done = np.full(self.max_size, np.nan, dtype=bool)
 
         # counters and flags
         self.ptr = 0

@@ -25,7 +25,7 @@ def evaluate_stoch_policy_model(env, model):
 def evaluate_value_function_model(env, model):
     state_space_h = torch.FloatTensor(env.state_space_h)
     with torch.no_grad():
-        return model.forward(state_space_h).numpy()
+        return model.forward(state_space_h).numpy().reshape(env.n_states)
 
 def evaluate_qvalue_function_model_1d(env, model):
     # discretized states and actions
@@ -232,7 +232,7 @@ def load_dp_tables_data(env, dt=1e-4, h_state=1e-2, h_action=1e-2):
 
     return env_dp, data
 
-def train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False):
+def train_deterministic_policy_from_hjb(env, policy, policy_opt, load=False):
 
     from rl_sde_is.utils.plots import initialize_det_policy_1d_figure
 
@@ -252,15 +252,58 @@ def train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False):
         states = torch.tensor(env.state_space_h[idx], dtype=torch.float32)
 
         # compute q values
-        means = policy.mean(states)
+        means = policy(states)
 
         # targets
         mean_targets = torch.tensor(policy_opt[idx], dtype=torch.float32)
 
         # compute mse loss
-        loss = ((means - mean_targets)**2).mean()
+        loss = (means - mean_targets).pow(2).mean()
 
-        # compute gradient
+        # compute gradient and update params
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if i % int(1e3) == 0:
+            print('iteration: {:d}, loss: {:1.4e}'.format(i, loss))
+
+    print('Policy mean trained to be the optimal policy')
+    return policy
+
+def train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False):
+
+    from rl_sde_is.utils.plots import initialize_det_policy_1d_figure
+
+    # optimizer
+    optimizer = optim.Adam(policy.parameters(), lr=1e-3)
+
+    # train
+    n_iterations = int(1e4)
+
+    # minibatch size
+    batch_size = int(1e3)
+    for i in range(n_iterations):
+
+        idx = np.random.randint(0, env.n_states, batch_size)
+
+        # sample data
+        states = torch.tensor(
+            env.state_space_h.reshape(env.n_states, env.d)[idx], dtype=torch.float32,
+        )
+
+        # compute q values
+        means = policy.mean(states)
+
+        # targets
+        mean_targets = torch.tensor(
+            policy_opt.reshape(env.n_states, env.d)[idx], dtype=torch.float32,
+        )
+
+        # compute mse loss
+        loss = (means - mean_targets).pow(2).mean()
+
+        # compute gradient and update params
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -564,39 +607,6 @@ def sample_trajectories_buffer(env, policy, replay_buffer, n_episodes, n_steps_l
             # update state
             state = next_state
 
-def sample_trajectories_buffer_vectorized_old(env, model, replay_buffer, n_episodes, n_steps_lim):
-
-    # are episodes done
-    already_done = np.full((batch_size,), False)
-    done = np.full((batch_size,), False)
-
-    # initialize episodes
-    states = np.full((batch_size, env.d), env.state_init)
-
-    # sample episodes
-    for n in np.arange(n_max):
-
-        # actions
-        with torch.no_grad():
-            actions = model.forward(torch.FloatTensor(states)).numpy()
-
-        # step dynamics forward
-        next_states, rewards, done, _ = env.step(states, actions)
-
-        # store tuple
-        idx = np.where(np.invert(already_done))[0]
-        replay_buffer.store_vectorized(states[idx], actions[idx], rewards[idx],
-                                       next_states[idx], done[idx])
-
-        # get indices of episodes which are new to the target set
-        _ = env.get_new_in_ts_idx(done, already_done)
-
-        # stop if all episodes already in target set
-        if already_done.all() == True:
-           break
-
-        # update states
-        states = next_states
 
 def sample_trajectories_buffer_vect(env, policy, replay_buffer, n_episodes, n_steps_lim):
 
@@ -616,7 +626,7 @@ def sample_trajectories_buffer_vect(env, policy, replay_buffer, n_episodes, n_st
         done = np.logical_or(env.been_terminated, truncated)
 
         # store experiences at given time step
-        idx = np.where(~env.been_terminated)[0]
+        idx = np.where(~env.been_terminated | env.new_terminated)[0]
         replay_buffer.store_vectorized(states[idx], actions[idx], rewards[idx],
                                        next_states[idx], done[idx])
 

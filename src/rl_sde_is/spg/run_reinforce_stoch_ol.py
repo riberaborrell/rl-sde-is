@@ -35,9 +35,7 @@ def main():
     env.discretize_state_space(h_state=args.h_state)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver()
-    sol_hjb.coarse_solution(args.h_state)
-    policy_opt = sol_hjb.u_opt
+    sol_hjb = env.get_hjb_solver(args.h_state)
 
     # run reinforce with initial return
     data = reinforce_stochastic(
@@ -45,6 +43,7 @@ def main():
         algorithm_type=args.algorithm_type,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
+        theta_init=args.theta_init,
         policy_type=args.policy_type,
         policy_noise=args.policy_noise,
         lr=args.lr,
@@ -52,7 +51,7 @@ def main():
         seed=args.seed,
         n_grad_iterations=args.n_grad_iterations,
         backup_freq=args.backup_freq,
-        policy_opt=policy_opt,
+        policy_opt=sol_hjb.u_opt,
         load=args.load,
         live_plot_freq=args.live_plot_freq,
     )
@@ -76,7 +75,7 @@ def main():
 
     # plot policy
     if env.d == 1:
-        plot_det_policies_1d(env, means, policy_opt)
+        plot_det_policies_1d(env, means, sol_hjb.u_opt)
 
 if __name__ == '__main__':
     main()

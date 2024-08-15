@@ -278,6 +278,13 @@ def get_base_parser():
         help='Set dimension of the hidden layers. Default: 32',
     )
     parser.add_argument(
+        '--theta-init',
+        type=str,
+        default='null',
+        choices=['null', 'hjb'],
+        help='Set if model parameters are trained to get the hjb solution. Default: null',
+    )
+    parser.add_argument(
         '--policy-type',
         type=str,
         default='const-cov',
