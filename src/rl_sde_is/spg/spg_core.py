@@ -164,6 +164,9 @@ def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini
     # re-scale learning rate back
     optimizer.param_groups[0]['lr'] /= mfht
 
+    # reset replay buffer
+    memory.reset()
+
     return loss, loss_var
 
 def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_type,
