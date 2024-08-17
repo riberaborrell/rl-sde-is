@@ -137,6 +137,9 @@ def get_lr_and_batch_size_str(**kwargs):
     string += 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) if 'lr_actor' in kwargs.keys() else ''
     string += 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) if 'lr_critic' in kwargs.keys() else ''
     string += 'K{:d}_'.format(int(kwargs['batch_size'])) if 'batch_size' in kwargs.keys() else ''
+    string += 'mini-K{:d}_'.format(int(kwargs['mini_batch_size'])) \
+               if 'mini_batch_size' in kwargs.keys() and kwargs['mini_batch_size'] is not None \
+               else ''
     return string
 
 def get_iter_str(**kwargs):
@@ -325,12 +328,18 @@ def get_reinforce_dir_path(env, **kwargs):
     '''
     '''
 
+    if 'on-policy' in kwargs['agent']:
+        mfht_str = 'mfht-estimated_' if kwargs['estimate_mfht'] else 'mfht-neglected_'
+    else:
+        mfht_str = ''
+
     # set parameters string
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'policy-{}_'.format(kwargs['policy_type']) \
               + 'policy-noise{:.2f}_'.format(kwargs['policy_noise']) \
+              + mfht_str \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)

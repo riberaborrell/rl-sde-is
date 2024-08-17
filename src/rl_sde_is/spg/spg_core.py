@@ -9,6 +9,7 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
 
 from rl_sde_is.spg.spg_utils import GaussianPolicyConstantCov, GaussianPolicyLearntCov
+from rl_sde_is.spg.replay_memories import ReplayMemoryReturn
 from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, \
                                                 train_stochastic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
@@ -16,7 +17,10 @@ from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
 
-def sample_loss_initial_return(env, policy, batch_size):
+def sample_loss_random_time_initial_return(env, policy, optimizer, batch_size):
+    ''' Sample and compute loss function corresponding to the policy gradient with
+        random time expectation and initial return. Also update the policy parameters.
+    '''
 
     # initialization
     state, _ = env.reset(batch_size=batch_size)
@@ -39,7 +43,7 @@ def sample_loss_initial_return(env, policy, batch_size):
         done = np.logical_or(env.been_terminated, truncated)
 
         # save log probs 
-        idx = ~env.been_terminated
+        idx = ~env.been_terminated | env.new_terminated
         log_probs[idx] = log_probs[idx] + log_probs_n[idx]
 
     # calculate loss
@@ -47,9 +51,17 @@ def sample_loss_initial_return(env, policy, batch_size):
     eff_loss = - torch.mean(log_probs * returns_torch)
     eff_loss_var = - np.var(log_probs.detach().numpy() * env.returns)
 
+    # reset gradients, compute gradients and update parameters
+    optimizer.zero_grad()
+    eff_loss.backward()
+    optimizer.step()
+
     return eff_loss, eff_loss_var
 
-def sample_loss_n_step_return(env, policy, batch_size):
+def sample_loss_random_time_n_step_return(env, policy, optimizer, batch_size):
+    ''' Sample and compute loss function corresponding to the policy gradient with
+        random time expectation and n-step return. Also update the policy parameters.
+    '''
 
     # initialization
     state, _ = env.reset(batch_size=batch_size)
@@ -86,25 +98,92 @@ def sample_loss_n_step_return(env, policy, batch_size):
     with torch.no_grad():
         eff_loss_var = phi.var().numpy()
 
+    # reset gradients, compute gradients and update parameters
+    optimizer.zero_grad()
+    eff_loss.backward()
+    optimizer.step()
+
     return eff_loss, eff_loss_var
 
+def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini_batch_size, estimate_mfht):
 
-def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., policy_type='const-cov',
-                         n_layers=2, d_hidden_layer=32, theta_init='null', policy_noise=1.,
-                         lr=1e-4, batch_size=1, n_grad_iterations=100, seed=None,
+    # initialize memory
+    memory = ReplayMemoryReturn(size=int(1e6), state_dim=env.d, action_dim=env.d)
+
+    # initialization
+    state, _ = env.reset(batch_size=batch_size)
+
+    # terminal state flag
+    done = np.full((batch_size,), False)
+    while not done.all():
+
+        # sample action
+        state_torch = torch.FloatTensor(state)
+        action, _ = policy.sample_action(state_torch)
+
+        # env step
+        state, _, _, truncated, _ = env.step_vect(action)
+        done = np.logical_or(env.been_terminated, truncated)
+
+    for i in range(batch_size):
+
+        # calculate after n step returns
+        n_returns = cumsum(env.trajs_rewards[i]).copy()
+
+        # calculate log probs
+        states = env.trajs_states[i]
+        actions = env.trajs_actions[i]
+
+        # store experiences in memory
+        memory.store_vectorized(states, actions, n_returns)
+
+    # sample batch of experiences from memory
+    batch = memory.sample_batch(mini_batch_size)
+    states = torch.FloatTensor(batch['states'])
+    actions = torch.FloatTensor(batch['actions'])
+    n_returns = torch.FloatTensor(batch['n_returns'])
+    _, log_probs = policy.forward(states, actions)
+    mfht = memory.estimate_episode_length() if estimate_mfht else 1
+
+    # calculate loss
+    phi = - (log_probs * n_returns)
+    loss = phi.mean()
+    with torch.no_grad():
+        loss_var = phi.var().numpy()
+
+    # reset and compute actor gradients
+    optimizer.zero_grad()
+    loss.backward()
+
+    # scale learning rate
+    optimizer.param_groups[0]['lr'] *= mfht
+
+    #update parameters
+    optimizer.step()
+
+    # re-scale learning rate back
+    optimizer.param_groups[0]['lr'] /= mfht
+
+    return loss, loss_var
+
+def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_type,
+                         n_layers, d_hidden_layer, theta_init, policy_noise, estimate_mfht,
+                         batch_size, mini_batch_size, lr, n_grad_iterations, seed=None,
                          backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
 
     # get dir path
     dir_path = get_reinforce_dir_path(
         env,
-        agent='reinforce-{}'.format(algorithm_type),
+        agent='reinforce-{}-{}'.format(expectation_type, algorithm_type),
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
         theta_init=theta_init,
         policy_type=policy_type,
         policy_noise=policy_noise,
+        estimate_mfht=estimate_mfht,
         batch_size=batch_size,
+        mini_batch_size=mini_batch_size,
         lr=lr,
         n_grad_iterations=n_grad_iterations,
         seed=seed,
@@ -144,12 +223,6 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., policy_
     if theta_init == 'hjb':
         train_stochastic_policy_from_hjb(env, policy, policy_opt, load=True)
 
-    # sample loss function
-    if algorithm_type == 'initial-return':
-        sample_loss_fn = sample_loss_initial_return
-    elif algorithm_type == 'n-return':
-        sample_loss_fn = sample_loss_n_step_return
-
     # save algorithm parameters
     data = {
         'gamma': gamma,
@@ -158,6 +231,7 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., policy_
         'policy_type': policy_type,
         'policy_noise': policy_noise,
         'batch_size' : batch_size,
+        'mini_batch_size' : mini_batch_size,
         'lr' : lr,
         'n_grad_iterations': n_grad_iterations,
         'seed': seed,
@@ -195,13 +269,16 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., policy_
         # start timer
         ct_initial = time.time()
 
-        # sample loss
-        eff_loss, eff_loss_var = sample_loss_fn(env, policy, batch_size)
-
-        # reset gradients, compute gradients and update parameters
-        optimizer.zero_grad()
-        eff_loss.backward()
-        optimizer.step()
+        # sample loss function
+        if algorithm_type == 'initial-return' and expectation_type == 'random-time':
+            loss, loss_var = sample_loss_random_time_initial_return(env, policy, optimizer, batch_size)
+        elif algorithm_type == 'n-return' and expectation_type == 'random-time':
+            loss, loss_var = sample_loss_random_time_n_step_return(env, policy, optimizer, batch_size)
+        elif algorithm_type == 'initial-return' and expectation_type == 'on-policy':
+            raise NotImplementedError('On-policy initial return not implemented')
+        elif algorithm_type == 'n-return' and expectation_type == 'on-policy':
+            loss, loss_var = sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size,
+                                                                 mini_batch_size, estimate_mfht)
 
         # end timer
         ct_final = time.time()
@@ -210,7 +287,7 @@ def reinforce_stochastic(env, algorithm_type='initial-return', gamma=1., policy_
         env.statistics_to_numpy()
         is_stats.save_epoch(
             i, env.lengths, env.lengths*env.dt, env.returns,
-            loss=eff_loss.detach().numpy(), loss_var=eff_loss_var,
+            loss=loss.detach().numpy(), loss_var=loss_var,
             ct=ct_final - ct_initial,
         )
         is_stats.log_epoch(i)

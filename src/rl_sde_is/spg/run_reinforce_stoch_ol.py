@@ -18,7 +18,24 @@ def main():
         '--algorithm-type',
         choices=['initial-return', 'n-return'],
         default='initial-return',
-        help='Set reinforce stoch algorithm type. Default: initial-return',
+        help='Set reinforce stochastic algorithm type. Default: initial-return',
+    )
+    parser.add_argument(
+        '--expectation-type',
+        choices=['random-time', 'on-policy'],
+        default='random-time',
+        help='Set type of expectation. Default: random-time',
+    )
+    parser.add_argument(
+        '--mini-batch-size',
+        type=int,
+        default=None,
+        help='Set mini batch size for on-policy expectations. Default: None',
+    )
+    parser.add_argument(
+        '--estimate-mfht',
+        action='store_true',
+        help='Estimate the mfht in the dpg.',
     )
     args = parser.parse_args()
 
@@ -41,13 +58,17 @@ def main():
     data = reinforce_stochastic(
         env,
         algorithm_type=args.algorithm_type,
+        expectation_type=args.expectation_type,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         theta_init=args.theta_init,
         policy_type=args.policy_type,
         policy_noise=args.policy_noise,
-        lr=args.lr,
+        estimate_mfht=args.estimate_mfht,
         batch_size=args.batch_size,
+        mini_batch_size=args.mini_batch_size,
+        lr=args.lr,
         seed=args.seed,
         n_grad_iterations=args.n_grad_iterations,
         backup_freq=args.backup_freq,
