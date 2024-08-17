@@ -143,7 +143,7 @@ def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini
     actions = torch.FloatTensor(batch['actions'])
     n_returns = torch.FloatTensor(batch['n_returns'])
     _, log_probs = policy.forward(states, actions)
-    mfht = memory.estimate_episode_length() if estimate_mfht else 1
+    mfht = env.lengths.mean() if estimate_mfht else 1
 
     # calculate loss
     phi = - (log_probs * n_returns)
