@@ -1,9 +1,9 @@
 import gymnasium as gym
+import numpy as np
+
 import gym_sde_is
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
-from gym_sde_is.utils.sde import compute_is_functional
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
-import numpy as np
 
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.is_statistics import ISStatistics
@@ -17,9 +17,26 @@ def main():
         default='initial-return',
         help='Set reinforce stoch algorithm type. Default: initial-return',
     )
+    parser.add_argument(
+        '--expectation-type',
+        choices=['random-time', 'on-policy'],
+        default='random-time',
+        help='Set type of expectation. Default: random-time',
+    )
+    parser.add_argument(
+        '--mini-batch-size',
+        type=int,
+        default=None,
+        help='Set mini batch size for on-policy expectations. Default: None',
+    )
+    parser.add_argument(
+        '--estimate-mfht',
+        action='store_true',
+        help='Estimate the mfht in the dpg.',
+    )
     args = parser.parse_args()
 
-    # create gym envs 
+    # create gym environment
     env = gym.make(
         'sde-is-{}-{}-v0'.format(args.problem, args.setting),
         dt=args.dt,
@@ -33,6 +50,7 @@ def main():
     is_stats = ISStatistics(
         eval_freq=args.eval_freq,
         eval_batch_size=args.eval_batch_size,
+        policy_type=args.policy_type,
         n_grad_iterations=args.n_grad_iterations,
         track_l2_error=args.track_l2_error,
     )
@@ -43,7 +61,7 @@ def main():
         algorithm_type=args.algorithm_type,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
-        policy_type=args.policy_type,
+        policy_type=args.gaussian_policy_type,
         policy_noise=args.policy_noise,
         lr=args.lr,
         batch_size=args.batch_size,
@@ -63,14 +81,13 @@ def main():
         load_backup_model(data, j)
 
         # evaluate policy
-        evaluate_policy_torch_vect(env, data['policy'].mean, args.eval_batch_size)
+        if args.policy_type == 'stoch':
+            raise NotImplementedError
+        else:
+            evaluate_policy_torch_vect(env, data['policy'].mean, args.eval_batch_size)
 
         # save and log epoch 
-        l2_errors = env.l2_errors if args.track_l2_error else None
-        is_functional = compute_is_functional(env.girs_stoch_int,
-                                              env.running_rewards, env.terminal_rewards)
-        is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                            is_functional=is_functional, l2_errors=l2_errors)
+        is_stats.save_epoch(i, env)
         is_stats.log_epoch(i)
         env.close()
 

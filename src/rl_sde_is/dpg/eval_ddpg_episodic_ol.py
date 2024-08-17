@@ -1,9 +1,9 @@
 import gymnasium as gym
+import numpy as np
+
 import gym_sde_is
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
-from gym_sde_is.utils.sde import compute_is_functional
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
-import numpy as np
 
 from rl_sde_is.dpg.ddpg_core import *
 from rl_sde_is.utils.base_parser import get_base_parser
@@ -51,17 +51,12 @@ def main():
         # load policy
         ep = i * is_stats.eval_freq
         load_backup_models(data, ep)
-        policy = data['actor']
 
         # evaluate policy
-        evaluate_policy_torch_vect(env, policy, args.eval_batch_size)
+        evaluate_policy_torch_vect(env, data['actor'], args.eval_batch_size)
 
         # save and log epoch 
-        l2_errors = env.l2_errors if args.track_l2_error else None
-        is_functional = compute_is_functional(env.girs_stoch_int,
-                                              env.running_rewards, env.terminal_rewards)
-        is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                            is_functional=is_functional, l2_errors=l2_errors)
+        is_stats.save_epoch(i, env)
         is_stats.log_epoch(i)
 
     # save is statistics

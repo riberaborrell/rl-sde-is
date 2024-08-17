@@ -63,7 +63,7 @@ def main():
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         theta_init=args.theta_init,
-        policy_type=args.policy_type,
+        policy_type=args.gaussian_policy_type,
         policy_noise=args.policy_noise,
         estimate_mfht=args.estimate_mfht,
         batch_size=args.batch_size,

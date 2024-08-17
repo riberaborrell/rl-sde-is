@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 from rl_sde_is.vracer.vracer_utils import get_vracer_rel_dir_path
-from rl_sde_is.models import mlp
+from rl_sde_is.utils.models import mlp
 
 def vracer_softplus_fn(x):
     return 0.5 * (x + torch.sqrt(x**2 + 1))

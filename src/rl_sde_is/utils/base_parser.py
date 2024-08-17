@@ -287,9 +287,16 @@ def get_base_parser():
     parser.add_argument(
         '--policy-type',
         type=str,
+        default='det',
+        choices=['det', 'stoch', 'stoch-mean'],
+        help='Set type of policy. Used for evaluating the model. Default: det',
+    )
+    parser.add_argument(
+        '--gaussian-policy-type',
+        type=str,
         default='const-cov',
         choices=['const-cov', 'scheduled', 'learnt-cov'],
-        help='Set if policy gaussian covariance is constant, scheduled, or learnt. Default: const-cov',
+        help='Set if the covariance of the stochastic gaussian policy is constant, scheduled, or learnt. Default: const-cov',
     )
     parser.add_argument(
         '--policy-noise',

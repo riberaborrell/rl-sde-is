@@ -33,9 +33,13 @@ def main():
 
     # time step
     dt = env.unwrapped.dt
-    plot_return_per_episode_std(data['returns'])
-    plot_fht_per_episode_std(dt*data['time_steps'])
-    plot_psi_is_per_episode_std(data['is_functional'])
+    n_episodes = data['returns'].shape[0]
+
+    x = np.arange(n_episodes)
+    plot_y_per_episode(x, data['returns'], title='Objective function', run_window=10)
+    plot_y_per_episode(x, dt*data['time_steps'], title='MFHT', run_window=10)
+    plot_y_per_episode(x, data['is_functional'], title='$\Psi(s_0)$', run_window=10)
+
 
 if __name__ == '__main__':
     main()

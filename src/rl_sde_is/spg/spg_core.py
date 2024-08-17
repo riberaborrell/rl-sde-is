@@ -251,9 +251,9 @@ def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_ty
     is_stats = ISStatistics(
         eval_freq=1,
         eval_batch_size=batch_size,
+        policy_type='stoch',
         n_grad_iterations=n_grad_iterations,
         track_loss=True,
-        track_is=False,
         track_ct=True,
     )
     keys_chosen = [
@@ -288,11 +288,8 @@ def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_ty
 
         # save and log epoch 
         env.statistics_to_numpy()
-        is_stats.save_epoch(
-            i, env.lengths, env.lengths*env.dt, env.returns,
-            loss=loss.detach().numpy(), loss_var=loss_var,
-            ct=ct_final - ct_initial,
-        )
+        is_stats.save_epoch(i, env, loss=loss.detach().numpy(),
+                            loss_var=loss_var, ct=ct_final - ct_initial)
         is_stats.log_epoch(i)
 
         # backup models and results

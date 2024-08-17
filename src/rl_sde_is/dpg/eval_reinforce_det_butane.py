@@ -1,9 +1,9 @@
 import gymnasium as gym
+import numpy as np
+
 import gym_sde_is
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
-from gym_sde_is.utils.sde import compute_is_functional
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
-import numpy as np
 
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.is_statistics import ISStatistics
@@ -20,7 +20,6 @@ def main():
         T=args.T,
         state_init_dist=args.state_init_dist,
     )
-
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size)
 
     # create object to store the is statistics of the evaluation
@@ -56,10 +55,7 @@ def main():
         evaluate_policy_torch_vect(env, data['model'], args.eval_batch_size)
 
         # save and log epoch 
-        is_functional = compute_is_functional(env.girs_stoch_int,
-                                              env.running_rewards, env.terminal_rewards)
-        is_stats.save_epoch(i, env.lengths, env.lengths*env.dt, env.returns,
-                            is_functional=is_functional)
+        is_stats.save_epoch(i, env)
         is_stats.log_epoch(i)
 
     # save is statistics

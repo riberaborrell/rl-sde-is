@@ -1,13 +1,17 @@
 import numpy as np
 
 from gym_sde_is.utils.logging import compute_array_statistics, compute_std_and_re
+from gym_sde_is.utils.sde import compute_is_functional
 
 from rl_sde_is.utils.path import load_data, save_data
 
 class ISStatistics(object):
 
-    def __init__(self, eval_freq, eval_batch_size, track_loss=False, track_is=True,
-                 track_l2_error=False, track_ct=False, **kwargs):
+    def __init__(self, eval_freq, eval_batch_size, policy_type='det', track_loss=False,
+                 track_is=True, track_l2_error=False, track_ct=False, **kwargs):
+
+        assert policy_type in ['det', 'stoch', 'stoch-mean'], 'Policy type not recognized'
+        self.policy_type = policy_type
 
         # frequency of evaluation and batch size
         self.eval_freq = eval_freq
@@ -65,29 +69,29 @@ class ISStatistics(object):
         if track_ct:
             self.cts = np.full(self.n_epochs, np.nan)
 
-    def save_epoch(self, i, lengths, fhts, returns, is_functional=None,
-                   l2_errors=None, loss=None, loss_var=None, ct=None):
+    def save_epoch(self, i, env, loss=None, loss_var=None, ct=None):
 
-        if self.track_is:
-            assert is_functional is not None, 'IS functional is not provided'
         if self.track_l2_error:
-            assert l2_errors is not None, 'L2 error is not provided'
+            assert env.l2_errors is not None, 'L2 error is not provided'
         if self.track_loss:
-            assert loss is not None, 'Loss is not provided'
+            assert loss is not None and loss_var is not None, 'Loss is not provided'
         if self.track_ct:
             assert ct is not None, 'CT is not provided'
 
-        self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(lengths)
-        self.max_lengths[i] = np.max(lengths)
-        self.mean_fhts[i], self.var_fhts[i], _, _ = compute_array_statistics(fhts)
-        self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(returns)
+        self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(env.lengths)
+        self.max_lengths[i] = np.max(env.lengths)
+        self.mean_fhts[i], self.var_fhts[i], _, _ = compute_array_statistics(env.lengths * env.dt)
+        self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(env.returns)
         if self.track_is:
-            self.mean_I_us[i], self.var_I_us[i], _, self.re_I_us[i] = compute_array_statistics(is_functional)
+            is_functional = compute_is_functional(env.girs_stoch_int,
+                                                  env.running_rewards, env.terminal_rewards)
+            self.mean_I_us[i], self.var_I_us[i], _, self.re_I_us[i] \
+                = compute_array_statistics(is_functional)
         if self.track_loss:
             self.losses[i] = loss
             self.loss_vars[i] = loss_var
         if self.track_l2_error:
-            self.policy_l2_errors[i] = np.mean(l2_errors)
+            self.policy_l2_errors[i] = np.mean(env.l2_errors)
         if self.track_ct:
             self.cts[i] = ct
 
@@ -110,11 +114,11 @@ class ISStatistics(object):
         print(msg)
 
     def save_stats(self, dir_path):
-        save_data(self.__dict__, dir_path, file_name='eval.npz')
+        save_data(self.__dict__, dir_path, file_name='eval-{}.npz'.format(self.policy_type))
 
     def load_stats(self, dir_path):
         # get data dictionary
-        data = load_data(dir_path, file_name='eval.npz')
+        data = load_data(dir_path, file_name='eval-{}.npz'.format(self.policy_type))
 
         assert self.eval_freq == data['eval_freq'], 'eval freq mismatch'
         assert self.eval_batch_size == data['eval_batch_size'], 'eval batch size mismatch'
