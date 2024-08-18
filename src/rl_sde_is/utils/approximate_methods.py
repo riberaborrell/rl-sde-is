@@ -27,6 +27,11 @@ def evaluate_value_function_model(env, model):
     with torch.no_grad():
         return model.forward(state_space_h).numpy().reshape(env.n_states)
 
+def evaluate_qvalue_function_discrete_model(env, model):
+    state_space_h = torch.FloatTensor(env.state_space_h)
+    with torch.no_grad():
+        return model.forward(state_space_h).numpy()
+
 def evaluate_qvalue_function_model_1d(env, model):
     # discretized states and actions
     state_space_h = torch.FloatTensor(env.state_space_h.squeeze())

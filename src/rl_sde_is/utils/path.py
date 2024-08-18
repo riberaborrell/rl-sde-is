@@ -301,8 +301,6 @@ def get_dqn_dir_path(env, **kwargs):
               + 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
-              + 'expl-noise{:.1f}_'.format(kwargs['expl_noise']) \
-              + get_action_limit_str(**kwargs) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \

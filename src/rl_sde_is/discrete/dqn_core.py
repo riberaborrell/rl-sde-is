@@ -10,12 +10,13 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 
 from rl_sde_is.discrete.discrete_utils import DQNModel, DuelingCritic
 from rl_sde_is.dpg.replay_buffers import ReplayBuffer
+from rl_sde_is.utils.tabular_methods import get_epsilons_exp_decay
 from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_dqn_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import *
 
 
-def get_action(env, model, state, epsilon):
+def select_action(env, model, state, epsilon):
 
     # sample action randomly
     if np.random.rand() <= epsilon:
@@ -23,9 +24,10 @@ def get_action(env, model, state, epsilon):
 
     # choose greedy action
     else:
-        state_tensor = torch.FloatTensor(state).unsqueeze(0)
-        q_values = model(state_tensor)
-        return np.argmax(q_values.detach().numpy())
+        with torch.no_grad():
+            state_tensor = torch.FloatTensor(state).unsqueeze(0)
+            q_values = model(state_tensor)
+            return np.argmax(q_values.numpy())
 
 def update_parameters(model, target_model, optimizer, batch, gamma, polyak):
 
@@ -68,12 +70,11 @@ def update_parameters(model, target_model, optimizer, batch, gamma, polyak):
     return loss.detach().item()
 
 
-def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
-         n_episodes=100, n_steps_lim=1000, learning_starts=1000, replay_size=50000,
-         batch_size=512, lr=1e-4, seed=None,
-         update_freq=100, polyak=0.95, expl_noise=0., action_limit=None,
-         backup_freq=None, live_plot_freq=None,
-         value_function_opt=None, policy_opt=None, load=False):
+def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32, n_episodes=100, n_steps_lim=1000,
+        learning_starts=1000, replay_size=50000, batch_size=512, lr=1e-4, seed=None,
+        update_freq=100, polyak=0.995, eps_init=1.0, eps_end=0.01,
+        eps_decay=0.995, backup_freq=None, live_plot_freq=None, run_window=10,
+        value_function_opt=None, policy_opt=None, load=False):
 
     # get dir path
     dir_path = get_dqn_dir_path(
@@ -82,8 +83,6 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
-        expl_noise=expl_noise,
-        action_limit=action_limit,
         polyak=polyak,
         batch_size=batch_size,
         lr=lr,
@@ -106,6 +105,7 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
     # initialize q-value function representation
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
     model = DQNModel(state_dim=env.d, n_actions=env.n_actions,
+    #model = DuelingCritic(state_dim=env.d, n_actions=env.n_actions,
                      hidden_sizes=hidden_sizes, activation=nn.Tanh())
     target_model = deepcopy(model)
 
@@ -116,6 +116,9 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
     replay_buffer = ReplayBuffer(state_dim=env.d, action_dim=env.n_actions,
                                  size=replay_size, is_action_continuous=False)
 
+    # decaying array of epsilons for the exploration
+    epsilons = get_epsilons_exp_decay(n_episodes, eps_init, eps_decay)
+
     # save algorithm parameters
     data = {
         'gamma' : gamma,
@@ -123,8 +126,6 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
         'd_hidden_layer': d_hidden_layer,
         'n_episodes': n_episodes,
         'n_steps_lim': n_steps_lim,
-        'expl_noise': expl_noise,
-        'action_limit': action_limit,
         'replay_size': replay_size,
         'batch_size' : batch_size,
         'lr' : lr,
@@ -143,6 +144,8 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
     returns = np.full(n_episodes, np.nan, dtype=np.float32)
     time_steps = np.full(n_episodes, np.nan, dtype=np.int32)
     cts = np.full(n_episodes, np.nan, dtype=np.float32)
+
+    losses = []
 
     # total number of time steps
     k_total = 0
@@ -173,14 +176,14 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
 
             # sample action randomly
             if k_total < learning_starts:
-                #action = env.sample_action(batch_size=1)
-                action = env.action_space.sample()
+                action_idx = np.random.choice(np.arange(env.n_actions))
 
             # get action following the actor
             else:
-                action = get_action(env, model, state, 0.95)
+                action_idx = select_action(env, model, state, 0.5)
 
             # env step
+            action = env.action_space_h[action_idx]
             next_state, r, done, _, info = env.step(action)
 
             # store tuple
@@ -195,6 +198,7 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
 
                     # update model parameters
                     loss = update_parameters(model, target_model, optimizer, batch, gamma, polyak)
+                    losses.append(loss)
 
             # save action and reward
             ep_return += (gamma**k) * r
@@ -205,17 +209,16 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
             # update total steps counter
             k_total += 1
 
-        # end timer
-        ct_final = time.time()
-
         # save episode
         returns[ep] = ep_return
         time_steps[ep] = k
-        cts[ep] = ct_final - ct_initial
+        cts[ep] = time.time() - ct_initial
 
-        msg = 'ep.: {:2d}, return: {:.3e}, time steps: {:.3e}, ct: {:.3f}'.format(
+        msg = 'ep.: {:2d}, return: {:.3e} (avg. {:.2e}, max. {:.2e}), time steps: {:.3e}, ct: {:.3f}'.format(
             ep,
             returns[ep],
+            np.mean(returns[:ep+1][-run_window:]),
+            np.max(returns[:ep+1][-run_window:]),
             time_steps[ep],
             cts[ep],
         )
@@ -231,12 +234,14 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32,
             data['returns'] = returns
             data['time_steps'] = time_steps
             data['cts'] = cts
+            data['losses'] = losses
             save_data(data, dir_path)
 
     # add learning results
     data['returns'] = returns
     data['time_steps'] = time_steps
     data['cts'] = cts
+    data['losses'] = np.stack(losses)
     data['replay_states'] = replay_buffer.states[:replay_buffer.size]
     data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
     save_data(data, dir_path)
