@@ -6,7 +6,7 @@ import torch.optim as optim
 
 from gym_sde_is.wrappers.tabular_env import TabularEnv
 
-from rl_sde_is.utils.tabular_methods import compute_value_advantage_and_greedy_policy, \
+from rl_sde_is.utils.tabular_methods import compute_greedy_policy, compute_value_advantage_and_greedy_policy, \
                                             compute_value_advantage_and_greedy_actions
 from rl_sde_is.utils.path import save_data
 from rl_sde_is.utils.plots import *
@@ -98,25 +98,6 @@ def get_epsilon_greedy_continuous_action(env, model, state, epsilon):
     else:
         return np.random.uniform(env.action_space_bounds[0], env.action_space_bounds[1], (1,))
 
-
-
-def compute_q_table_continuous_actions_1d(env, model):
-
-    # discretized states and actions
-    state_space_h = torch.FloatTensor(env.state_space_h)
-    action_space_h = torch.FloatTensor(env.action_space_h)
-    grid_states, grid_actions = torch.meshgrid(state_space_h, action_space_h, indexing='ij')
-
-    inputs = torch.empty((env.n_states, env.n_actions, 2))
-    inputs[:, :, 0] = grid_states
-    inputs[:, :, 1] = grid_actions
-    inputs = inputs.reshape(env.n_states * env.n_actions, 2)
-
-    # compute q table
-    with torch.no_grad():
-        q_table = model.forward(inputs[:, 0:1], inputs[:, 1:2]).numpy().reshape(env.n_states, env.n_actions)
-
-    return q_table
 
 def compute_tables_discrete_actions_1d(env, model):
 
@@ -237,57 +218,63 @@ def load_dp_tables_data(env, dt=1e-4, h_state=1e-2, h_action=1e-2):
 
     return env_dp, data
 
-def train_deterministic_policy_from_hjb(env, policy, policy_opt, load=False):
+def train_deterministic_policy_from_hjb(env, model, policy_opt, n_iterations=int(1e4),
+                                        batch_size=int(1e3), lr=1e-1, lr_decay=0.9999,
+                                        live_plot_freq=None, load=False):
 
     from rl_sde_is.utils.plots import initialize_det_policy_1d_figure
 
+    if live_plot_freq is not None:
+        policy = evaluate_det_policy_model(env, model)
+        policy_line = initialize_det_policy_1d_figure(env, policy, policy_opt=policy_opt)
+
     # optimizer
-    optimizer = optim.Adam(policy.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay)
 
-    # train
-    n_iterations = int(1e4)
-
-    # minibatch size
-    batch_size = int(1e3)
     for i in range(n_iterations):
 
-        idx = np.random.randint(0, env.n_states, batch_size)
-
         # sample data
+        idx = np.random.randint(0, env.n_states, batch_size)
         states = torch.tensor(env.state_space_h[idx], dtype=torch.float32)
 
-        # compute q values
-        means = policy(states)
+        # compute policy model
+        actions = model(states)
 
         # targets
-        mean_targets = torch.tensor(policy_opt[idx], dtype=torch.float32)
+        actions_targets = torch.tensor(policy_opt[idx], dtype=torch.float32)
 
         # compute mse loss
-        loss = (means - mean_targets).pow(2).mean()
+        loss = (actions - actions_targets).pow(2).mean()
 
         # compute gradient and update params
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
-        if i % int(1e3) == 0:
-            print('iteration: {:d}, loss: {:1.4e}'.format(i, loss))
+        # log
+        if i % int(1e2) == 0:
+            print('iteration: {:d}, loss: {:1.2e}, lr: {:1.2e}' \
+                  ''.format(i, loss, optimizer.param_groups[0]['lr']))
+
+        if live_plot_freq is not None and i % live_plot_freq == 0:
+            policy = evaluate_det_policy_model(env, model)
+            update_det_policy_1d_figure(env, policy, policy_line)
 
     print('Policy mean trained to be the optimal policy')
     return policy
 
-def train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False):
+def train_stochastic_policy_from_hjb(env, model, policy_opt, n_iterations=int(1e4),
+                                        batch_size=int(1e3), lr=1e-1, lr_decay=0.9999,
+                                        live_plot_freq=None, load=False):
 
     from rl_sde_is.utils.plots import initialize_det_policy_1d_figure
 
     # optimizer
-    optimizer = optim.Adam(policy.parameters(), lr=1e-3)
+    optimizer = optim.Adam(policy.parameters(), lr=lr)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay)
 
-    # train
-    n_iterations = int(1e4)
-
-    # minibatch size
-    batch_size = int(1e3)
     for i in range(n_iterations):
 
         idx = np.random.randint(0, env.n_states, batch_size)
@@ -298,7 +285,7 @@ def train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False):
         )
 
         # compute q values
-        means = policy.mean(states)
+        means = model.mean(states)
 
         # targets
         mean_targets = torch.tensor(
@@ -312,9 +299,11 @@ def train_stochastic_policy_from_hjb(env, policy, policy_opt, load=False):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
-        if i % int(1e3) == 0:
-            print('iteration: {:d}, loss: {:1.4e}'.format(i, loss))
+        if i % int(1e2) == 0:
+            print('iteration: {:d}, loss: {:1.2e}, lr: {:1.2e}' \
+                  ''.format(i, loss, optimizer.param_groups[0]['lr']))
 
     print('Policy mean trained to be the optimal policy')
     return policy
@@ -391,7 +380,73 @@ def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, l
     print('Critic trained to be the actual q-value function (from dp)')
     return critic
 
-def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False):
+def train_value_from_dp(env, model, value_function_opt, n_iterations=int(1e4),
+                        batch_size=int(1e3), lr=1e-1, lr_decay=0.9999,
+                        live_plot_freq=None, load=False):
+
+    from rl_sde_is.utils.plots import initialize_value_function_1d_figure, \
+                                      update_value_function_1d_figure
+
+    # load value function table from dynamic programming
+    env_dp, data = load_dp_tables_data(env, dt=1e-3, h_state=1e-2, h_action=1e-2)
+
+    # load critics if already trained
+    if load and 'v_function_approx' in data:
+        return data['v_function_approx']
+        print('Value function (critic) load to be the actual value function (from dp)')
+
+    # compute value function
+    v_table_dp = data['v_table']
+
+    # initialize figures
+    if live_plot_freq is not None:
+        v_table = evaluate_value_function_model(env, model)
+        l_v = initialize_value_function_1d_figure(env, v_table, value_function_opt)
+
+    # optimizer
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay)
+
+    for i in range(n_iterations):
+
+        # sample data
+        idx = np.random.randint(0, env.n_states, batch_size)
+        states = torch.tensor(env.state_space_h[idx], dtype=torch.float32)
+
+        # targets
+        v_values_target = torch.tensor(v_table_dp[idx], dtype=torch.float32)
+
+        # compute q values
+        v_values = model.forward(states).squeeze()
+
+        # compute mse loss
+        loss = (v_values - v_values_target).pow(2).mean()
+
+        # compute gradient
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
+
+        # log
+        if i % int(1e2) == 0:
+            print('iteration: {:d}, loss: {:1.2e}, lr: {:1.2e}' \
+                  ''.format(i, loss, optimizer.param_groups[0]['lr']))
+
+        if live_plot_freq is not None and i % live_plot_freq == 0:
+            v_table = evaluate_value_function_model(env, model)
+            update_value_function_1d_figure(env, v_table, l_v)
+
+    print('Critic for the value function trained to be the actual q-value function (from dp)')
+
+    # save
+    data['v_function_approx'] = model
+    save_data(data, data['dir_path'])
+
+    return model
+
+def train_qvalue_from_dp(env, critic, value_function_opt, policy_opt,
+                         live_plot_freq=None, load=False):
 
     from rl_sde_is.utils.plots import initialize_qvalue_function_1d_figure, \
                                 initialize_advantage_function_1d_figure, \
@@ -406,17 +461,17 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
         print('Critic load to be the actual q-value function (from dp)')
 
     q_table_dp = data['q_table']
-    breakpoint()
     _, _, policy_dp = compute_value_advantage_and_greedy_policy(env_dp, q_table_dp)
 
     # initialize figures
-    q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
-    im_q = initialize_qvalue_function_1d_figure(env, q_table)
-    im_a, line = initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy)
-    #im_a, line = initialize_advantage_function_1d_figure(env, a_table, policy_dp, policy)
+    if live_plot_freq is not None:
+        q_table, v_table, a_table, policy = compute_tables_critic_1d(env, critic)
+        l_v = initialize_value_function_1d_figure(env, v_table, value_function_opt)
+        im_q = initialize_qvalue_function_1d_figure(env, q_table)
+        im_a, line = initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy)
 
     # optimizer
-    optimizer = optim.Adam(critic.parameters(), lr=1e-2)
+    optimizer = optim.Adam(critic.parameters(), lr=1e-3)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9999)
 
     def get_lr(optimizer):
@@ -424,7 +479,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
             return param_group['lr']
 
     # train q-value function parameters
-    n_iterations = int(1e3)
+    n_iterations = int(1e4)
     batch_size = int(1e3)
 
     for i in range(n_iterations):
@@ -444,7 +499,7 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
         q_values = critic.forward(states, actions)
 
         # compute mse loss
-        loss = ((q_values - q_values_target)**2).mean()
+        loss = (q_values - q_values_target).pow(2).mean()
 
         # compute gradient
         optimizer.zero_grad()
@@ -452,9 +507,10 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
         optimizer.step()
         scheduler.step()
 
-        if i % int(1e3) == 0:
+        if live_plot_freq is not None and i % live_plot_freq == 0:
             print('iteration: {:d}, loss: {:1.4e}, lr: {:1.4e}'.format(i, loss, get_lr(optimizer)))
-            q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
+            q_table, v_table, a_table, policy = compute_tables_critic_1d(env, critic)
+            update_value_function_1d_figure(env, v_table, l_v)
             update_imshow_figure(env, q_table, im_q)
             update_advantage_function_1d_figure(env, a_table, im_a, policy, line)
 
@@ -465,79 +521,38 @@ def train_critic_from_dp(env, critic, value_function_opt, policy_opt, load=False
     print('Critic trained to be the actual q-value function (from dp)')
     return critic
 
-def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, policy_opt, load=False):
+def train_advantage_from_dp(env, critic_v, critic_a, value_function_opt, policy_opt,
+                            n_iterations=int(1e5), batch_size=int(1e3), lr=1e-2, lr_decay=0.9999,
+                            live_plot_freq=None, load=False):
 
-    from rl_sde_is.utils.plots import initialize_value_function_1d_figure, \
-                                initialize_qvalue_function_1d_figure, \
-                                initialize_advantage_function_1d_figure, \
-                                update_value_function_1d_figure, \
-                                update_imshow_figure
+    from rl_sde_is.utils.plots import initialize_qvalue_function_1d_figure, \
+                                      initialize_advantage_function_1d_figure, \
+                                      update_imshow_figure
 
     # load q value table from dynamic programming
-    env_dp, data = load_dp_tables_data(env, dt=1e-4, h_state=1e-2, h_action=1e-2)
+    env_dp, data = load_dp_tables_data(env, dt=1e-3, h_state=1e-2, h_action=1e-2)
 
     # load critics if already trained
-    if load and 'v_function_approx' in data and 'a_function_approx' in data:
-        return data['v_function_approx'], data['a_function_approx']
-        print('Critic load to be the actual q-value function (from dp)')
+    if load and 'a_function_approx' in data:
+        return data['a_function_approx']
+        print('Advantage function (critic) load to be the actual a-value function (from dp)')
 
     # compute v and a tables
     q_table_dp = data['q_table']
-    #v_table_dp = np.max(q_table_dp, axis=1)
-    #a_table_dp = q_table_dp - np.expand_dims(v_table_dp, axis=1)
-    v_table_dp, a_table_dp, policy_dp = compute_value_advantage_and_greedy_policy(env_dp, q_table_dp)
+    _, a_table_dp, _ = compute_value_advantage_and_greedy_policy(env_dp, q_table_dp)
 
     # initialize figures
-    v_table = compute_v_table_1d(env, critic_v)
-    l_v = initialize_value_function_1d_figure(env, v_table, value_function_opt)
+    if live_plot_freq is not None:
+        v_table = evaluate_value_function_model(env, critic_v)
+        a_table = evaluate_qvalue_function_model_1d(env, critic_a)
+        q_table = a_table + v_table.reshape(env.n_states, 1)
+        policy = compute_greedy_policy(env, q_table)
+        im_q = initialize_qvalue_function_1d_figure(env, q_table)
+        im_a, line = initialize_advantage_function_1d_figure(env, a_table, policy_opt, policy)
 
     # optimizer
-    optimizer_v = optim.Adam(critic_v.parameters(), lr=1e-3)
-
-    # trainning data
-    batch_size = int(1e2)
-    states_idx = np.random.randint(0, env_dp.n_states, batch_size)
-    states = torch.tensor(env_dp.state_space_h[states_idx], dtype=torch.float32).unsqueeze(dim=1)
-
-    # targets
-    v_values_target = torch.tensor(v_table_dp[states_idx], dtype=torch.float32)
-
-    # train value function parameters
-    n_iterations = int(2e3)
-
-    for i in range(n_iterations):
-
-        # compute q values
-        v_values = critic_v.forward(states).squeeze()
-
-        # compute mse loss
-        loss_v = ((v_values - v_values_target)**2).mean()
-
-        # compute gradient
-        optimizer_v.zero_grad()
-        loss_v.backward()
-        optimizer_v.step()
-
-        if i % int(1e2) == 0:
-            print('iteration: {:d}, loss: {:1.4e}'.format(i, loss_v))
-            v_table = compute_v_table_1d(env, critic_v)
-            update_value_function_1d_figure(env, v_table, l_v)
-
-    print('Critic for the value function trained to be the actual q-value function (from dp)')
-
-    # initialize figures
-    a_table = compute_q_table_continuous_actions_1d(env, critic_a)
-    #q_table, _, a_table, policy = compute_tables_critic_1d(env, critic)
-    q_table = a_table + v_table
-    im_q = initialize_qvalue_function_1d_figure(env, q_table)
-    im_a = initialize_advantage_function_1d_figure(env, a_table, policy_opt)
-
-    # optimizer
-    optimizer_a = optim.Adam(critic_a.parameters(), lr=1e-3)
-
-    # train value function parameters
-    batch_size = int(1e4)
-    n_iterations = int(5e3)
+    optimizer = optim.Adam(critic_a.parameters(), lr=lr)
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay)
 
     for i in range(n_iterations):
 
@@ -556,29 +571,34 @@ def train_dueling_critic_from_dp(env, critic_v, critic_a, value_function_opt, po
         a_values = critic_a.forward(states, actions)
 
         # compute mse loss
-        loss_a = ((a_values - a_values_target)**2).mean()
+        loss = (a_values - a_values_target).pow(2).mean()
 
         # compute gradient
-        optimizer_a.zero_grad()
-        loss_a.backward()
-        optimizer_a.step()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
 
-        if i % int(1e3) == 0:
-            print('iteration: {:d}, loss: {:1.4e}'.format(i, loss_a))
-            v_table = compute_v_table_1d(env, critic_v)
-            a_table = compute_q_table_continuous_actions_1d(env, critic_a)
-            q_table = a_table + v_table
+        # log
+        if i % int(1e2) == 0:
+            print('iteration: {:d}, loss: {:1.2e}, lr: {:1.2e}' \
+                  ''.format(i, loss, optimizer.param_groups[0]['lr']))
+
+        if live_plot_freq is not None and i % live_plot_freq == 0:
+            v_table = evaluate_value_function_model(env, critic_v)
+            a_table = evaluate_qvalue_function_model_1d(env, critic_a)
+            q_table = a_table + v_table.reshape(env.n_states, 1)
+            policy = compute_greedy_policy(env, q_table)
             update_imshow_figure(env, q_table, im_q)
-            update_imshow_figure(env, a_table, im_a)
+            update_advantage_function_1d_figure(env, a_table, im_a, policy, line)
 
     print('Critic trained to be the actual q-value function (from dp)')
 
     # save
-    data['v_function_approx'] = critic_v
     data['a_function_approx'] = critic_a
     save_data(data, data['dir_path'])
 
-    return critic_v, critic_a
+    return critic_a
 
 
 def sample_trajectories_buffer(env, policy, replay_buffer, n_episodes, n_steps_lim):

@@ -7,15 +7,19 @@ def compute_value_function(q_table):
 def compute_advantage_function(v_table, q_table):
     return q_table - np.expand_dims(v_table, axis=1)
 
-def compute_greed_action_indices(q_table):
+def compute_greedy_action_indices(q_table):
     return np.argmax(q_table, axis=1)
+
+def compute_greedy_policy(env, q_table):
+    actions_idx = compute_greedy_action_indices(q_table)
+    return env.action_space_h[actions_idx]
 
 def compute_value_advantage_and_greedy_actions(q_table):
     ''' computes the value table, the advantage table and the greedy action indices.
     '''
     v_table = compute_value_function(q_table)
     a_table = compute_advantage_function(v_table, q_table)
-    actions_idx = compute_greed_action_indices(q_table)
+    actions_idx = compute_greedy_action_indices(q_table)
 
     return v_table, a_table, actions_idx
 
@@ -25,7 +29,7 @@ def compute_value_advantage_and_greedy_policy(env, q_table):
 
     v_table = compute_value_function(q_table)
     a_table = compute_advantage_function(v_table, q_table)
-    actions_idx = compute_greed_action_indices(q_table)
+    actions_idx = compute_greedy_action_indices(q_table)
     greedy_policy = env.action_space_h[actions_idx]
     greedy_policy[env.target_set_idx] = 0
 
