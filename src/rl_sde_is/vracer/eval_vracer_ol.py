@@ -2,7 +2,7 @@ import gymnasium as gym
 import numpy as np
 
 import gym_sde_is
-from gym_sde_is.utils.evaluate import evaluate_policy_vect
+from gym_sde_is.utils.evaluate import evaluate_policy_vect, evaluate_gaussian_policy_vect
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 
 from rl_sde_is.utils.base_parser import get_base_parser
@@ -45,7 +45,7 @@ def main():
 
         # evaluate policy
         if args.policy_type == 'stoch':
-            raise NotImplementedError
+            evaluate_gaussian_policy_vect(env, model, args.eval_batch_size)
         else:
             evaluate_policy_vect(env, model.mean, args.eval_batch_size)
 

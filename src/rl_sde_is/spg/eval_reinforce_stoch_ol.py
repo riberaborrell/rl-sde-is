@@ -2,7 +2,7 @@ import gymnasium as gym
 import numpy as np
 
 import gym_sde_is
-from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
+from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect, evaluate_gaussian_policy_torch_vect
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 
 from rl_sde_is.utils.base_parser import get_base_parser
@@ -55,16 +55,21 @@ def main():
         track_l2_error=args.track_l2_error,
     )
 
-    # load reinforce initial return data
+    # load reinforce with gaussian stochastic policy
     data = reinforce_stochastic(
         env,
         algorithm_type=args.algorithm_type,
+        expectation_type=args.expectation_type,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
+        theta_init=args.theta_init,
         policy_type=args.gaussian_policy_type,
         policy_noise=args.policy_noise,
-        lr=args.lr,
+        estimate_mfht=args.estimate_mfht,
         batch_size=args.batch_size,
+        mini_batch_size=args.mini_batch_size,
+        lr=args.lr,
         seed=args.seed,
         n_grad_iterations=args.n_grad_iterations,
         load=True,
@@ -82,7 +87,7 @@ def main():
 
         # evaluate policy
         if args.policy_type == 'stoch':
-            raise NotImplementedError
+            evaluate_gaussian_policy_torch_vect(env, data['policy'], args.eval_batch_size)
         else:
             evaluate_policy_torch_vect(env, data['policy'].mean, args.eval_batch_size)
 

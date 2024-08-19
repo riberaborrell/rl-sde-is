@@ -170,8 +170,8 @@ def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini
     return loss, loss_var
 
 def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_type,
-                         n_layers, d_hidden_layer, theta_init, policy_noise, estimate_mfht,
-                         batch_size, mini_batch_size, lr, n_grad_iterations, seed=None,
+                         n_layers, d_hidden_layer, theta_init, policy_noise, batch_size, lr,
+                         n_grad_iterations, estimate_mfht=None, mini_batch_size=None, seed=None,
                          backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
 
     # get dir path

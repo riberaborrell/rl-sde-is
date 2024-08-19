@@ -54,7 +54,7 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver(args.h_state)
 
-    # run reinforce with initial return
+    # run reinforce with gaussian stochastic policy
     data = reinforce_stochastic(
         env,
         algorithm_type=args.algorithm_type,
@@ -81,9 +81,6 @@ def main():
     if not args.plot:
         return
 
-    # get backup policies
-    iterations = np.arange(0, args.n_grad_iterations + args.backup_freq, args.backup_freq)
-
     # plot statistics
     x = np.arange(data['n_grad_iterations']+1)
     plot_y_per_grad_iteration(x, data['mean_returns'], title='Objective function')
@@ -91,12 +88,16 @@ def main():
     plot_y_per_grad_iteration(x, data['loss_vars'], title='Effective loss (variance)')
     plot_y_per_grad_iteration(x, data['mean_fhts'], title='MFHT')
 
+    # get backup policies
+    iterations = np.arange(0, args.n_grad_iterations + args.backup_freq, args.backup_freq)[::20]
+
     if env.d <= 2:
-        means, stds = get_means_and_stds(env, data, iterations[::10])
+        means, stds = get_means_and_stds(env, data, iterations)
 
     # plot policy
     if env.d == 1:
-        plot_det_policies_1d(env, means, sol_hjb.u_opt)
+        colors, labels = get_colors_and_labels(iterations, iter_str='Grad. iter.')
+        plot_det_policies_1d(env, means, sol_hjb.u_opt, colors=colors, labels=labels, loc='upper left')
 
 if __name__ == '__main__':
     main()
