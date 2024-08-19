@@ -21,11 +21,11 @@ def compute_optimal_v_table(env, r_table, p_tensor, value_function_opt, policy_o
     actions_idx = env.get_action_idx(policy_opt)
 
     # bellman expectation equation following optimal policy
-    d = np.where(env.is_target_set(env.state_space_h.flatten()), 1, 0)[0]
+    d = np.where(env.is_target_set(env.state_space_h.flatten()), 1, 0)
     v_table = (1 - d) * np.matmul(
-       p_tensor[:, states_idx, actions_idx].T,
+       p_tensor[:, states_idx, actions_idx].squeeze().T,
        value_function_opt,
-    ) + r_table[states_idx, actions_idx]
+    ) + r_table[states_idx, actions_idx].squeeze()
 
     return v_table
 
@@ -106,8 +106,9 @@ def main():
 
     r_table = data['r_table']
     p_tensor = data['p_tensor']
+    v_table = data['v_table']
     q_table = data['q_table']
-    v_table, a_table, policy = compute_value_advantage_and_greedy_policy(env, q_table)
+    _, a_table, policy = compute_value_advantage_and_greedy_policy(env, q_table)
 
     # plot reward table and p_tensor
     plot_reward_table(env, r_table)
