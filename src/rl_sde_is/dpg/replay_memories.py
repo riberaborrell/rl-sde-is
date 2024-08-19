@@ -1,6 +1,6 @@
 import numpy as np
 
-class ReplayBuffer:
+class ReplayMemory:
 
     def __init__(self, size, state_dim, action_dim=None, is_action_continuous=True):
 
@@ -27,7 +27,7 @@ class ReplayBuffer:
             self.actions = np.full(self.max_size, np.nan, dtype=np.int64)
 
         self.rewards = np.full(self.max_size, np.nan, dtype=np.float32)
-        self.done = np.full(self.max_size, np.nan, dtype=bool)
+        self.done = np.zeros(self.max_size, dtype=bool)
 
         # counters and flags
         self.ptr = 0
@@ -69,19 +69,16 @@ class ReplayBuffer:
         #    print('Replay buffer is full!')
 
 
-    def sample_batch(self, batch_size=None):
+    def sample_batch(self, batch_size, replace=True):
 
-        # sample the whole replay buffer
-        if batch_size == None:
-            idxs = np.arange(self.size)
-        else:
-            idxs = np.random.randint(0, self.size, size=batch_size)
+        # sample uniformly the batch indices
+        idx = np.random.choice(self.size, size=batch_size, replace=replace)
 
-        return dict(states=self.states[idxs],
-                    actions=self.actions[idxs],
-                    rewards=self.rewards[idxs],
-                    next_states=self.next_states[idxs],
-                    done=self.done[idxs])
+        return dict(states=self.states[idx],
+                    actions=self.actions[idx],
+                    rewards=self.rewards[idx],
+                    next_states=self.next_states[idx],
+                    done=self.done[idx])
 
     def estimate_episode_length(self):
-        return self.done.sum() / self.size
+        return self.size / self.done.sum()
