@@ -122,6 +122,17 @@ def get_base_parser():
         help='Set learning rate for the critic network. Default: 0.0001',
     )
     parser.add_argument(
+        '--learn-value',
+        action='store_true',
+        help='Learn the value function by minimizing the Bellman Loss.',
+    )
+    parser.add_argument(
+        '--lr-value',
+        type=float,
+        default=0.001,
+        help='Set learning rate for the value function network. Default: 0.001',
+    )
+    parser.add_argument(
         '--lam',
         type=float,
         default=0.,
@@ -353,9 +364,10 @@ def get_base_parser():
         help='Type of return estimator. Default: "total rewards"',
     )
     parser.add_argument(
-        '--test',
-        action='store_true',
-        help='Test policy. Default: False',
+        '--log-freq',
+        type=int,
+        default=1,
+        help='Set frequency to logging algorithm results. Default: 1',
     )
     parser.add_argument(
         '--load',

@@ -23,27 +23,30 @@ def main():
     )
 
     # discretize state and action space (plot purposes only)
-    h_coarse = 0.1
+    h_coarse = 0.01
     env.discretize_state_space(h_state=h_coarse)
     env.discretize_action_space(h_action=h_coarse)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver()
-    sol_hjb.coarse_solution(h_coarse)
+    sol_hjb = env.get_hjb_solver(h_coarse)
 
     # run reinforve algorithm with a deterministic policy
     data = reinforce_deterministic(
         env,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
+        learn_value=args.learn_value,
+        lr_value=args.lr_value,
+        log_freq=args.log_freq,
         backup_freq=args.backup_freq,
         live_plot_freq=args.live_plot_freq,
         policy_opt=sol_hjb.u_opt,
-        track_l2_error=args.track_l2_error,
+        value_function_opt=-sol_hjb.value_function,
         load=args.load,
     )
 
@@ -64,9 +67,11 @@ def main():
     # plot policy
     if env.d <= 2:
         policies = get_policies(env, data, iterations)
+        value_functions = get_value_functions(env, data, iterations)
 
     if env.d == 1:
         plot_det_policies_1d(env, policies, sol_hjb.u_opt)
+        plot_ys_1d(env, value_functions, -sol_hjb.value_function)
 
     if env.d == 2:
         plot_det_policy_2d(env, policies[0].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)

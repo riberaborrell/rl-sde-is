@@ -6,17 +6,18 @@ import torch.optim as optim
 import torch.nn as nn
 
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
-from gym_sde_is.utils.sde import compute_is_functional
+from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
 
-from rl_sde_is.dpg.dpg_utils import DeterministicPolicy
-from rl_sde_is.utils.approximate_methods import compute_det_policy_actions, evaluate_det_policy_model
+from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, ValueFunction
+from rl_sde_is.utils.approximate_methods import evaluate_det_policy_model, \
+                                                evaluate_value_function_model, \
+                                                train_deterministic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.utils.path import get_reinforce_det_dir_path, load_data, save_data, \
                                  save_model, load_model
-from rl_sde_is.utils.numeric import logistic_torch
 from rl_sde_is.utils.plots import *
 
-def sample_loss(env, model, batch_size):
+def sample_loss(env, model, optimizer, batch_size):
 
     # initialization
     state, _ = env.reset(batch_size=batch_size, is_torch=True)
@@ -33,21 +34,62 @@ def sample_loss(env, model, batch_size):
         done = np.logical_or(env.been_terminated, truncated)
 
     # calculate loss
-    eff_loss = torch.mean(-env.returns - env.returns.detach() * env.girs_stoch_int)
+    eff_loss = torch.mean(env.girs_det_int - env.returns.detach() * env.girs_stoch_int)
     with torch.no_grad():
-        eff_loss_var = torch.var(-env.returns - env.returns * env.girs_stoch_int)
+        eff_loss_var = torch.var(env.girs_det_int - env.returns * env.girs_stoch_int)
+
+    # reset gradients, compute gradients and update parameters
+    optimizer.zero_grad()
+    eff_loss.backward()
+    optimizer.step()
 
     return eff_loss, eff_loss_var
 
+def sample_value_loss(env, value, optimizer):
 
-def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_size=1000,
-                            lr=1e-3, n_grad_iterations=100, seed=None, backup_freq=None,
-                            live_plot_freq=None, policy_opt=None, track_l2_error=False, load=False):
+    # compute target value
+    with torch.no_grad():
+
+        # value function next
+        next_states = np.vstack(env.trajs_states)[1:]
+        next_states = np.vstack((next_states, np.zeros((1, env.d))))
+        next_states = torch.FloatTensor(next_states)
+        v_next = value.forward(next_states)
+
+        # compute target (using target networks)
+        done = np.hstack(env.trajs_dones)
+        done = torch.tensor(done)
+        d = torch.where(done, 1., 0.)
+        rewards = np.hstack(env.trajs_rewards)
+        rewards = torch.FloatTensor(rewards)
+        v_target = rewards + (1. - d) * v_next
+
+    # compute current q-value
+    states = np.vstack(env.trajs_states)
+    states = torch.FloatTensor(states)
+    v_current = value.forward(states)
+
+    # compute loss
+    loss = (v_current - v_target).pow(2).mean()
+
+    # reset gradients and update parameters
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    return loss
+
+
+def reinforce_deterministic(env, gamma, n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations,
+                            seed, learn_value, lr_value=None, backup_freq=None, live_plot_freq=None,
+                            log_freq=100, policy_opt=None, value_function_opt=None, load=False):
+
+    agent = 'reinforce-deterministic' if not learn_value else 'reinforce-deterministic-value'
 
     # get dir path
     dir_path = get_reinforce_det_dir_path(
         env,
-        agent='reinforce-deterministic',
+        agent=agent,
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
@@ -67,17 +109,26 @@ def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_
         torch.manual_seed(seed)
 
     # vectorized environment
-    env = RecordEpisodeStatisticsVect(env, batch_size, track_l2_error)
+    env = RecordEpisodeStatisticsVect(env, batch_size)
+    if learn_value:
+        env = SaveEpisodeTrajectoryVect(env, batch_size, track_actions=False,
+                                        track_rewards=True, track_dones=True)
 
     # get dimensions of each layer
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
-    # initialize nn model 
+    # initialize policy model 
     model = DeterministicPolicy(state_dim=env.d, action_dim=env.d,
                                 hidden_sizes=d_hidden_layers, activation=nn.Tanh())
 
-    # define optimizer
+    # initialize value function model
+    value = ValueFunction(state_dim=env.d, hidden_sizes=d_hidden_layers, activation=nn.Tanh()) \
+            if learn_value else None
+
+    # define optimizer/s
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    if learn_value:
+        value_optimizer = optim.Adam(value.parameters(), lr=lr_value)
 
     # save algorithm parameters
     data = {
@@ -86,23 +137,28 @@ def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_
         'd_hidden_layer': d_hidden_layer,
         'batch_size': batch_size,
         'lr': lr,
+        'lr_value': lr_value,
         'n_grad_iterations': n_grad_iterations,
         'seed': seed,
+        'learn_value': learn_value,
         'backup_freq': backup_freq,
         'model': model,
+        'value': value,
         'dir_path': dir_path,
     }
     save_data(data, dir_path)
 
     # save model initial parameters
     save_model(model, dir_path, 'model_n-it{}'.format(0))
+    if learn_value:
+        save_model(value, dir_path, 'value_n-it{}'.format(0))
 
     # create object to store the is statistics of the learning
     is_stats = ISStatistics(
         eval_freq=1,
         eval_batch_size=batch_size,
+        policy_type='det',
         n_grad_iterations=n_grad_iterations,
-        track_l2_error=track_l2_error,
         track_loss=True,
         track_ct=True,
     )
@@ -116,55 +172,41 @@ def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_
 
     # initialize live figures
     if live_plot_freq:
-        if env.d == 1:
-            policy_line = initialize_1d_figures(env, model, policy_opt)
-        elif env.d == 2:
-            Q_policy = initialize_2d_figures(env, model, policy_opt)
+        figs_placeholder = initialize_figures(env, model, value, policy_opt, value_function_opt)
 
     for i in np.arange(n_grad_iterations+1):
 
         # start timer
         ct_initial = time.time()
 
-        # compute effective loss
-        eff_loss, eff_loss_var = sample_loss(env, model, batch_size)
+        # compute model based policy effective loss
+        eff_loss, eff_loss_var = sample_loss(env, model, optimizer, batch_size)
 
-        # reset gradients and update parameters
-        optimizer.zero_grad()
-        eff_loss.backward()
-        optimizer.step()
+        if learn_value:
+            #value_loss = sample_actor_critic_loss(env, model, optimizer, value, value_optimizer, batch_size)
+            value_loss = sample_value_loss(env, value, value_optimizer)
+
 
         # end timer
         ct_final = time.time()
 
         # save and log epoch 
         env.statistics_to_numpy()
-        l2_errors = env.l2_errors if track_l2_error else None
-        is_functional = compute_is_functional(
-            env.girs_stoch_int,
-            env.running_rewards,
-            env.terminal_rewards,
-        )
-        is_stats.save_epoch(
-            i, env.lengths, env.lengths*env.dt, env.returns,
-            is_functional=is_functional, l2_errors=l2_errors,
-            loss=eff_loss.detach().numpy(), loss_var=eff_loss_var.numpy(),
-            ct=ct_final - ct_initial,
-        )
-        is_stats.log_epoch(i)
+        is_stats.save_epoch(i, env, loss=eff_loss.detach().numpy(),
+                            loss_var=eff_loss_var.numpy(), ct=ct_final - ct_initial)
+        is_stats.log_epoch(i) if i % log_freq == 0 else None
 
         # backup models and results
         if backup_freq is not None and (i + 1) % backup_freq == 0:
             save_model(model, dir_path, 'model_n-it{}'.format(i + 1))
+            if learn_value:
+                save_model(value, dir_path, 'value_n-it{}'.format(i + 1))
             stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
             save_data(data | stats_dict, dir_path)
 
         # update figure
         if live_plot_freq and i % live_plot_freq == 0:
-            if env.d == 1:
-                update_1d_figures(env, model, policy_line)
-            elif env.d == 2:
-                update_2d_figures(env, model, Q_policy)
+            update_figures(env, model, value, figs_placeholder)
 
     # add learning results
     stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
@@ -172,49 +214,64 @@ def reinforce_deterministic(env, gamma=1., n_layers=2, d_hidden_layer=32, batch_
     save_data(data, dir_path)
     return data
 
-def initialize_1d_figures(env, model, policy_opt):
+def initialize_figures(env, model, value, policy_opt, value_function_opt):
+    # evaluate policy and value function
+    policy = evaluate_det_policy_model(env, model).reshape(env.state_space_h.shape)
+    if value is not None:
+        values = evaluate_value_function_model(env, value).reshape(env.state_space_h.shape[:-1])
 
-    # hjb control
-    if policy_opt is None:
-        policy_opt_plot = np.empty_like(env.state_space_h)
-        policy_opt_plot.fill(np.nan)
-    else:
-        policy_opt_plot = policy_opt
+    if env.d == 1:
+        policy_line = initialize_det_policy_1d_figure(env, policy, policy_opt=policy_opt)
+        value_line = initialize_value_function_1d_figure(env, values, value_function_opt) \
+                     if value is not None else None
+        return policy_line, value_line
+    elif env.d == 2:
+        policy_quiver = initialize_det_policy_2d_figure(env, policy, policy_opt)
+        value_im = initialize_value_function_2d_figure(env, values) \
+                   if value is not None else None
+        return policy_quiver, value_im
 
-    state_space_h = torch.FloatTensor(env.state_space_h).unsqueeze(dim=1)
-    initial_policy = compute_det_policy_actions(env, model, state_space_h).squeeze()
-    policy_line = initialize_det_policy_1d_figure(env, initial_policy, policy_opt=policy_opt_plot)
 
-    return policy_line
+def update_figures(env, model, value, figs_placeholder):
 
-def update_1d_figures(env, model, policy_line):
-    states = torch.FloatTensor(env.state_space_h)
-    policy = compute_det_policy_actions(env, model, states)
-    update_det_policy_1d_figure(env, policy, policy_line)
+    # evaluate policy and value function
+    policy = evaluate_det_policy_model(env, model).reshape(env.state_space_h.shape)
+    if value is not None:
+        values = evaluate_value_function_model(env, value).reshape(env.state_space_h.shape[:-1])
 
-def initialize_2d_figures(env, model, policy_hjb):
-    states = torch.FloatTensor(env.state_space_h)
-    initial_policy = compute_det_policy_actions(env, model, states)
-    Q_policy = initialize_det_policy_2d_figure(env, initial_policy, policy_hjb)
-    return Q_policy
+    if env.d == 1:
+        policy_line, value_line = figs_placeholder
+        update_det_policy_1d_figure(env, policy, policy_line)
+        if value is not None:
+            update_value_function_1d_figure(env, values, value_line)
 
-def update_2d_figures(env, model, Q_policy):
-    states = torch.FloatTensor(env.state_space_h)
-    policy = compute_det_policy_actions(env, model, states)
-    update_det_policy_2d_figure(env, policy, Q_policy)
+    elif env.d == 2:
+        policy_quiver, value_im = figs_placeholder
+        update_det_policy_2d_figure(env, policy, policy_quiver)
+        if value is not None:
+            update_value_function_2d_figure(env, values, value_im)
 
 def load_backup_model(data, i=0):
     try:
         load_model(data['model'], data['dir_path'], file_name='model_n-it{}'.format(i))
+        if data['learn_value']:
+            load_model(data['value'], data['dir_path'], file_name='value_n-it{}'.format(i))
     except FileNotFoundError as e:
         print('there is no backup for iteration {:d}'.format(i))
 
 def get_policies(env, data, iterations):
-
     n_iterations = len(iterations)
     policies = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
     for i, it in enumerate(iterations):
         load_backup_model(data, it)
-        policies[i] = evaluate_det_policy_model(env, data['model']).reshape(env.n_states, env.d)
+        policies[i] = evaluate_det_policy_model(env, data['model'])
     return policies
+
+def get_value_functions(env, data, iterations):
+    n_iterations = len(iterations)
+    value_functions = np.empty((n_iterations, env.n_states), dtype=np.float32)
+    for i, it in enumerate(iterations):
+        load_backup_model(data, it)
+        value_functions[i] = evaluate_value_function_model(env, data['value'])
+    return value_functions
 
