@@ -30,7 +30,7 @@ def main():
     # get hjb solver
     sol_hjb = env.get_hjb_solver(h_coarse)
 
-    # run reinforve algorithm with a deterministic policy
+    # run reinforce algorithm with a deterministic policy
     data = reinforce_deterministic(
         env,
         gamma=args.gamma,

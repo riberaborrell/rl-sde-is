@@ -30,15 +30,18 @@ def main():
         track_l2_error=args.track_l2_error,
     )
 
-    # load reinforve algorithm with a deterministic policy
+    # load reinforce algorithm with a deterministic policy
     data = reinforce_deterministic(
         env,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
+        learn_value=args.learn_value,
+        lr_value=args.lr_value,
         load=True,
     )
 
@@ -49,8 +52,7 @@ def main():
     for i in range(is_stats.n_epochs):
 
         # load policy
-        j = i * is_stats.eval_freq
-        load_backup_model(data, j)
+        load_backup_model(data, i * is_stats.eval_freq)
 
         # evaluate policy
         evaluate_policy_torch_vect(env, data['model'], args.eval_batch_size)

@@ -21,7 +21,7 @@ def main():
         is_torch=True,
     )
 
-    # run reinforve algorithm with a deterministic policy
+    # run reinforce algorithm with a deterministic policy
     data = reinforce_deterministic(
         env,
         gamma=args.gamma,
