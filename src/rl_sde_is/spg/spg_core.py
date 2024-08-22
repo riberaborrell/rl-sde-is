@@ -48,8 +48,10 @@ def sample_loss_random_time_initial_return(env, policy, optimizer, batch_size):
 
     # calculate loss
     returns_torch = torch.FloatTensor(env.returns)
-    eff_loss = - torch.mean(log_probs * returns_torch)
-    eff_loss_var = - np.var(log_probs.detach().numpy() * env.returns)
+    phi = - log_probs * returns_torch
+    eff_loss = phi.mean()
+    with torch.no_grad():
+        eff_loss_var = phi.var().numpy()
 
     # reset gradients, compute gradients and update parameters
     optimizer.zero_grad()
@@ -105,10 +107,11 @@ def sample_loss_random_time_n_step_return(env, policy, optimizer, batch_size):
 
     return eff_loss, eff_loss_var
 
-def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini_batch_size, estimate_mfht):
+def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini_batch_size,
+                                        memory_size, estimate_mfht):
 
     # initialize memory
-    memory = ReplayMemoryReturn(size=int(1e6), state_dim=env.d, action_dim=env.d)
+    memory = ReplayMemoryReturn(size=memory_size, state_dim=env.d, action_dim=env.d)
 
     # initialization
     state, _ = env.reset(batch_size=batch_size)
@@ -139,14 +142,11 @@ def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini
 
     # sample batch of experiences from memory
     batch = memory.sample_batch(mini_batch_size)
-    states = torch.FloatTensor(batch['states'])
-    actions = torch.FloatTensor(batch['actions'])
-    n_returns = torch.FloatTensor(batch['n_returns'])
-    _, log_probs = policy.forward(states, actions)
+    _, log_probs = policy.forward(batch['states'], batch['actions'])
     mfht = env.lengths.mean() if estimate_mfht else 1
 
     # calculate loss
-    phi = - (log_probs * n_returns)
+    phi = - (log_probs * batch['n_returns'])
     loss = phi.mean()
     with torch.no_grad():
         loss_var = phi.var().numpy()
@@ -171,8 +171,9 @@ def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini
 
 def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_type,
                          n_layers, d_hidden_layer, theta_init, policy_noise, batch_size, lr,
-                         n_grad_iterations, estimate_mfht=None, mini_batch_size=None, seed=None,
-                         backup_freq=None, policy_opt=None, load=False, live_plot_freq=None):
+                         n_grad_iterations, estimate_mfht=None, mini_batch_size=None,
+                         memory_size=int(1e6), seed=None, backup_freq=None, policy_opt=None,
+                         load=False, live_plot_freq=None):
 
     # get dir path
     dir_path = get_reinforce_dir_path(
@@ -280,8 +281,9 @@ def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_ty
         elif algorithm_type == 'initial-return' and expectation_type == 'on-policy':
             raise NotImplementedError('On-policy initial return not implemented')
         elif algorithm_type == 'n-return' and expectation_type == 'on-policy':
-            loss, loss_var = sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size,
-                                                                 mini_batch_size, estimate_mfht)
+            loss, loss_var = sample_loss_on_policy_n_step_return(
+                env, policy, optimizer, batch_size, mini_batch_size, memory_size, estimate_mfht
+            )
 
         # end timer
         ct_final = time.time()

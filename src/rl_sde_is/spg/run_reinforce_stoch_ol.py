@@ -68,6 +68,7 @@ def main():
         estimate_mfht=args.estimate_mfht,
         batch_size=args.batch_size,
         mini_batch_size=args.mini_batch_size,
+        memory_size=args.replay_size,
         lr=args.lr,
         seed=args.seed,
         n_grad_iterations=args.n_grad_iterations,
