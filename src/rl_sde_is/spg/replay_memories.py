@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 class ReplayMemoryReturn:
 
@@ -55,11 +56,12 @@ class ReplayMemoryReturn:
         # sample uniformly the batch indexes
         idx = np.random.choice(self.size, size=batch_size, replace=replace)
 
-        return dict(
+        data = dict(
             states=self.states[idx],
             actions=self.actions[idx],
             n_returns=self.n_returns[idx],
         )
+        return {key: torch.as_tensor(value, dtype=torch.float32) for key, value in data.items()}
 
     def estimate_episode_length(self):
         return self.size / self.done.sum()
