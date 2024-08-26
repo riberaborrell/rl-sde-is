@@ -17,52 +17,9 @@ from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
 
-def sample_loss_random_time_initial_return(env, policy, optimizer, batch_size):
+def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
     ''' Sample and compute loss function corresponding to the policy gradient with
-        random time expectation and initial return. Also update the policy parameters.
-    '''
-
-    # initialization
-    state, _ = env.reset(batch_size=batch_size)
-
-    # preallocate log probs
-    log_probs = torch.zeros(batch_size)
-
-    # terminal state flag
-    done = np.full((batch_size,), False)
-    while not done.all():
-
-        # sample action
-        state_torch = torch.FloatTensor(state)
-        action, _ = policy.sample_action(state_torch)
-        action_torch = torch.FloatTensor(action)
-        _, log_probs_n = policy.forward(state_torch, action_torch)
-
-        # env step
-        state, _, _, truncated, _ = env.step_vect(action)
-        done = np.logical_or(env.been_terminated, truncated)
-
-        # save log probs 
-        idx = ~env.been_terminated | env.new_terminated
-        log_probs[idx] = log_probs[idx] + log_probs_n[idx]
-
-    # calculate loss
-    returns_torch = torch.FloatTensor(env.returns)
-    phi = - log_probs * returns_torch
-    eff_loss = phi.mean()
-    with torch.no_grad():
-        eff_loss_var = phi.var().numpy()
-
-    # reset gradients, compute gradients and update parameters
-    optimizer.zero_grad()
-    eff_loss.backward()
-    optimizer.step()
-
-    return eff_loss, eff_loss_var
-
-def sample_loss_random_time_n_step_return(env, policy, optimizer, batch_size):
-    ''' Sample and compute loss function corresponding to the policy gradient with
-        random time expectation and n-step return. Also update the policy parameters.
+        random time expectation. Also update the policy parameters.
     '''
 
     # initialization
@@ -74,44 +31,54 @@ def sample_loss_random_time_n_step_return(env, policy, optimizer, batch_size):
 
         # sample action
         state_torch = torch.FloatTensor(state)
-        action, _ = policy.sample_action(state_torch)
+        with torch.no_grad():
+            action, _ = policy.sample_action(state_torch)
 
         # env step
         state, _, _, truncated, _ = env.step_vect(action)
         done = np.logical_or(env.been_terminated, truncated)
 
-    # initialize tensor
-    phi = torch.empty(batch_size)
+    # compute log probs
+    states = torch.FloatTensor(np.vstack(env.trajs_states))
+    actions = torch.FloatTensor(np.vstack(env.trajs_actions))
+    _, log_probs = policy.forward(states, actions)
 
+    # compute returns
+    returns = []
     for i in range(batch_size):
 
-        # calculate after n step returns
-        n_returns = torch.FloatTensor(cumsum(env.trajs_rewards[i]).copy())
+        # compute initial returns
+        if return_type == 'initial-return':
+            returns.append(np.full(env.lengths[i], env.returns[i]))
 
-        # calculate log probs
-        states = torch.FloatTensor(env.trajs_states[i])
-        actions = torch.FloatTensor(env.trajs_actions[i])
-        _, log_probs = policy.forward(states, actions)
+        # compute n-step returns
+        else: # return_type == 'n-return'
+            returns.append(cumsum(env.trajs_rewards[i]))
 
-        phi[i] = - torch.dot(log_probs, n_returns)
+    returns = torch.FloatTensor(np.hstack(returns))
 
     # calculate loss
-    eff_loss = phi.mean()
+    phi = - log_probs * returns
+
+    # loss and loss variance
+    loss = phi.sum() / batch_size
     with torch.no_grad():
-        eff_loss_var = phi.var().numpy()
+        loss_var = phi.var().numpy()
 
     # reset gradients, compute gradients and update parameters
     optimizer.zero_grad()
-    eff_loss.backward()
+    loss.backward()
     optimizer.step()
 
-    return eff_loss, eff_loss_var
+    return loss, loss_var
 
-def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini_batch_size,
-                                        memory_size, estimate_mfht):
+
+def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_batch_size,
+                          memory_size, estimate_mfht):
 
     # initialize memory
-    memory = ReplayMemoryReturn(size=memory_size, state_dim=env.d, action_dim=env.d)
+    memory = ReplayMemoryReturn(size=memory_size, state_dim=env.d, action_dim=env.d,
+                                return_type=return_type)
 
     # initialization
     state, _ = env.reset(batch_size=batch_size)
@@ -128,17 +95,27 @@ def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini
         state, _, _, truncated, _ = env.step_vect(action)
         done = np.logical_or(env.been_terminated, truncated)
 
+    # compute returns
+    returns = []
     for i in range(batch_size):
 
-        # calculate after n step returns
-        n_returns = cumsum(env.trajs_rewards[i]).copy()
+        # compute initial returns
+        if return_type == 'initial-return':
+            returns.append(np.full(env.lengths[i], env.returns[i]))
 
-        # calculate log probs
-        states = env.trajs_states[i]
-        actions = env.trajs_actions[i]
+        # compute n-step returns
+        else: # return_type == 'n-return'
+            returns.append(cumsum(env.trajs_rewards[i]))
 
-        # store experiences in memory
-        memory.store_vectorized(states, actions, n_returns)
+    returns = torch.FloatTensor(np.hstack(returns))
+
+    # store experiences in memory
+    states = np.vstack(env.trajs_states)
+    actions = np.vstack(env.trajs_actions)
+    if return_type == 'initial-return':
+        memory.store_vectorized(states, actions, initial_returns=returns)
+    else:
+        memory.store_vectorized(states, actions, n_returns=returns)
 
     # sample batch of experiences from memory
     batch = memory.sample_batch(mini_batch_size)
@@ -146,7 +123,8 @@ def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini
     mfht = env.lengths.mean() if estimate_mfht else 1
 
     # calculate loss
-    phi = - (log_probs * batch['n_returns'])
+    returns = batch['n-returns'] if return_type == 'n-return' else batch['initial-returns']
+    phi = - (log_probs * returns)
     loss = phi.mean()
     with torch.no_grad():
         loss_var = phi.var().numpy()
@@ -169,7 +147,7 @@ def sample_loss_on_policy_n_step_return(env, policy, optimizer, batch_size, mini
 
     return loss, loss_var
 
-def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_type,
+def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
                          n_layers, d_hidden_layer, theta_init, policy_noise, batch_size, lr,
                          n_grad_iterations, estimate_mfht=None, mini_batch_size=None,
                          memory_size=int(1e6), seed=None, backup_freq=None, policy_opt=None,
@@ -178,7 +156,7 @@ def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_ty
     # get dir path
     dir_path = get_reinforce_dir_path(
         env,
-        agent='reinforce-{}-{}'.format(expectation_type, algorithm_type),
+        agent='reinforce-{}-{}'.format(expectation_type, return_type),
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
@@ -205,9 +183,13 @@ def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_ty
     # vectorized environment
     env = RecordEpisodeStatisticsVect(env, batch_size)
 
-    # record states and action from the trajectories wrapper
-    if algorithm_type == 'n-return':
+    # save states, action and rewards
+    if return_type == 'n-return':
         env = SaveEpisodeTrajectoryVect(env, batch_size, track_rewards=True)
+
+    # save states and actions 
+    else: #return_type == 'initial-return':
+        env = SaveEpisodeTrajectoryVect(env, batch_size)
 
     # initialize model and optimizer
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
@@ -274,16 +256,11 @@ def reinforce_stochastic(env, algorithm_type, expectation_type, gamma, policy_ty
         ct_initial = time.time()
 
         # sample loss function
-        if algorithm_type == 'initial-return' and expectation_type == 'random-time':
-            loss, loss_var = sample_loss_random_time_initial_return(env, policy, optimizer, batch_size)
-        elif algorithm_type == 'n-return' and expectation_type == 'random-time':
-            loss, loss_var = sample_loss_random_time_n_step_return(env, policy, optimizer, batch_size)
-        elif algorithm_type == 'initial-return' and expectation_type == 'on-policy':
-            raise NotImplementedError('On-policy initial return not implemented')
-        elif algorithm_type == 'n-return' and expectation_type == 'on-policy':
-            loss, loss_var = sample_loss_on_policy_n_step_return(
-                env, policy, optimizer, batch_size, mini_batch_size, memory_size, estimate_mfht
-            )
+        if expectation_type == 'random-time':
+            loss, loss_var = sample_loss_random_time(env, policy, optimizer, batch_size, return_type)
+        else: #expectation_type == 'on-policy':
+            loss, loss_var = sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
+                                         mini_batch_size, memory_size, estimate_mfht)
 
         # end timer
         ct_final = time.time()

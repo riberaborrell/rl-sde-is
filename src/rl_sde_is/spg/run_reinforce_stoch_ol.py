@@ -15,14 +15,14 @@ def main():
     parser = get_base_parser()
     parser.description = 'Run reinforce stochastic for the sde importance sampling environment'
     parser.add_argument(
-        '--algorithm-type',
+        '--return-type',
         choices=['initial-return', 'n-return'],
         default='initial-return',
-        help='Set reinforce stochastic algorithm type. Default: initial-return',
+        help='Set type of return used. Default: initial-return',
     )
     parser.add_argument(
         '--expectation-type',
-        choices=['random-time', 'on-policy'],
+        choices=['random-time', 'on-policy', 'off-policy'],
         default='random-time',
         help='Set type of expectation. Default: random-time',
     )
@@ -57,8 +57,8 @@ def main():
     # run reinforce with gaussian stochastic policy
     data = reinforce_stochastic(
         env,
-        algorithm_type=args.algorithm_type,
         expectation_type=args.expectation_type,
+        return_type=args.return_type,
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
