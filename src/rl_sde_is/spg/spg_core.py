@@ -14,7 +14,7 @@ from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, \
                                                 train_stochastic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
-from rl_sde_is.utils.path import get_reinforce_dir_path, load_data, save_data, save_model, load_model
+from rl_sde_is.utils.path import get_reinforce_stoch_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
 
 def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
@@ -154,9 +154,9 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
                          load=False, live_plot_freq=None):
 
     # get dir path
-    dir_path = get_reinforce_dir_path(
+    dir_path = get_reinforce_stoch_dir_path(
         env,
-        agent='reinforce-{}-{}'.format(expectation_type, return_type),
+        agent='reinforce-stoch-{}-{}'.format(expectation_type, return_type),
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,

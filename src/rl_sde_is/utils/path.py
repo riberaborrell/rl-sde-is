@@ -328,11 +328,10 @@ def get_reinforce_discrete_dir_path(env, **kwargs):
 
     return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
 
-def get_reinforce_dir_path(env, **kwargs):
+def get_reinforce_stoch_dir_path(env, **kwargs):
     '''
     '''
 
-    
     # set parameters string
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
@@ -354,6 +353,22 @@ def get_reinforce_det_dir_path(env, **kwargs):
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
+              + get_mfht_estimation_str(**kwargs) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+
+def get_model_based_dpg_dir_path(env, **kwargs):
+    '''
+    '''
+    # set parameters string
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
+              + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
