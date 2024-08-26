@@ -33,6 +33,8 @@ def main():
     # load reinforce algorithm with a deterministic policy
     data = reinforce_deterministic(
         env,
+        expectation_type=args.expectation_type,
+        return_type=args.return_type,
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
@@ -41,6 +43,9 @@ def main():
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
         learn_value=args.learn_value,
+        mini_batch_size=args.mini_batch_size,
+        memory_size=args.replay_size,
+        estimate_mfht=args.estimate_mfht,
         lr_value=args.lr_value,
         load=True,
     )
