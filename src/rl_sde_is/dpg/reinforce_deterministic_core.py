@@ -10,77 +10,129 @@ from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVec
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, ValueFunction
+from rl_sde_is.dpg.replay_memories import ReplayMemoryModelBasedDPG as Memory
 from rl_sde_is.utils.approximate_methods import evaluate_det_policy_model, \
                                                 evaluate_value_function_model, \
                                                 train_deterministic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.utils.numeric import dot_vect
+from rl_sde_is.utils.numeric import dot_vect, cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_det_dir_path, load_data, save_data, \
                                  save_model, load_model
 from rl_sde_is.utils.plots import *
 
-def sample_loss(env, model, optimizer, batch_size):
+def sample_loss(env, model, optimizer, batch_size, return_type):
 
     # evaluate policy. Trajectories are stored and statistics are computed
     evaluate_policy_torch_vect(env, model, batch_size)
 
+    # get states, dbts and returns
+    states, dbts, returns = [], [], []
+    for i in range(batch_size):
+
+        # states and dbts
+        states.append(env.trajs_states[i][:-1])
+        dbts.append(env.trajs_dbts[i][:-1])
+
+        # compute initial returns
+        if return_type == 'initial-return':
+            returns.append(np.full(env.lengths[i]-1, env.returns[i]))
+
+        # compute n-step returns
+        else: # retrun_type == 'n-return'
+            returns.append(cumsum(env.trajs_rewards[i])[:-1])
+
+    states = torch.FloatTensor(np.vstack(states))
+    dbts = torch.FloatTensor(np.vstack(dbts))
+    returns = torch.FloatTensor(np.hstack(returns))
+
     # compute actions following the policy
-    states = torch.FloatTensor(np.vstack(env.trajs_states))
     actions = model.forward(states)
 
     # compute girsanov deterministic and stochastic integrals
     girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt_torch
-    dbts = torch.FloatTensor(np.vstack(env.trajs_dbts))
     girs_stoch_int = dot_vect(dbts, actions)
-
-    # compute returns
-    returns = []
-    for i in range(batch_size):
-        returns.append(np.full(env.lengths[i], env.returns[i]))
-    returns = torch.FloatTensor(np.hstack(returns))
 
     # calculate loss
     phi = girs_det_int - returns * girs_stoch_int
-    eff_loss = phi.mean()
+    loss = phi.sum() / batch_size
     with torch.no_grad():
-        eff_loss_var = phi.var()
+        loss_var = phi.var().numpy()
 
     # reset gradients, compute gradients and update parameters
     optimizer.zero_grad()
-    eff_loss.backward()
+    loss.backward()
     optimizer.step()
 
-    return eff_loss, eff_loss_var
+    return loss, loss_var
 
-def sample_loss_live(env, model, optimizer, batch_size):
+def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_batch_size,
+                          memory_size, estimate_mfht):
 
-    # initialization
-    state, _ = env.reset(batch_size=batch_size, is_torch=True)
+    # evaluate policy. Trajectories are stored and statistics are computed
+    evaluate_policy_torch_vect(env, model, batch_size)
 
-    # terminal state flag
-    done = np.full((batch_size,), False)
-    while not done.all():
+    # initialize memory
+    memory = Memory(size=memory_size, state_dim=env.d)
 
-        # sample action
-        action = model.forward(state)
+    # get states, dbts and returns
+    states, dbts, returns = [], [], []
+    for i in range(batch_size):
 
-        # env step
-        state, _, _, truncated, _ = env.step_vect_torch(action)
-        done = np.logical_or(env.been_terminated, truncated)
+        # states and dbts
+        states.append(env.trajs_states[i][:-1])
+        dbts.append(env.trajs_dbts[i][:-1])
+
+        # compute initial returns
+        if return_type == 'initial-return':
+            returns.append(np.full(env.lengths[i]-1, env.returns[i]))
+
+        # compute n-step returns
+        else: # return_type == 'n-return'
+            returns.append(cumsum(env.trajs_rewards[i])[:-1])
+
+    states = torch.FloatTensor(np.vstack(states))
+    dbts = torch.FloatTensor(np.vstack(dbts))
+    returns = torch.FloatTensor(np.hstack(returns))
+
+    # store experiences in memory
+    memory.store_vectorized(states, dbts, returns=returns)
+
+    # sample batch of experiences from memory
+    batch = memory.sample_batch(mini_batch_size)
+
+    # compute actions following the policy
+    actions = model.forward(batch['states'])
+
+    # estimate mean trajectory length
+    mfht = env.lengths.mean() if estimate_mfht else 1
+
+    # compute girsanov deterministic and stochastic integrals
+    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt_torch
+    girs_stoch_int = dot_vect(batch['dbts'], actions)
 
     # calculate loss
-    phi = env.girs_det_int - env.returns.detach() * env.girs_stoch_int
-    eff_loss = phi.mean()
+    phi = girs_det_int - batch['returns'] * girs_stoch_int
+    loss = phi.mean()
     with torch.no_grad():
-        eff_loss_var = phi.var()
+        loss_var = phi.var().numpy()
 
-    # reset gradients, compute gradients and update parameters
+    # reset and compute actor gradients
     optimizer.zero_grad()
-    eff_loss.backward()
+    loss.backward()
+
+    # scale learning rate
+    optimizer.param_groups[0]['lr'] *= mfht
+
+    #update parameters
     optimizer.step()
 
-    return eff_loss, eff_loss_var
+    # re-scale learning rate back
+    optimizer.param_groups[0]['lr'] /= mfht
 
+    # reset replay buffer
+    memory.reset()
+
+    return loss, loss_var
 
 def sample_value_loss(env, value, optimizer):
 
@@ -117,16 +169,18 @@ def sample_value_loss(env, value, optimizer):
     return loss
 
 
-def reinforce_deterministic(env, gamma, n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations,
-                            seed, learn_value, lr_value=None, backup_freq=None, live_plot_freq=None,
-                            log_freq=100, policy_opt=None, value_function_opt=None, load=False):
+def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
+                            batch_size, lr, n_grad_iterations, seed, learn_value, estimate_mfht=None,
+                            mini_batch_size=None, memory_size=int(1e6), lr_value=None,
+                            backup_freq=None, live_plot_freq=None, log_freq=100, policy_opt=None,
+                            value_function_opt=None, load=False):
 
-    agent = 'reinforce-deterministic' if not learn_value else 'reinforce-deterministic-value'
+    #agent = 'reinforce-deterministic' if not learn_value else 'reinforce-deterministic-value'
 
     # get dir path
     dir_path = get_reinforce_det_dir_path(
         env,
-        agent=agent,
+        agent='reinforce-deterministic-{}'.format(return_type),
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
@@ -217,7 +271,11 @@ def reinforce_deterministic(env, gamma, n_layers, d_hidden_layer, batch_size, lr
         ct_initial = time.time()
 
         # compute model based policy effective loss
-        eff_loss, eff_loss_var = sample_loss(env, model, optimizer, batch_size)
+        if expectation_type == 'random-time':
+            loss, loss_var = sample_loss(env, model, optimizer, batch_size, return_type)
+        else: # expectation_type == 'on-policy'
+            loss, loss_var = sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
+                                                   mini_batch_size, memory_size, estimate_mfht)
 
         if learn_value:
             value_loss = sample_value_loss(env, value, value_optimizer)
@@ -228,8 +286,8 @@ def reinforce_deterministic(env, gamma, n_layers, d_hidden_layer, batch_size, lr
 
         # save and log epoch 
         env.statistics_to_numpy()
-        is_stats.save_epoch(i, env, loss=eff_loss.detach().numpy(),
-                            loss_var=eff_loss_var.numpy(), ct=ct_final - ct_initial)
+        is_stats.save_epoch(i, env, loss=loss.detach().numpy(),
+                            loss_var=loss_var, ct=ct_final - ct_initial)
         is_stats.log_epoch(i) if i % log_freq == 0 else None
 
         # backup models and results

@@ -99,6 +99,29 @@ def get_base_parser():
         help='Set initial state of the trajectory. Default: -1.',
     )
     parser.add_argument(
+        '--return-type',
+        choices=['initial-return', 'n-return'],
+        default='initial-return',
+        help='Set type of return used. Default: initial-return',
+    )
+    parser.add_argument(
+        '--expectation-type',
+        choices=['random-time', 'on-policy', 'off-policy'],
+        default='random-time',
+        help='Set type of expectation. Default: random-time',
+    )
+    parser.add_argument(
+        '--mini-batch-size',
+        type=int,
+        default=None,
+        help='Set mini batch size for on-policy expectations. Default: None',
+    )
+    parser.add_argument(
+        '--estimate-mfht',
+        action='store_true',
+        help='Estimate the mfht in the dpg.',
+    )
+    parser.add_argument(
         '--constant-lr',
         action='store_true',
         help='the step size / learning rate parameter is constant.',

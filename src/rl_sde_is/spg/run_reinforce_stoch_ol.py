@@ -14,29 +14,6 @@ from rl_sde_is.utils.plots import *
 def main():
     parser = get_base_parser()
     parser.description = 'Run reinforce stochastic for the sde importance sampling environment'
-    parser.add_argument(
-        '--return-type',
-        choices=['initial-return', 'n-return'],
-        default='initial-return',
-        help='Set type of return used. Default: initial-return',
-    )
-    parser.add_argument(
-        '--expectation-type',
-        choices=['random-time', 'on-policy', 'off-policy'],
-        default='random-time',
-        help='Set type of expectation. Default: random-time',
-    )
-    parser.add_argument(
-        '--mini-batch-size',
-        type=int,
-        default=None,
-        help='Set mini batch size for on-policy expectations. Default: None',
-    )
-    parser.add_argument(
-        '--estimate-mfht',
-        action='store_true',
-        help='Estimate the mfht in the dpg.',
-    )
     args = parser.parse_args()
 
     # create gym environment
@@ -72,10 +49,11 @@ def main():
         lr=args.lr,
         seed=args.seed,
         n_grad_iterations=args.n_grad_iterations,
+        log_freq=args.log_freq,
         backup_freq=args.backup_freq,
+        live_plot_freq=args.live_plot_freq,
         policy_opt=sol_hjb.u_opt,
         load=args.load,
-        live_plot_freq=args.live_plot_freq,
     )
 
     # plot results

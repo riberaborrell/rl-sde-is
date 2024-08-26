@@ -32,6 +32,8 @@ def main():
     # run reinforce algorithm with a deterministic policy
     data = reinforce_deterministic(
         env,
+        expectation_type=args.expectation_type,
+        return_type=args.return_type,
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
@@ -40,6 +42,9 @@ def main():
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
         learn_value=args.learn_value,
+        mini_batch_size=args.mini_batch_size,
+        memory_size=args.replay_size,
+        estimate_mfht=args.estimate_mfht,
         lr_value=args.lr_value,
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,
@@ -59,18 +64,22 @@ def main():
     # plot statistics
     x = np.arange(data['n_grad_iterations']+1)
     plot_y_per_grad_iteration(x, data['mean_returns'], title='Objective function')
+    plot_y_per_grad_iteration(x, data['var_returns'], title='Variance of initial return')
     plot_y_per_grad_iteration(x, data['losses'], title='Effective loss')
     plot_y_per_grad_iteration(x, data['loss_vars'], title='Effective loss (variance)')
     plot_y_per_grad_iteration(x, data['mean_fhts'], title='MFHT')
+    plot_y_per_grad_iteration(x, data['re_I_us'], title=r'Sampled relative error $\widehat{Re}$')
 
     # plot policy
     if env.d <= 2:
         policies = get_policies(env, data, iterations)
-        value_functions = get_value_functions(env, data, iterations)
+        if args.learn_value:
+            value_functions = get_value_functions(env, data, iterations)
 
     if env.d == 1:
         plot_det_policies_1d(env, policies, sol_hjb.u_opt)
-        plot_ys_1d(env, value_functions, -sol_hjb.value_function)
+        if args.learn_value:
+            plot_ys_1d(env, value_functions, -sol_hjb.value_function)
 
     if env.d == 2:
         plot_det_policy_2d(env, policies[0].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)

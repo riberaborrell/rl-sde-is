@@ -1,4 +1,7 @@
 import numpy as np
+import torch
+
+from rl_sde_is.utils.numeric import discount_cumsum_scipy as discount_cumsum
 
 class ReplayMemory:
 
@@ -74,11 +77,112 @@ class ReplayMemory:
         # sample uniformly the batch indices
         idx = np.random.choice(self.size, size=batch_size, replace=replace)
 
-        return dict(states=self.states[idx],
-                    actions=self.actions[idx],
-                    rewards=self.rewards[idx],
-                    next_states=self.next_states[idx],
-                    done=self.done[idx])
+        data = dict(
+            states=self.states[idx],
+            actions=self.actions[idx],
+            rewards=self.rewards[idx],
+            next_states=self.next_states[idx],
+            done=self.done[idx]
+        )
+        return data
+        #return {key: torch.as_tensor(value, dtype=torch.float32) for key, value in data.items()}
 
     def estimate_episode_length(self):
         return self.size / self.done.sum()
+
+class ReplayMemoryModelBasedDPG:
+
+    def __init__(self, size, state_dim, gamma=1.0):
+
+        # memory parameters
+        self.max_size = size
+        self.state_dim = state_dim
+        self.gamma = gamma
+
+        # initialize arrays and reset counters
+        self.reset()
+
+    def reset(self):
+
+        # initialize arrays
+        self.states = np.full((self.max_size, self.state_dim), np.nan, dtype=np.float32)
+        self.rewards = np.full(self.max_size, np.nan, dtype=np.float32)
+        self.dbts = np.full((self.max_size, self.state_dim), np.nan, dtype=np.float32)
+        self.returns = np.full(self.max_size, np.nan, dtype=np.float32)
+        self.lengths = np.full(self.max_size, np.nan, dtype=np.float32)
+
+        # counters and flags
+        self.ptr = 0
+        self.size = 0
+        self.path_start_idx = 0
+        self.is_full = False
+
+    def store(self, state, dbt, reward=None, ret=None):
+
+        # update buffer
+        self.states[self.ptr] = state
+        self.dbts[self.ptr] = dbt
+        if reward is not None:
+            self.rewards[self.ptr] = reward
+
+        self.ptr = (self.ptr + 1) % self.max_size
+        self.size = min(self.size+1, self.max_size)
+        if not self.is_full and self.size == self.max_size:
+            self.is_full = True
+            print('Replay buffer is full!')
+
+    def store_vectorized(self, states, dbts, rewards=None, returns=None):
+        n_experiences = states.shape[0]
+        i = self.ptr
+        j = self.ptr + n_experiences
+        assert j < self.max_size, 'The memory size is too low'
+
+        # update buffer
+        self.states[i:j] = states
+        self.dbts[i:j] = dbts
+        if rewards is not None:
+            self.rewards[i:j] = rewards
+        if returns is not None:
+            self.returns[i:j] = returns
+
+        self.ptr = (self.ptr + n_experiences) % self.max_size
+        self.size = min(self.size + n_experiences, self.max_size)
+        if not self.is_full and self.size == self.max_size:
+            self.is_full = True
+            print('Replay buffer is full!')
+
+    def finish_path(self, last_val=0):
+        if self.path_start_idx <= self.ptr:
+            path_slice = slice(self.path_start_idx, self.ptr)
+
+            rewards = np.append(self.rewards[path_slice], last_val)
+            self.returns[path_slice] = rewards.sum()
+            self.lengths[path_slice] = rewards.shape[0]
+            #self.n_returns[path_slice] = discount_cumsum(rewards, self.gamma)[:-1]
+
+        else:
+            path_slice1 = slice(self.path_start_idx, None)
+            path_slice2 = slice(0, self.ptr)
+            rewards = np.append(self.rewards[path_slice1], self.rewards[path_slice2])
+            self.returns[path_slice1] = rewards.sum()
+            self.returns[path_slice2] = rewards.sum()
+            self.lengths[path_slice1] = rewards.shape[0]
+            self.lengths[path_slice2] = rewards.shape[0]
+
+        self.path_start_idx = self.ptr
+
+    def sample_batch(self, batch_size, replace=True):
+
+        # sample uniformly the batch indices
+        idx = np.random.choice(self.size, size=batch_size, replace=replace)
+
+        data = dict(
+            states=self.states[idx],
+            dbts=self.dbts[idx],
+            returns=self.returns[idx],
+            lengths=self.lengths[idx],
+        )
+        return {key: torch.as_tensor(value, dtype=torch.float32) for key, value in data.items()}
+
+    def estimate_mean_episode_length(self):
+        return self.lengths.mean() if self.is_full else self.lengths[:self.ptr].mean()
