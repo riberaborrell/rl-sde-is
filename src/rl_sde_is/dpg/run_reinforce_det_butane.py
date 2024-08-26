@@ -1,8 +1,11 @@
+import numpy as np
+
 import gymnasium as gym
 import gym_sde_is
 
 from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic
 from rl_sde_is.utils.base_parser import get_base_parser
+from rl_sde_is.utils.plots import *
 
 
 def main():
@@ -18,7 +21,6 @@ def main():
         gamma=10.0,
         T=args.T,
         state_init_dist=args.state_init_dist,
-        is_torch=True,
     )
 
     # run reinforce algorithm with a deterministic policy
@@ -41,6 +43,13 @@ def main():
     # do plots
     if not args.plot:
         return
+
+    # plot statistics
+    x = np.arange(data['n_grad_iterations']+1)
+    plot_y_per_grad_iteration(x, data['mean_returns'], title='Objective function')
+    plot_y_per_grad_iteration(x, data['losses'], title='Effective loss')
+    plot_y_per_grad_iteration(x, data['loss_vars'], title='Effective loss (variance)')
+    plot_y_per_grad_iteration(x, data['mean_fhts'], title='MFHT')
 
 if __name__ == "__main__":
     main()

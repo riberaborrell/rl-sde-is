@@ -7,17 +7,52 @@ import torch.nn as nn
 
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
+from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, ValueFunction
 from rl_sde_is.utils.approximate_methods import evaluate_det_policy_model, \
                                                 evaluate_value_function_model, \
                                                 train_deterministic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
+from rl_sde_is.utils.numeric import dot_vect
 from rl_sde_is.utils.path import get_reinforce_det_dir_path, load_data, save_data, \
                                  save_model, load_model
 from rl_sde_is.utils.plots import *
 
 def sample_loss(env, model, optimizer, batch_size):
+
+    # evaluate policy. Trajectories are stored and statistics are computed
+    evaluate_policy_torch_vect(env, model, batch_size)
+
+    # compute actions following the policy
+    states = torch.FloatTensor(np.vstack(env.trajs_states))
+    actions = model.forward(states)
+
+    # compute girsanov deterministic and stochastic integrals
+    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt_torch
+    dbts = torch.FloatTensor(np.vstack(env.trajs_dbts))
+    girs_stoch_int = dot_vect(dbts, actions)
+
+    # compute returns
+    returns = []
+    for i in range(batch_size):
+        returns.append(np.full(env.lengths[i], env.returns[i]))
+    returns = torch.FloatTensor(np.hstack(returns))
+
+    # calculate loss
+    phi = girs_det_int - returns * girs_stoch_int
+    eff_loss = phi.mean()
+    with torch.no_grad():
+        eff_loss_var = phi.var()
+
+    # reset gradients, compute gradients and update parameters
+    optimizer.zero_grad()
+    eff_loss.backward()
+    optimizer.step()
+
+    return eff_loss, eff_loss_var
+
+def sample_loss_live(env, model, optimizer, batch_size):
 
     # initialization
     state, _ = env.reset(batch_size=batch_size, is_torch=True)
@@ -34,9 +69,10 @@ def sample_loss(env, model, optimizer, batch_size):
         done = np.logical_or(env.been_terminated, truncated)
 
     # calculate loss
-    eff_loss = torch.mean(env.girs_det_int - env.returns.detach() * env.girs_stoch_int)
+    phi = env.girs_det_int - env.returns.detach() * env.girs_stoch_int
+    eff_loss = phi.mean()
     with torch.no_grad():
-        eff_loss_var = torch.var(env.girs_det_int - env.returns * env.girs_stoch_int)
+        eff_loss_var = phi.var()
 
     # reset gradients, compute gradients and update parameters
     optimizer.zero_grad()
@@ -44,6 +80,7 @@ def sample_loss(env, model, optimizer, batch_size):
     optimizer.step()
 
     return eff_loss, eff_loss_var
+
 
 def sample_value_loss(env, value, optimizer):
 
@@ -110,9 +147,9 @@ def reinforce_deterministic(env, gamma, n_layers, d_hidden_layer, batch_size, lr
 
     # vectorized environment
     env = RecordEpisodeStatisticsVect(env, batch_size)
-    if learn_value:
-        env = SaveEpisodeTrajectoryVect(env, batch_size, track_actions=False,
-                                        track_rewards=True, track_dones=True)
+    track_dones = True if learn_value else False
+    env = SaveEpisodeTrajectoryVect(env, batch_size, track_actions=False,
+                                    track_rewards=True, track_dones=track_dones, track_dbts=True)
 
     # get dimensions of each layer
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
@@ -183,7 +220,6 @@ def reinforce_deterministic(env, gamma, n_layers, d_hidden_layer, batch_size, lr
         eff_loss, eff_loss_var = sample_loss(env, model, optimizer, batch_size)
 
         if learn_value:
-            #value_loss = sample_actor_critic_loss(env, model, optimizer, value, value_optimizer, batch_size)
             value_loss = sample_value_loss(env, value, value_optimizer)
 
 

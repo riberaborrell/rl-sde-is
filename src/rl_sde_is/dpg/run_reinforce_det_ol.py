@@ -19,7 +19,6 @@ def main():
         beta=args.beta,
         alpha=args.alpha,
         state_init_dist=args.state_init_dist,
-        is_torch=True,
     )
 
     # discretize state and action space (plot purposes only)
