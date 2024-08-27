@@ -1,6 +1,6 @@
+import gymnasium as gym
 import numpy as np
 
-import gymnasium as gym
 import gym_sde_is
 
 from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic
@@ -26,9 +26,12 @@ def main():
     # run reinforce algorithm with a deterministic policy
     data = reinforce_deterministic(
         env,
+        expectation_type='random-time',
+        return_type='initial-return',
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
+        theta_init='null',
         batch_size=args.batch_size,
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,

@@ -38,6 +38,7 @@ def main():
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
+        theta_init=args.theta_init,
         batch_size=args.batch_size,
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,

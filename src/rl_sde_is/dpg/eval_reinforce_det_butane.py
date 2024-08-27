@@ -5,9 +5,9 @@ import gym_sde_is
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 
+from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.dpg.reinforce_deterministic_core import *
 
 def main():
     args = get_base_parser().parse_args()
@@ -32,9 +32,12 @@ def main():
     # load reinforce algorithm with a deterministic policy
     data = reinforce_deterministic(
         env,
+        expectation_type='random-time',
+        return_type='initial-return',
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
+        theta_init='null',
         batch_size=args.batch_size,
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,
