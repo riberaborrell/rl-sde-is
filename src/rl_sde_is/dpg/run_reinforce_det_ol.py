@@ -1,7 +1,8 @@
 import gymnasium as gym
 import gym_sde_is
 
-from rl_sde_is.dpg.reinforce_deterministic_core import *
+from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic, \
+                                                       get_policies, get_value_functions
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
 
@@ -37,13 +38,14 @@ def main():
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
+        theta_init=args.theta_init,
         batch_size=args.batch_size,
+        mini_batch_size=args.mini_batch_size,
+        memory_size=args.replay_size,
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
         learn_value=args.learn_value,
-        mini_batch_size=args.mini_batch_size,
-        memory_size=args.replay_size,
         estimate_mfht=args.estimate_mfht,
         lr_value=args.lr_value,
         log_freq=args.log_freq,

@@ -149,25 +149,28 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_
 
 def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
                          n_layers, d_hidden_layer, theta_init, policy_noise, batch_size, lr,
-                         n_grad_iterations, estimate_mfht=None, mini_batch_size=None,
-                         memory_size=int(1e6), seed=None, backup_freq=None, policy_opt=None,
-                         load=False, live_plot_freq=None):
+                         n_grad_iterations, learn_value, estimate_mfht=None, mini_batch_size=None,
+                         memory_size=int(1e6), seed=None,
+                         backup_freq=None, live_plot_freq=None, log_freq=100,
+                         policy_opt=None, value_function_opt=None, load=False):
 
     # get dir path
     dir_path = get_reinforce_stoch_dir_path(
         env,
-        agent='reinforce-stoch-{}-{}'.format(expectation_type, return_type),
+        agent='reinforce-stoch-{}'.format(expectation_type),
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
         theta_init=theta_init,
         policy_type=policy_type,
         policy_noise=policy_noise,
+        return_type=return_type,
         estimate_mfht=estimate_mfht,
         batch_size=batch_size,
         mini_batch_size=mini_batch_size,
         lr=lr,
         n_grad_iterations=n_grad_iterations,
+        learn_value=learn_value,
         seed=seed,
     )
 

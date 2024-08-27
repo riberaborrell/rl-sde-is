@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_sde_is.spg.spg_core import *
+from rl_sde_is.spg.reinforce_stochastic_core import reinforce_stochastic, get_means_and_stds
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
 
@@ -47,6 +47,7 @@ def main():
         mini_batch_size=args.mini_batch_size,
         memory_size=args.replay_size,
         lr=args.lr,
+        learn_value=args.learn_value,
         seed=args.seed,
         n_grad_iterations=args.n_grad_iterations,
         log_freq=args.log_freq,

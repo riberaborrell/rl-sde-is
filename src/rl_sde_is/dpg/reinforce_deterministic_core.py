@@ -169,26 +169,27 @@ def sample_value_loss(env, value, optimizer):
     return loss
 
 
-def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
+def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer, theta_init,
                             batch_size, lr, n_grad_iterations, seed, learn_value, estimate_mfht=None,
                             mini_batch_size=None, memory_size=int(1e6), lr_value=None,
-                            backup_freq=None, live_plot_freq=None, log_freq=100, policy_opt=None,
-                            value_function_opt=None, load=False):
-
-    #agent = 'reinforce-deterministic' if not learn_value else 'reinforce-deterministic-value'
+                            backup_freq=None, live_plot_freq=None, log_freq=100,
+                            policy_opt=None, value_function_opt=None, load=False):
 
     # get dir path
     dir_path = get_reinforce_det_dir_path(
         env,
-        agent='reinforce-det-{}-{}'.format(expectation_type, return_type),
+        agent='reinforce-det-{}'.format(expectation_type),
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
+        theta_init=theta_init,
+        return_type=return_type,
         estimate_mfht=estimate_mfht,
         batch_size=batch_size,
         mini_batch_size=mini_batch_size,
         lr=lr,
         n_grad_iterations=n_grad_iterations,
+        learn_value=learn_value,
         seed=seed,
     )
 
