@@ -1,7 +1,7 @@
 import numpy as np
 
-from gym_sde_is.utils.logging import compute_array_statistics, compute_std_and_re
 from gym_sde_is.utils.sde import compute_is_functional
+from gym_sde_is.utils.statistics import compute_array_statistics, compute_std_and_re
 
 from rl_sde_is.utils.path import load_data, save_data
 
