@@ -8,7 +8,7 @@ from rl_sde_is.utils.plots import *
 
 def main():
     parser = get_base_parser()
-    parser.description = 'Run td3 for the sde importance sampling environment \
+    parser.description = 'Run naf for the sde importance sampling environment \
                           with a ol toy example.'
     args = parser.parse_args()
 
@@ -22,36 +22,34 @@ def main():
     )
 
     # discretize state and action space (plot purposes only)
-    h_coarse = 0.1
+    h_coarse = 0.01
     env.discretize_state_space(h_state=h_coarse)
     env.discretize_action_space(h_action=h_coarse)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver()
-    sol_hjb.coarse_solution(h_coarse)
-    policy_opt = sol_hjb.u_opt
-    value_function_opt = - sol_hjb.value_function
+    sol_hjb = env.get_hjb_solver(h_coarse)
 
     # run naf
     data = naf(
         env=env,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,
         lr=args.lr,
         n_episodes=args.n_episodes,
-        seed=args.seed,
-        replay_size=args.replay_size,
-        learning_starts=args.learning_starts,
         n_steps_lim=args.n_steps_lim,
+        seed=args.seed,
         expl_noise_init=args.expl_noise_init,
         expl_noise_decay=args.decay,
         action_limit=args.action_limit,
+        learning_starts=args.learning_starts,
+        replay_size=args.replay_size,
         polyak=args.polyak,
         backup_freq=args.backup_freq,
         live_plot_freq=args.live_plot_freq,
-        value_function_opt=value_function_opt,
-        policy_opt=policy_opt,
+        value_function_opt=-sol_hjb.value_function,
+        policy_opt=sol_hjb.u_opt,
         load=args.load,
     )
 
@@ -109,8 +107,8 @@ def main():
         plot_det_policy_1d_actor_critic(env, policy_actor_init, policy_critic_init, policy_actor,
                                         policy_critic, policy_opt)
 
-        # plot replay buffer
-        plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0])
+        # plot replay memory
+        plot_replay_memory_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0])
 
 
     elif env.d == 2:
@@ -126,8 +124,8 @@ def main():
         #plot_value_function_2d(env, v_table, value_function_opt)
         #plot_det_policy_2d(env, greed_actions, policy_opt)
 
-        # plot states in replay buffer
-        plot_replay_buffer_states_2d(env, data['replay_states'])
+        # plot states in replay memory
+        plot_replay_memory_states_2d(env, data['replay_states'])
 
 
 if __name__ == '__main__':

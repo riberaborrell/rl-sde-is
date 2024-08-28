@@ -132,19 +132,28 @@ def plot_mean_and_std_per_time_steps(x, mean_y, std_y, **kwargs):
     plot_mean_and_std_per_x(x, mean_y, std_y, xlabel='Time steps', **kwargs)
 
 
-def plot_ys_per_x(x, ys, run_window: int = 100, title: str = '', xlabel: str = '',
-                  xlim=None, ylim=None, labels=None, legend: bool = False, loc=None):
+def plot_ys_per_x(x, ys, run_window: int = 100, hlines=None, title: str = '', xlabel: str = '',
+                  xlim=None, ylim=None, labels=None, colors=None, legend: bool = False, loc=None):
     n_lines = len(ys)
     if labels is None:
         labels = [None for i in range(n_lines)]
-    run_mean_ys = np.array([compute_running_mean(y, run_window) for y in ys])
+    if colors is None:
+        colors = [COLORS_TAB10[i] for i in range(n_lines)]
+    run_mean_ys = np.array([compute_running_mean(y, run_window) if run_window > 1 else None for y in ys])
     fig, ax = plt.subplots()
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
     for i in range(n_lines):
-        plt.plot(run_mean_ys[i], label=labels[i])
+        if run_window == 1:
+            plt.plot(x, ys[i], label=labels[i], color=colors[i])
+        else:
+            plt.plot(x, ys[i], label=labels[i], color=colors[i], alpha=0.25)
+            plt.plot(x, run_mean_ys[i], label=labels[i], color=colors[i])
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
     if legend: plt.legend(loc=loc)
     plt.show()
 
@@ -692,7 +701,8 @@ def plot_ys_1d(env, ys, y_opt=None, title: str = '', xlim=None, ylim=None, label
         plt.show()
 
 
-def initialize_det_policy_1d_figure(env, policy, policy_critic=None, policy_opt=None, title: str = ''):
+def initialize_det_policy_1d_figure(env, policy, policy_critic=None,
+                                    policy_opt=None, title: str = ''):
 
     # initialize figure
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -920,7 +930,7 @@ def initialize_det_policy_2d_figure(env, policy, policy_hjb):
     C_hjb = np.sqrt(U_hjb**2 + V_hjb**2)
     norm = colors.Normalize(vmin=np.min(C_hjb), vmax=np.max(C_hjb))
 
-    Q_policy = ax.quiver(
+    quiver = ax.quiver(
         X,
         Y,
         U,
@@ -939,13 +949,13 @@ def initialize_det_policy_2d_figure(env, policy, policy_hjb):
     # add space for color bar
     fig.subplots_adjust(right=0.85)
     cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
-    fig.colorbar(Q_policy, cax=cbar_ax)
+    fig.colorbar(quiver, cax=cbar_ax)
 
     plt.show()
 
-    return Q_policy
+    return quiver
 
-def update_det_policy_2d_figure(env, policy, Q_policy):
+def update_det_policy_2d_figure(env, policy, quiver):
 
     U = policy[:, :, 0]
     V = policy[:, :, 1]
@@ -953,8 +963,8 @@ def update_det_policy_2d_figure(env, policy, Q_policy):
     C = np.sqrt(U**2 + V**2)
 
     # update plots
-    Q_policy.set_UVC(U, V, C)
-    Q_policy.set_clim(vmin=C.min(), vmax=C.max())
+    quiver.set_UVC(U, V, C)
+    quiver.set_clim(vmin=C.min(), vmax=C.max())
 
     # update figure frequency
     plt.pause(0.1)
@@ -1087,18 +1097,18 @@ def update_return_and_time_steps_figures(env, returns, time_steps, lines):
     # update figure frequency
     plt.pause(0.1)
 
-def initialize_value_function_1d_figure(env, value_function, value_function_opt=None):
+def initialize_value_function_1d_figure(env, value_function,
+                                        value_function_opt=None, title: str = ''):
 
     # initialize figure
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(5, 4))
 
     # turn interactive mode on
     plt.ion()
 
-    ax.set_title(TITLES_FIG['value-function'], fontsize=10)
+    ax.set_title(title) if title else ax.set_title(TITLES_FIG['value-function'])
     ax.set_xlabel('States', fontsize=8)
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
-
     det_v_function_line = ax.plot(env.state_space_h, value_function)[0]
     if value_function_opt is not None:
         ax.plot(env.state_space_h, value_function_opt, c=COLORS_FIG['hjb'], ls=':', label=r'hjb')
@@ -1112,6 +1122,42 @@ def update_value_function_1d_figure(env, value_function, line):
     line.set_data(env.state_space_h, value_function)
     #line.set_clim(vmin=value_function.min(), vmax=value_function.max())
     plt.pause(0.1)
+
+def initialize_value_function_2d_figure(env, value_function):
+
+    # initialize figure
+    fig, ax = plt.subplots()
+
+    # turn interactive mode on
+    plt.ion()
+
+    # a table
+    ax.set_title(TITLES_FIG['value-function'])
+    ax.set_xlabel(r'$s_1$')
+    ax.set_ylabel(r'$s_2$')
+    im = ax.imshow(
+        value_function.T,
+        cmap=cm.viridis,
+        vmin=value_function.min(),
+        vmax=value_function.max(),
+        aspect='auto',
+        origin='lower',
+        #extent=get_state_action_2d_extent(env),
+    )
+    # colorbar
+    plt.colorbar(im, ax=ax)
+
+    plt.show()
+    return im
+
+def update_value_function_2d_figure(env, value_function, im):
+
+    im.set_data(value_function.T)
+    im.set_clim(vmin=value_function.min(), vmax=value_function.max())
+
+    # update figure frequency
+    plt.pause(0.1)
+
 
 def initialize_qvalue_function_1d_figure(env, q_table):
 
@@ -1482,16 +1528,16 @@ def canvas_actor_critic_1d_figures(env, data, value_function_opt, policy_opt,
         # draw
         fig.canvas.draw()
 
-def plot_replay_buffer_1d(env, buf_states, buf_actions, file_path=None):
+def plot_replay_memory_1d(env, states, actions, file_path=None):
 
-    # get state and actions in buffer
-    n_points = buf_states.shape[0]
+    # get state and actions in memory
+    n_points = states.shape[0]
 
     # edges
     x_edges = env.state_space_h[::1].squeeze()
     y_edges = env.action_space_h[::1].squeeze()
 
-    H, _, _ = np.histogram2d(buf_states, buf_actions, bins=(x_edges, y_edges))
+    H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
     H /= n_points
 
     # initialize figure
@@ -1515,16 +1561,16 @@ def plot_replay_buffer_1d(env, buf_states, buf_actions, file_path=None):
     else:
         plt.show()
 
-def plot_replay_buffer_states_2d(env, buf_states, file_path=None):
+def plot_replay_memory_states_2d(env, states, file_path=None):
 
-    # get state and actions in buffer
-    n_points = buf_states.shape[0]
+    # get state and actions in memory
+    n_points = states.shape[0]
 
     # edges
     x_edges = env.state_space_h[:, 0, 0]
     y_edges = env.state_space_h[:, 0, 0]
 
-    H, _, _ = np.histogram2d(buf_states[:, 0], buf_states[:, 1], bins=(x_edges, y_edges))
+    H, _, _ = np.histogram2d(states[:, 0], states[:, 1], bins=(x_edges, y_edges))
     H /= n_points
 
     # initialize figure
@@ -1548,7 +1594,7 @@ def plot_replay_buffer_states_2d(env, buf_states, file_path=None):
     else:
         plt.show()
 
-def initialize_replay_buffer_1d_figure(env, replay_buffer):
+def initialize_replay_memory_1d_figure(env, replay_memory):
 
     # initialize figure
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -1556,14 +1602,14 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
     # turn interactive mode on
     plt.ion()
 
-    # get state and actions in buffer
-    n_points = replay_buffer.size
-    states = replay_buffer.states[:replay_buffer.size, 0]
+    # get state and actions in memory
+    n_points = replay_memory.size
+    states = replay_memory.states[:replay_memory.size, 0]
 
-    if replay_buffer.is_action_continuous:
-        actions = replay_buffer.actions[:replay_buffer.size, 0]
+    if replay_memory.is_action_continuous:
+        actions = replay_memory.actions[:replay_memory.size, 0]
     else:
-        actions = env.action_space_h[replay_buffer.actions[:replay_buffer.size]]
+        actions = env.action_space_h[replay_memory.actions[:replay_memory.size]]
 
     # edges
     x_edges = env.state_space_h[::5].squeeze()
@@ -1588,19 +1634,19 @@ def initialize_replay_buffer_1d_figure(env, replay_buffer):
 
     return (x_edges, y_edges, image)
 
-def update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig):
+def update_replay_memory_1d_figure(env, replay_memory, tuple_fig):
 
     # unpack tuple
     x_edges, y_edges, image = tuple_fig
 
-    # get state and actions in buffer
-    n_points = replay_buffer.size
-    states = replay_buffer.states[:replay_buffer.size, 0]
+    # get state and actions in memory
+    n_points = replay_memory.size
+    states = replay_memory.states[:replay_memory.size, 0]
 
-    if replay_buffer.is_action_continuous:
-        actions = replay_buffer.actions[:replay_buffer.size, 0]
+    if replay_memory.is_action_continuous:
+        actions = replay_memory.actions[:replay_memory.size, 0]
     else:
-        actions = env.action_space_h[replay_buffer.actions[:replay_buffer.size]]
+        actions = env.action_space_h[replay_memory.actions[:replay_memory.size]]
 
     H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
     H /= n_points

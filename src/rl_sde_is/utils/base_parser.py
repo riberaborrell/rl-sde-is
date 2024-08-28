@@ -285,7 +285,7 @@ def get_base_parser():
         '--replay-size',
         type=int,
         default=262144, # 2^18
-        help='Set number of data slices in the replay buffer. Default: 2^18',
+        help='Set number of data slices in the replay memory. Default: 2^18',
     )
     parser.add_argument(
         '--h-state',

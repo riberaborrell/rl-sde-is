@@ -27,8 +27,7 @@ def main():
     env.discretize_action_space(h_action=h_coarse)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver()
-    sol_hjb.coarse_solution(h_coarse)
+    sol_hjb = env.get_hjb_solver(h_coarse)
 
     # run ddpg
     data = ddpg_episodic(
@@ -49,6 +48,7 @@ def main():
         action_limit=args.action_limit,
         polyak=args.polyak,
         backup_freq=args.backup_freq,
+        log_freq=args.log_freq,
         live_plot_freq=args.live_plot_freq,
         value_function_opt=-sol_hjb.value_function,
         policy_opt=sol_hjb.u_opt,
@@ -59,16 +59,11 @@ def main():
     if not args.plot:
         return
 
-    # plot moving averages for each episode
-    n_episodes = data['n_episodes']
-    returns = data['returns']
-    time_steps = data['time_steps']
-
-    x = np.arange(n_episodes)
-
     # plot returns and time steps
-    plot_y_per_episode_with(x, returns, run_window=10, title='Returns', legend=True)
-    plot_y_per_episode_with(x, time_steps, run_window=10, title='Time steps')
+    n_episodes = data['n_episodes']
+    x = np.arange(n_episodes)
+    plot_y_per_episode(x, data['returns'], run_window=10, title='Returns', legend=True)
+    plot_y_per_episode(x, data['time_steps'], run_window=10, title='Time steps')
 
     # get models
     actor = data['actor']

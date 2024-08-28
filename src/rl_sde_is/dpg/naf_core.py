@@ -8,7 +8,7 @@ import torch.optim as optim
 
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
-from rl_sde_is.dpg.replay_buffers import ReplayBuffer
+from rl_sde_is.dpg.replay_memories import ReplayMemory
 from rl_sde_is.utils.models import mlp
 from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_naf_dir_path, load_data, save_data, save_model, load_model
@@ -102,19 +102,17 @@ def get_action(env, model, state, noise_scale, action_limit):
     return action
 
 
-def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
-        n_episodes=100, n_steps_lim=1000, learning_starts=1000,
-        expl_noise_init=1.0, expl_noise_decay=1., replay_size=50000,
-        batch_size=1000, lr=1e-4, seed=None,
-        polyak=0.95, action_limit=None,
-        backup_freq=None, live_plot_freq=None, run_window=10,
-        value_function_opt=None, policy_opt=None, load=False):
+def naf(env, gamma, n_layers, d_hidden_layer, batch_size, lr, n_episodes, n_steps_lim, seed,
+        expl_noise_init, expl_noise_decay, action_limit, learning_starts, replay_size, polyak,
+        backup_freq=None, live_plot_freq=None, run_window=10, value_function_opt=None,
+        policy_opt=None, load=False):
 
     # get dir path
     dir_path = get_naf_dir_path(
         env,
         agent='naf',
         gamma=gamma,
+        n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
         expl_noise_init=expl_noise_init,
         action_limit=action_limit,
@@ -143,8 +141,8 @@ def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
     target_model = deepcopy(model)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    # initialize replay buffer
-    replay_buffer = ReplayBuffer(state_dim=env.d, action_dim=env.d, size=replay_size)
+    # initialize replay memory
+    replay_memory = ReplayMemory(state_dim=env.d, action_dim=env.d, size=replay_size)
 
     # save algorithm parameters
     data = {
@@ -156,8 +154,8 @@ def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
         'expl_noise_init': expl_noise_init,
         'expl_noise_decay': expl_noise_decay,
         'replay_size': replay_size,
-        'replay_states': replay_buffer.states[:replay_buffer.size],
-        'replay_actions': replay_buffer.actions[:replay_buffer.size],
+        #'replay_states': replay_memory.states[:replay_memory.size],
+        #'replay_actions': replay_memory.actions[:replay_memory.size],
         'batch_size' : batch_size,
         'lr' : lr,
         'seed': seed,
@@ -189,7 +187,7 @@ def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
     # initialize figures if plot
     if live_plot_freq:
         if env.d == 1:
-            tuple_fig_replay = initialize_replay_buffer_1d_figure(env, replay_buffer)
+            tuple_fig_replay = initialize_replay_memory_1d_figure(env, replay_memory)
             lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
         elif env.d == 2:
             lines_returns = initialize_return_and_time_steps_figures(env, n_episodes)
@@ -230,13 +228,13 @@ def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
             next_state, r, done, _, info = env.step(action)
 
             # store tuple
-            replay_buffer.store(state, action, r, next_state, done)
+            replay_memory.store(state, action, r, next_state, done)
 
             # time to update
             if k_total >= learning_starts:
 
-                # sample minibatch of transition uniformlly from the replay buffer
-                batch = replay_buffer.sample_batch(batch_size)
+                # sample minibatch of transition uniformlly from the replay memory
+                batch = replay_memory.sample_batch(batch_size)
 
                 # update model
                 update_parameters(model, target_model, optimizer, batch, gamma, polyak)
@@ -284,7 +282,7 @@ def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
         if live_plot_freq and (ep + 1) % live_plot_freq == 0:
             if env.d == 1:
                 #update_1d_figures(env, actor, critic1, lines_actor_critic)
-                update_replay_buffer_1d_figure(env, replay_buffer, tuple_fig_replay)
+                update_replay_memory_1d_figure(env, replay_memory, tuple_fig_replay)
                 update_return_and_time_steps_figures(env, returns[:ep], time_steps[:ep], lines_returns)
 
             elif env.d == 2:
@@ -295,8 +293,8 @@ def naf(env, gamma=1., n_layers=3, d_hidden_layer=32,
     data['returns'] = returns
     data['time_steps'] = time_steps
     data['cts'] = cts
-    data['replay_states'] = replay_buffer.states[:replay_buffer.size]
-    data['replay_actions'] = replay_buffer.actions[:replay_buffer.size]
+    #data['replay_states'] = replay_memory.states[:replay_memory.size]
+    #data['replay_actions'] = replay_memory.actions[:replay_memory.size]
 
     save_data(data, dir_path)
     return data

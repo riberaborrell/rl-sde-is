@@ -601,7 +601,7 @@ def train_advantage_from_dp(env, critic_v, critic_a, value_function_opt, policy_
     return critic_a
 
 
-def sample_trajectories_buffer(env, policy, replay_buffer, n_episodes, n_steps_lim):
+def sample_trajectories_memory(env, policy, replay_memory, n_episodes, n_steps_lim):
 
     for k in np.arange(n_episodes):
 
@@ -627,13 +627,14 @@ def sample_trajectories_buffer(env, policy, replay_buffer, n_episodes, n_steps_l
             done = terminated or truncated
 
             # store tuple
-            replay_buffer.store(state, action, r, next_state, done)
+            replay_memory.store(state, action, r, next_state, done)
 
             # update state
             state = next_state
 
 
-def sample_trajectories_buffer_vect(env, policy, replay_buffer, n_episodes, n_steps_lim):
+#def sample_trajectories_memory_vect(env, policy, replay_memory, n_episodes, n_steps_lim):
+def sample_trajectories_memory_vect(env, policy, replay_memory, n_episodes, n_steps_lim, expl_noise=0.0):
 
     # reset environment
     states, _ = env.reset(batch_size=n_episodes)#, seed=seed)
@@ -644,7 +645,9 @@ def sample_trajectories_buffer_vect(env, policy, replay_buffer, n_episodes, n_st
         # take the action following the policy
         states_torch = torch.tensor(states, dtype=torch.float32)
         with torch.no_grad():
-            actions = policy(states_torch).numpy()
+            #actions = policy(states_torch).numpy()
+            means = policy(states_torch).numpy()
+        actions = means + expl_noise * np.random.randn(n_episodes, env.action_space.shape[0])
 
         # step dynamics forward
         next_states, rewards, _, truncated, _ = env.step_vect(actions)
@@ -652,7 +655,7 @@ def sample_trajectories_buffer_vect(env, policy, replay_buffer, n_episodes, n_st
 
         # store experiences at given time step
         idx = np.where(~env.been_terminated | env.new_terminated)[0]
-        replay_buffer.store_vectorized(states[idx], actions[idx], rewards[idx],
+        replay_memory.store_vectorized(states[idx], actions[idx], rewards[idx],
                                        next_states[idx], done[idx])
 
         # update states

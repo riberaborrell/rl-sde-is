@@ -27,10 +27,7 @@ def main():
     env.discretize_action_space(h_action=h_coarse)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver()
-    sol_hjb.coarse_solution(h_coarse)
-    policy_opt = sol_hjb.u_opt
-    value_function_opt = -sol_hjb.value_function
+    sol_hjb = env.get_hjb_solver(h_coarse)
 
     # run td3
     data = td3_episodic(
@@ -53,9 +50,10 @@ def main():
         action_limit=args.action_limit,
         polyak=args.polyak,
         backup_freq=args.backup_freq,
+        log_freq=args.log_freq,
         live_plot_freq=args.live_plot_freq,
-        value_function_opt=value_function_opt,
-        policy_opt=policy_opt,
+        policy_opt=sol_hjb.u_opt,
+        value_function_opt=-sol_hjb.value_function,
         load=args.load,
     )
 
@@ -63,16 +61,11 @@ def main():
     if not args.plot:
         return
 
-    # plot moving averages for each episode
-    n_episodes = data['n_episodes']
-    returns = data['returns']
-    time_steps = data['time_steps']
-
-    x = np.arange(n_episodes)
-
     # plot returns and time steps
-    plot_y_per_episode(x, returns, run_window=10, title='Returns', legend=True)
-    plot_y_per_episode(x, time_steps, run_window=10, title='Time steps')
+    n_episodes = data['n_episodes']
+    x = np.arange(n_episodes)
+    plot_y_per_episode(x, data['returns'], run_window=10, title='Returns', legend=True)
+    plot_y_per_episode(x, data['time_steps'], run_window=10, title='Time steps')
 
     # get models
     actor = data['actor']
@@ -103,14 +96,14 @@ def main():
 
 
         plot_q_value_function_1d(env, q_table)
-        plot_value_function_1d_actor_critic(env, v_table_critic_init, v_table_critic,
-                                            v_table_actor_critic, value_function_opt)
+        #plot_value_function_1d_actor_critic(env, v_table_critic_init, v_table_critic,
+        #                                    v_table_actor_critic, value_function_opt)
         plot_advantage_function_1d(env, a_table, policy_critic)
         plot_det_policy_1d_actor_critic(env, policy_actor_init, policy_critic_init, policy_actor,
-                                        policy_critic, policy_opt)
+                                        policy_critic, sol_hjb.u_opt)
 
-        # plot replay buffer
-        plot_replay_buffer_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0])
+        # plot replay memory
+        plot_replay_memory_1d(env, data['replay_states'][:, 0], data['replay_actions'][:, 0])
 
 
     elif env.d == 2:
@@ -126,8 +119,8 @@ def main():
         #plot_value_function_2d(env, v_table, value_function_opt)
         #plot_det_policy_2d(env, greed_actions, policy_opt)
 
-        # plot states in replay buffer
-        plot_replay_buffer_states_2d(env, data['replay_states'])
+        # plot states in replay memory
+        plot_replay_memory_states_2d(env, data['replay_states'])
 
 
 if __name__ == '__main__':

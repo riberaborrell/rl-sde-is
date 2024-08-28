@@ -129,7 +129,7 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_b
     # re-scale learning rate back
     optimizer.param_groups[0]['lr'] /= mfht
 
-    # reset replay buffer
+    # reset memory
     memory.reset()
 
     return loss, loss_var
