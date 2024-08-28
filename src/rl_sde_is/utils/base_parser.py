@@ -389,7 +389,7 @@ def get_base_parser():
     parser.add_argument(
         '--log-freq',
         type=int,
-        default=1,
+        default=100,
         help='Set frequency to logging algorithm results. Default: 1',
     )
     parser.add_argument(
