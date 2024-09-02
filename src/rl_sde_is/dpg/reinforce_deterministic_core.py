@@ -39,7 +39,7 @@ def sample_loss(env, model, optimizer, batch_size, return_type):
 
         # compute n-step returns
         else: # retrun_type == 'n-return'
-            returns.append(cumsum(env.trajs_rewards[i])[:-1])
+            returns.append(cumsum(env.trajs_rewards[i])[1:])
 
     states = torch.FloatTensor(np.vstack(states))
     dbts = torch.FloatTensor(np.vstack(dbts))
