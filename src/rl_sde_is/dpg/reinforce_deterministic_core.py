@@ -88,7 +88,7 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_b
 
         # compute n-step returns
         else: # return_type == 'n-return'
-            returns.append(cumsum(env.trajs_rewards[i])[:-1])
+            returns.append(cumsum(env.trajs_rewards[i])[1:])
 
     states = torch.FloatTensor(np.vstack(states))
     dbts = torch.FloatTensor(np.vstack(dbts))
