@@ -5,7 +5,7 @@ import gym_sde_is
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 
-from rl_sde_is.dpg.ddpg_core import *
+from rl_sde_is.dpg.ddpg_core import ddpg_episodic, load_backup_models
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.is_statistics import ISStatistics
 
@@ -49,8 +49,7 @@ def main():
     for i in range(is_stats.n_epochs):
 
         # load policy
-        ep = i * is_stats.eval_freq
-        load_backup_models(data, ep)
+        load_backup_models(data, i * is_stats.eval_freq)
 
         # evaluate policy
         evaluate_policy_torch_vect(env, data['actor'], args.eval_batch_size)
