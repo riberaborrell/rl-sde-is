@@ -56,7 +56,7 @@ def update_parameters(env, model, optimizer, batch, gamma, z_estimate):
 
 
 def model_based_dpg(env, return_type, gamma, n_layers, d_hidden_layer, theta_init, batch_size, lr, n_episodes, n_steps_lim,
-                    seed, learning_starts, replay_size, polyak, estimate_z, learn_value, lr_value=None,
+                    seed, learning_starts, replay_size, estimate_z, learn_value, lr_value=None,
                     backup_freq=None, live_plot_freq=None, log_freq=100, run_window=10,
                     value_function_opt=None, policy_opt=None, load=False):
 
@@ -74,7 +74,6 @@ def model_based_dpg(env, return_type, gamma, n_layers, d_hidden_layer, theta_ini
         n_episodes=n_episodes,
         n_steps_lim=n_steps_lim,
         replay_size=replay_size,
-        polyak=polyak,
         learn_value=learn_value,
         seed=seed,
     )

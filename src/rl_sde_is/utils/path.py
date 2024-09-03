@@ -373,7 +373,6 @@ def get_model_based_dpg_dir_path(env, **kwargs):
               + get_model_arch_str(**kwargs) \
               + '{}_'.format(kwargs['return_type']) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
-              + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + 'learn-value{}_'.format(kwargs['learn_value']) \
