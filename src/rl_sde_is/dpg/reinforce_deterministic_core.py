@@ -66,7 +66,7 @@ def sample_loss(env, model, optimizer, batch_size, return_type):
     return loss, loss_var
 
 def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_batch_size,
-                          memory_size, estimate_mfht):
+                          memory_size, estimate_z):
 
     # evaluate policy. Trajectories are stored and statistics are computed
     evaluate_policy_torch_vect(env, model, batch_size)
@@ -104,7 +104,7 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_b
     actions = model.forward(batch['states'])
 
     # estimate mean trajectory length
-    mfht = env.lengths.mean() if estimate_mfht else 1
+    mean_length = env.lengths.mean() if estimate_z else 1
 
     # compute girsanov deterministic and stochastic integrals
     girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt_torch
@@ -121,13 +121,13 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_b
     loss.backward()
 
     # scale learning rate
-    optimizer.param_groups[0]['lr'] *= mfht
+    optimizer.param_groups[0]['lr'] *= mean_length
 
     #update parameters
     optimizer.step()
 
     # re-scale learning rate back
-    optimizer.param_groups[0]['lr'] /= mfht
+    optimizer.param_groups[0]['lr'] /= mean_length
 
     # reset memory
     memory.reset()
@@ -170,7 +170,7 @@ def sample_value_loss(env, value, optimizer):
 
 
 def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer, theta_init,
-                            batch_size, lr, n_grad_iterations, seed, learn_value, estimate_mfht=None,
+                            batch_size, lr, n_grad_iterations, seed, learn_value, estimate_z=None,
                             mini_batch_size=None, memory_size=int(1e6), lr_value=None,
                             backup_freq=None, live_plot_freq=None, log_freq=100,
                             policy_opt=None, value_function_opt=None, load=False):
@@ -184,7 +184,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         d_hidden_layer=d_hidden_layer,
         theta_init=theta_init,
         return_type=return_type,
-        estimate_mfht=estimate_mfht,
+        estimate_z=estimate_z,
         batch_size=batch_size,
         mini_batch_size=mini_batch_size,
         lr=lr,
@@ -278,7 +278,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
             loss, loss_var = sample_loss(env, model, optimizer, batch_size, return_type)
         else: # expectation_type == 'on-policy'
             loss, loss_var = sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
-                                                   mini_batch_size, memory_size, estimate_mfht)
+                                                   mini_batch_size, memory_size, estimate_z)
 
         if learn_value:
             value_loss = sample_value_loss(env, value, value_optimizer)

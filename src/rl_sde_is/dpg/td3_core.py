@@ -9,7 +9,7 @@ import torch.optim as optim
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, QValueFunction
-from rl_sde_is.dpg.replay_memories import ReplayMemory
+from rl_sde_is.dpg.replay_memories import ReplayMemoryModelFreeDPG as ReplayMemory
 from rl_sde_is.utils.tabular_methods import compute_value_function
 from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_td3_dir_path, load_data, save_data, save_model, load_model
@@ -441,3 +441,14 @@ def get_value_functions(env, data, episodes):
         value_functions[i] = compute_value_function(qvalue)
     return value_functions
 
+def report_td3_parameters(data):
+    msg = 'exploration noise: {:.3f}, target noise: {:.3f}, learning starts: {:d}, ' \
+          'replay size: {:0.0e}, updating freq: {:d}, n steps lim: {:d}, '.format(
+        data['exploration_noise_init'],
+        data['target_noise'],
+        data['learning_starts'],
+        data['replay_size'],
+        data['update_freq'],
+        data['n_steps_lim'],
+    )
+    print(msg)

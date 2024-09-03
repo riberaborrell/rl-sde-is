@@ -74,7 +74,7 @@ def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
 
 
 def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_batch_size,
-                          memory_size, estimate_mfht):
+                          memory_size, estimate_z):
 
     # initialize memory
     memory = ReplayMemoryReturn(size=memory_size, state_dim=env.d, action_dim=env.d,
@@ -120,7 +120,7 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_
     # sample batch of experiences from memory
     batch = memory.sample_batch(mini_batch_size)
     _, log_probs = policy.forward(batch['states'], batch['actions'])
-    mfht = env.lengths.mean() if estimate_mfht else 1
+    mean_length = env.lengths.mean() if estimate_z else 1
 
     # calculate loss
     returns = batch['n-returns'] if return_type == 'n-return' else batch['initial-returns']
@@ -134,13 +134,13 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_
     loss.backward()
 
     # scale learning rate
-    optimizer.param_groups[0]['lr'] *= mfht
+    optimizer.param_groups[0]['lr'] *= mean_length
 
     #update parameters
     optimizer.step()
 
     # re-scale learning rate back
-    optimizer.param_groups[0]['lr'] /= mfht
+    optimizer.param_groups[0]['lr'] /= mean_length
 
     # reset memory
     memory.reset()
@@ -149,7 +149,7 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_
 
 def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
                          n_layers, d_hidden_layer, theta_init, policy_noise, batch_size, lr,
-                         n_grad_iterations, learn_value, estimate_mfht=None, mini_batch_size=None,
+                         n_grad_iterations, learn_value, estimate_z=None, mini_batch_size=None,
                          memory_size=int(1e6), seed=None,
                          backup_freq=None, live_plot_freq=None, log_freq=100,
                          policy_opt=None, value_function_opt=None, load=False):
@@ -165,7 +165,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         policy_type=policy_type,
         policy_noise=policy_noise,
         return_type=return_type,
-        estimate_mfht=estimate_mfht,
+        estimate_z=estimate_z,
         batch_size=batch_size,
         mini_batch_size=mini_batch_size,
         lr=lr,
@@ -263,7 +263,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
             loss, loss_var = sample_loss_random_time(env, policy, optimizer, batch_size, return_type)
         else: #expectation_type == 'on-policy':
             loss, loss_var = sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
-                                         mini_batch_size, memory_size, estimate_mfht)
+                                         mini_batch_size, memory_size, estimate_z)
 
         # end timer
         ct_final = time.time()

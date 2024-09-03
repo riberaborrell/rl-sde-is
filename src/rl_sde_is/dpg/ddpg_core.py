@@ -9,7 +9,7 @@ import torch.optim as optim
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, QValueFunction
-from rl_sde_is.dpg.replay_memories import ReplayMemory
+from rl_sde_is.dpg.replay_memories import ReplayMemoryModelFreeDPG as ReplayMemory
 from rl_sde_is.utils.tabular_methods import compute_value_function
 from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_ddpg_dir_path, load_data, save_data, save_model, load_model

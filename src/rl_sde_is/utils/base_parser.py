@@ -117,9 +117,9 @@ def get_base_parser():
         help='Set mini batch size for on-policy expectations. Default: None',
     )
     parser.add_argument(
-        '--estimate-mfht',
+        '--estimate-z',
         action='store_true',
-        help='Estimate the mfht in the dpg.',
+        help='Estimate the z normalization factor for the spg or dpg gradients.',
     )
     parser.add_argument(
         '--constant-lr',

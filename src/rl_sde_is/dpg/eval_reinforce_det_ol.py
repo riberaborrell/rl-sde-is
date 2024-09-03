@@ -46,7 +46,7 @@ def main():
         learn_value=args.learn_value,
         mini_batch_size=args.mini_batch_size,
         memory_size=args.replay_size,
-        estimate_mfht=args.estimate_mfht,
+        estimate_z=args.estimate_z,
         lr_value=args.lr_value,
         load=True,
     )

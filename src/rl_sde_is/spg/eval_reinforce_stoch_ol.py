@@ -11,29 +11,6 @@ from rl_sde_is.spg.spg_core import *
 
 def main():
     parser = get_base_parser()
-    parser.add_argument(
-        '--algorithm-type',
-        choices=['initial-return', 'n-return'],
-        default='initial-return',
-        help='Set reinforce stoch algorithm type. Default: initial-return',
-    )
-    parser.add_argument(
-        '--expectation-type',
-        choices=['random-time', 'on-policy'],
-        default='random-time',
-        help='Set type of expectation. Default: random-time',
-    )
-    parser.add_argument(
-        '--mini-batch-size',
-        type=int,
-        default=None,
-        help='Set mini batch size for on-policy expectations. Default: None',
-    )
-    parser.add_argument(
-        '--estimate-mfht',
-        action='store_true',
-        help='Estimate the mfht in the dpg.',
-    )
     args = parser.parse_args()
 
     # create gym environment
@@ -58,15 +35,15 @@ def main():
     # load reinforce with gaussian stochastic policy
     data = reinforce_stochastic(
         env,
-        algorithm_type=args.algorithm_type,
         expectation_type=args.expectation_type,
+        return_type=args.return_type,
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         theta_init=args.theta_init,
         policy_type=args.gaussian_policy_type,
         policy_noise=args.policy_noise,
-        estimate_mfht=args.estimate_mfht,
+        estimate_z=args.estimate_z,
         batch_size=args.batch_size,
         mini_batch_size=args.mini_batch_size,
         lr=args.lr,
@@ -82,8 +59,7 @@ def main():
     for i in range(is_stats.n_epochs):
 
         # load policy
-        j = i * is_stats.eval_freq
-        load_backup_model(data, j)
+        load_backup_model(data, i * is_stats.eval_freq)
 
         # evaluate policy
         if args.policy_type == 'stoch':

@@ -42,7 +42,7 @@ def main():
         theta_init=args.theta_init,
         policy_type=args.gaussian_policy_type,
         policy_noise=args.policy_noise,
-        estimate_mfht=args.estimate_mfht,
+        estimate_z=args.estimate_z,
         batch_size=args.batch_size,
         mini_batch_size=args.mini_batch_size,
         memory_size=args.replay_size,

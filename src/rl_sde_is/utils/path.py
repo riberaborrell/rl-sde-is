@@ -142,9 +142,9 @@ def get_lr_and_batch_size_str(**kwargs):
                else ''
     return string
 
-def get_mfht_estimation_str(**kwargs):
+def get_z_estimation_str(**kwargs):
     if 'on-policy' in kwargs['agent']:
-        return 'mfht-estimated_' if kwargs['estimate_mfht'] else 'mfht-neglected_'
+        return 'mfht-estimated_' if kwargs['estimate_z'] else 'mfht-neglected_'
     else:
         return ''
 
@@ -339,7 +339,7 @@ def get_reinforce_stoch_dir_path(env, **kwargs):
               + 'policy-{}_'.format(kwargs['policy_type']) \
               + 'policy-noise{:.2f}_'.format(kwargs['policy_noise']) \
               + '{}_'.format(kwargs['return_type']) \
-              + get_mfht_estimation_str(**kwargs) \
+              + get_z_estimation_str(**kwargs) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + 'learn-value{}_'.format(kwargs['learn_value']) \
@@ -356,7 +356,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + '{}_'.format(kwargs['return_type']) \
-              + get_mfht_estimation_str(**kwargs) \
+              + get_z_estimation_str(**kwargs) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + 'learn-value{}_'.format(kwargs['learn_value']) \
@@ -371,10 +371,12 @@ def get_model_based_dpg_dir_path(env, **kwargs):
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
+              + '{}_'.format(kwargs['return_type']) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
+              + 'learn-value{}_'.format(kwargs['learn_value']) \
               + get_seed_str(**kwargs)
 
     return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
@@ -401,7 +403,7 @@ def get_dpg_optimal_dir_path(env, **kwargs):
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
-              + get_mfht_estimation_str(**kwargs) \
+              + get_z_estimation_str(**kwargs) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
