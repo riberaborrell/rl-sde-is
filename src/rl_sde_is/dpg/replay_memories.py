@@ -192,9 +192,9 @@ class ReplayMemoryModelBasedDPG(ReplayMemory):
             self.lengths[traj_slice] = traj_length
             self.returns[traj_slice] = returns
         else:
-            self.returns[traj_slice1] = returns[traj_slice1]
-            self.returns[traj_slice2] = returns[traj_slice2]
-            self.lengths[traj_slice1], self.lengths[traj_slice2] = length
+            self.returns[traj_slice1] = returns[:self.size - self.traj_start_idx]
+            self.returns[traj_slice2] = returns[self.size - self.traj_start_idx:]
+            self.lengths[traj_slice1], self.lengths[traj_slice2] = traj_length, traj_length
 
         self.traj_start_idx = self.ptr
 

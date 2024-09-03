@@ -63,7 +63,7 @@ def model_based_dpg(env, return_type, gamma, n_layers, d_hidden_layer, theta_ini
     # get dir path
     dir_path = get_model_based_dpg_dir_path(
         env,
-        agent='reinforce-det-off-policy',
+        agent='model-based-dpg',
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
@@ -118,6 +118,7 @@ def model_based_dpg(env, return_type, gamma, n_layers, d_hidden_layer, theta_ini
         'n_episodes': n_episodes,
         'n_steps_lim': n_steps_lim,
         'seed': seed,
+        'learn_value': learn_value,
         'replay_size': replay_size,
         'learning_starts': learning_starts,
         'model': model,
@@ -127,7 +128,7 @@ def model_based_dpg(env, return_type, gamma, n_layers, d_hidden_layer, theta_ini
     save_data(data, dir_path)
 
     # save models initial parameters
-    save_model(model, dir_path, 'model-ep{}'.format(0))
+    save_model(model, dir_path, 'model_n-ep{}'.format(0))
 
     # preallocate arrays
     returns = np.full(n_episodes, np.nan, dtype=np.float32)
