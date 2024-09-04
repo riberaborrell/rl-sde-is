@@ -69,6 +69,7 @@ def model_based_dpg(env, return_type, gamma, n_layers, d_hidden_layer, theta_ini
         d_hidden_layer=d_hidden_layer,
         theta_init=theta_init,
         return_type=return_type,
+        estimate_z=estimate_z,
         batch_size=batch_size,
         lr=lr,
         n_episodes=n_episodes,

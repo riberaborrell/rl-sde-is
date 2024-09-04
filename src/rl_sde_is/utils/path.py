@@ -372,6 +372,7 @@ def get_model_based_dpg_dir_path(env, **kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + '{}_'.format(kwargs['return_type']) \
+              + 'z-estimated_' if kwargs['estimate_z'] else 'z-neglected_' \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
