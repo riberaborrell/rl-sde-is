@@ -30,8 +30,8 @@ def main():
 
     # create object to store the is statistics of the learning
     assert args.policy_type in ['stoch', 'stoch-mean'], 'Policy type not recognized'
-    is_stats = ISStatistics(args.eval_freq, args.eval_batch_size, policy_type=args.policy_type,
-                            n_episodes=args.n_episodes, track_l2_error=args.track_l2_error)
+    is_stats = ISStatistics(args.eval_freq, args.eval_batch_size, args.n_episodes, iter_str='ep',
+                            policy_type=args.policy_type, track_l2_error=args.track_l2_error)
 
     # evaluate policy by fixing the initial position
     if args.state_init_dist == 'uniform':

@@ -23,11 +23,8 @@ def main():
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size)
 
     # create object to store the is statistics of the evaluation
-    is_stats = ISStatistics(
-        eval_freq=args.eval_freq,
-        eval_batch_size=args.eval_batch_size,
-        n_grad_iterations=args.n_grad_iterations,
-    )
+    is_stats = ISStatistics(args.eval_freq, args.eval_batch_size,
+                            args.n_grad_iterations, iter_str='grad. it.:')
 
     # load reinforce algorithm with a deterministic policy
     data = reinforce_deterministic(
@@ -54,7 +51,11 @@ def main():
     for i in range(is_stats.n_epochs):
 
         # load policy
-        load_backup_model(data, i * is_stats.eval_freq)
+        succ = load_backup_model(data, i * is_stats.eval_freq)
+
+        # break if the model was not loaded
+        if not succ:
+            break
 
         # evaluate policy
         evaluate_policy_torch_vect(env, data['model'], args.eval_batch_size)

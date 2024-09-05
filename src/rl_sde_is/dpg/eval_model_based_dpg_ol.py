@@ -23,8 +23,8 @@ def main():
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
 
     # create object to store the is statistics of the learning
-    is_stats = ISStatistics(args.eval_freq, args.eval_batch_size,
-                            n_episodes=args.n_episodes, track_l2_error=args.track_l2_error)
+    is_stats = ISStatistics(args.eval_freq, args.eval_batch_size, args.n_episodes,
+                            iter_str='ep.:', track_l2_error=args.track_l2_error)
 
     # load model based dpg
     data = model_based_dpg(
@@ -54,7 +54,11 @@ def main():
     for i in range(is_stats.n_epochs):
 
         # load policy
-        load_backup_models(data, i * is_stats.eval_freq)
+        succ = load_backup_models(data, i * is_stats.eval_freq)
+
+        # break if the model was not loaded
+        if not succ:
+            break
 
         # evaluate policy
         evaluate_policy_torch_vect(env, data['model'], args.eval_batch_size)

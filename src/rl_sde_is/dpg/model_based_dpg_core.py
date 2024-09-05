@@ -279,8 +279,10 @@ def load_backup_models(data, ep=0):
         load_model(data['model'], data['dir_path'], file_name='model_n-ep{}'.format(ep))
         if data['learn_value']:
             load_model(data['value'], data['dir_path'], file_name='value_n-ep{}'.format(ep))
+        return True
     except FileNotFoundError as e:
-        print('The episode {:d} has no backup '.format(ep))
+        print('There is no backup for episode {:d}'.format(ep))
+        return False
 
 def get_policies(env, data, episodes):
     n_episodes = len(episodes)

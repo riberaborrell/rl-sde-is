@@ -7,7 +7,7 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.spg.spg_core import *
+from rl_sde_is.spg.reinforce_stochastic_core import reinforce_stochastic, load_backup_model
 
 def main():
     parser = get_base_parser()
@@ -25,11 +25,8 @@ def main():
 
     # create object to store the is statistics of the evaluation
     is_stats = ISStatistics(
-        eval_freq=args.eval_freq,
-        eval_batch_size=args.eval_batch_size,
-        policy_type=args.policy_type,
-        n_grad_iterations=args.n_grad_iterations,
-        track_l2_error=args.track_l2_error,
+        args.eval_freq, args.eval_batch_size, args.n_grad_iterations,
+        policy_type=args.policy_type, iter_str='grad. it.:', track_l2_error=args.track_l2_error,
     )
 
     # load reinforce with gaussian stochastic policy
@@ -47,8 +44,9 @@ def main():
         batch_size=args.batch_size,
         mini_batch_size=args.mini_batch_size,
         lr=args.lr,
-        seed=args.seed,
         n_grad_iterations=args.n_grad_iterations,
+        learn_value=args.learn_value,
+        seed=args.seed,
         load=True,
     )
 
@@ -59,7 +57,11 @@ def main():
     for i in range(is_stats.n_epochs):
 
         # load policy
-        load_backup_model(data, i * is_stats.eval_freq)
+        succ = load_backup_model(data, i * is_stats.eval_freq)
+
+        # break if the model was not loaded
+        if not succ:
+            break
 
         # evaluate policy
         if args.policy_type == 'stoch':

@@ -129,7 +129,6 @@ def collect_vracer_results(env):
     data = {}
     data['time_steps'] = env.lengths
     data['returns'] = env.returns
-    #data['log_psi_is'] = env.log_psi_is
     data['is_functional'] = compute_is_functional(env.girs_stoch_int, env.running_rewards,
                                                   env.terminal_rewards)
     return data

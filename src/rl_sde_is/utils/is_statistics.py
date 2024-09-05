@@ -7,8 +7,8 @@ from rl_sde_is.utils.path import load_data, save_data
 
 class ISStatistics(object):
 
-    def __init__(self, eval_freq, eval_batch_size, policy_type='det', track_loss=False,
-                 track_is=True, track_l2_error=False, track_ct=False, **kwargs):
+    def __init__(self, eval_freq, eval_batch_size, n_iterations, policy_type='det', iter_str='it.:',
+                 track_loss=False, track_is=True, track_l2_error=False, track_ct=False):
 
         assert policy_type in ['det', 'stoch', 'stoch-mean'], 'Policy type not recognized'
         self.policy_type = policy_type
@@ -17,19 +17,10 @@ class ISStatistics(object):
         self.eval_freq = eval_freq
         self.eval_batch_size = eval_batch_size
 
-        # number of episodes, iterations or total steps
-        if 'n_episodes' in kwargs.keys():
-            self.n_episodes = kwargs['n_episodes']
-            self.n_epochs = self.n_episodes // eval_freq + 1
-            self.iter_str = 'ep.:'
-        elif 'n_grad_iterations' in kwargs.keys():
-            self.n_grad_iterations = kwargs['n_grad_iterations']
-            self.n_epochs = self.n_grad_iterations // eval_freq + 1
-            self.iter_str = 'grad. it.:'
-        elif 'n_total_steps' in kwargs.keys():
-            self.n_total_steps = kwargs['n_total_steps']
-            self.n_epochs = self.n_total_steps // eval_freq + 1
-            self.iter_str = 'n:'
+        # number of iterations (episodes, grad. iterations or total steps)
+        self.n_iterations = n_iterations
+        self.n_epochs = self.n_iterations // eval_freq + 1
+        self.iter_str = iter_str
 
         # flags
         self.track_loss = track_loss
@@ -122,13 +113,7 @@ class ISStatistics(object):
 
         assert self.eval_freq == data['eval_freq'], 'eval freq mismatch'
         assert self.eval_batch_size == data['eval_batch_size'], 'eval batch size mismatch'
-
-        if hasattr(self, 'n_episodes'):
-            assert self.n_episodes == data['n_episodes'], 'n_episodes mismatch'
-        elif hasattr(self, 'n_iterations'):
-            assert self.n_iterations == data['n_iterations'], 'n_iterations mismatch'
-        elif hasattr(self, 'n_total_steps'):
-            assert self.n_total_steps == data['n_total_steps'], 'n_total_steps mismatch'
+        assert self.iterations == data['iterations'], 'iterations mismatch'
 
         # recover attributes
         for key in data:

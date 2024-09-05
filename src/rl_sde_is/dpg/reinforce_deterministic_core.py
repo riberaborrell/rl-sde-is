@@ -251,8 +251,9 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
     is_stats = ISStatistics(
         eval_freq=1,
         eval_batch_size=batch_size,
+        n_iterations=n_grad_iterations,
+        iter_str='grad. it.:',
         policy_type='det',
-        n_grad_iterations=n_grad_iterations,
         track_loss=True,
         track_ct=True,
     )
@@ -353,8 +354,10 @@ def load_backup_model(data, i=0):
         load_model(data['model'], data['dir_path'], file_name='model_n-it{}'.format(i))
         if data['learn_value']:
             load_model(data['value'], data['dir_path'], file_name='value_n-it{}'.format(i))
+        return True
     except FileNotFoundError as e:
-        print('there is no backup for iteration {:d}'.format(i))
+        print('There is no backup for grad. iteration {:d}'.format(i))
+        return False
 
 def get_policies(env, data, iterations):
     n_iterations = len(iterations)

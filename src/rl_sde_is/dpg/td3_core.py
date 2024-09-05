@@ -414,8 +414,10 @@ def load_backup_models(data, ep=0):
         load_model(actor, dir_path, file_name='actor_n-ep{}'.format(ep))
         load_model(critic1, dir_path, file_name='critic1_n-ep{}'.format(ep))
         load_model(critic2, dir_path, file_name='critic2_n-ep{}'.format(ep))
+        return True
     except FileNotFoundError as e:
-        print('The episode {:d} has no backup '.format(ep))
+        print('There is no backup for episode {:d}'.format(ep))
+        return False
 
 def get_policy(env, data, ep=None):
     actor = data['actor']

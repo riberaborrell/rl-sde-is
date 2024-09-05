@@ -9,7 +9,7 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
 
 from rl_sde_is.spg.spg_utils import GaussianPolicyConstantCov, GaussianPolicyLearntCov
-from rl_sde_is.spg.replay_memories import ReplayMemoryReturn
+from rl_sde_is.spg.replay_memories import ReplayMemoryReturn as ReplayMemory
 from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, \
                                                 train_stochastic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
@@ -77,7 +77,7 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_
                           memory_size, estimate_z):
 
     # initialize memory
-    memory = ReplayMemoryReturn(size=memory_size, state_dim=env.d, action_dim=env.d,
+    memory = ReplayMemory(size=memory_size, state_dim=env.d, action_dim=env.d,
                                 return_type=return_type)
 
     # initialization
@@ -237,8 +237,9 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
     is_stats = ISStatistics(
         eval_freq=1,
         eval_batch_size=batch_size,
+        n_iterations=n_grad_iterations,
+        iter_str='grad. it.:',
         policy_type='stoch',
-        n_grad_iterations=n_grad_iterations,
         track_loss=True,
         track_ct=True,
     )
@@ -272,7 +273,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         env.statistics_to_numpy()
         is_stats.save_epoch(i, env, loss=loss.detach().numpy(),
                             loss_var=loss_var, ct=ct_final - ct_initial)
-        is_stats.log_epoch(i)
+        is_stats.log_epoch(i) if i % log_freq == 0 else None
 
         # backup models and results
         if backup_freq and (i + 1) % backup_freq== 0:
@@ -293,8 +294,10 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
 def load_backup_model(data, i=0):
     try:
         load_model(data['policy'], data['dir_path'], file_name='policy_n-it{}'.format(i))
+        return True
     except FileNotFoundError as e:
-        print('The iteration {:d} has no backup '.format(i))
+        print('There is no backup for grad. iteration {:d}'.format(i))
+        return False
 
 def get_means_and_stds(env, data, iterations):
 
