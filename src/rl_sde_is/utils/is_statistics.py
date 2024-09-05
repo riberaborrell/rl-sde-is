@@ -113,7 +113,7 @@ class ISStatistics(object):
 
         assert self.eval_freq == data['eval_freq'], 'eval freq mismatch'
         assert self.eval_batch_size == data['eval_batch_size'], 'eval batch size mismatch'
-        assert self.iterations == data['iterations'], 'iterations mismatch'
+        assert self.n_iterations == data['n_iterations'], 'iterations mismatch'
 
         # recover attributes
         for key in data:
