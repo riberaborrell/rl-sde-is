@@ -20,7 +20,7 @@ from rl_sde_is.utils.path import get_reinforce_det_dir_path, load_data, save_dat
                                  save_model, load_model
 from rl_sde_is.utils.plots import *
 
-def sample_loss(env, model, optimizer, batch_size, return_type):
+def sample_trajectories(env, model, batch_size, return_type):
 
     # evaluate policy. Trajectories are stored and statistics are computed
     evaluate_policy_torch_vect(env, model, batch_size)
@@ -41,9 +41,17 @@ def sample_loss(env, model, optimizer, batch_size, return_type):
         else: # retrun_type == 'n-return'
             returns.append(cumsum(env.trajs_rewards[i])[1:])
 
-    states = torch.FloatTensor(np.vstack(states))
-    dbts = torch.FloatTensor(np.vstack(dbts))
-    returns = torch.FloatTensor(np.hstack(returns))
+    return np.vstack(states), np.vstack(dbts), np.hstack(returns)
+
+def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
+
+    # sample trajectories
+    states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
+
+    # convert to torch tensors
+    states = torch.FloatTensor(states)
+    dbts = torch.FloatTensor(dbts)
+    returns = torch.FloatTensor(returns)
 
     # compute actions following the policy
     actions = model.forward(states)
@@ -67,32 +75,11 @@ def sample_loss(env, model, optimizer, batch_size, return_type):
 
 def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_batch_size,
                           memory_size, estimate_z):
-
-    # evaluate policy. Trajectories are stored and statistics are computed
-    evaluate_policy_torch_vect(env, model, batch_size)
+    # sample trajectories
+    states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
 
     # initialize memory
     memory = Memory(size=memory_size, state_dim=env.d)
-
-    # get states, dbts and returns
-    states, dbts, returns = [], [], []
-    for i in range(batch_size):
-
-        # states and dbts
-        states.append(env.trajs_states[i][:-1])
-        dbts.append(env.trajs_dbts[i][:-1])
-
-        # compute initial returns
-        if return_type == 'initial-return':
-            returns.append(np.full(env.lengths[i]-1, env.returns[i]))
-
-        # compute n-step returns
-        else: # return_type == 'n-return'
-            returns.append(cumsum(env.trajs_rewards[i])[1:])
-
-    states = torch.FloatTensor(np.vstack(states))
-    dbts = torch.FloatTensor(np.vstack(dbts))
-    returns = torch.FloatTensor(np.hstack(returns))
 
     # store experiences in memory
     memory.store_vectorized(states, dbts, returns=returns)
@@ -276,7 +263,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
 
         # compute model based policy effective loss
         if expectation_type == 'random-time':
-            loss, loss_var = sample_loss(env, model, optimizer, batch_size, return_type)
+            loss, loss_var = sample_loss_random_time(env, model, optimizer, batch_size, return_type)
         else: # expectation_type == 'on-policy'
             loss, loss_var = sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
                                                    mini_batch_size, memory_size, estimate_z)

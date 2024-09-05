@@ -17,68 +17,7 @@ from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_stoch_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
 
-def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
-    ''' Sample and compute loss function corresponding to the policy gradient with
-        random time expectation. Also update the policy parameters.
-    '''
-
-    # initialization
-    state, _ = env.reset(batch_size=batch_size)
-
-    # terminal state flag
-    done = np.full((batch_size,), False)
-    while not done.all():
-
-        # sample action
-        state_torch = torch.FloatTensor(state)
-        with torch.no_grad():
-            action, _ = policy.sample_action(state_torch)
-
-        # env step
-        state, _, _, truncated, _ = env.step_vect(action)
-        done = np.logical_or(env.been_terminated, truncated)
-
-    # compute log probs
-    states = torch.FloatTensor(np.vstack(env.trajs_states))
-    actions = torch.FloatTensor(np.vstack(env.trajs_actions))
-    _, log_probs = policy.forward(states, actions)
-
-    # compute returns
-    returns = []
-    for i in range(batch_size):
-
-        # compute initial returns
-        if return_type == 'initial-return':
-            returns.append(np.full(env.lengths[i], env.returns[i]))
-
-        # compute n-step returns
-        else: # return_type == 'n-return'
-            returns.append(cumsum(env.trajs_rewards[i]))
-
-    returns = torch.FloatTensor(np.hstack(returns))
-
-    # calculate loss
-    phi = - log_probs * returns
-
-    # loss and loss variance
-    loss = phi.sum() / batch_size
-    with torch.no_grad():
-        loss_var = phi.var().numpy()
-
-    # reset gradients, compute gradients and update parameters
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    return loss, loss_var
-
-
-def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_batch_size,
-                          memory_size, estimate_z):
-
-    # initialize memory
-    memory = ReplayMemory(size=memory_size, state_dim=env.d, action_dim=env.d,
-                                return_type=return_type)
+def sample_trajectories(env, policy, batch_size, return_type):
 
     # initialization
     state, _ = env.reset(batch_size=batch_size)
@@ -107,11 +46,51 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_
         else: # return_type == 'n-return'
             returns.append(cumsum(env.trajs_rewards[i]))
 
-    returns = torch.FloatTensor(np.hstack(returns))
+    return np.vstack(env.trajs_states), np.vstack(env.trajs_actions), np.hstack(returns)
+
+def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
+    ''' Sample and compute loss function corresponding to the policy gradient with
+        random time expectation. Also update the policy parameters.
+    '''
+
+    # sample trajectories
+    states, actions, returns = sample_trajectories(env, policy, batch_size, return_type)
+
+    # convert to torch tensors
+    states = torch.FloatTensor(states)
+    actions = torch.FloatTensor(actions)
+    returns = torch.FloatTensor(returns)
+
+    # compute log probs
+    _, log_probs = policy.forward(states, actions)
+
+    # calculate loss
+    phi = - log_probs * returns
+
+    # loss and loss variance
+    loss = phi.sum() / batch_size
+    with torch.no_grad():
+        loss_var = phi.var().numpy()
+
+    # reset gradients, compute gradients and update parameters
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    return loss, loss_var
+
+
+def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_batch_size,
+                          memory_size, estimate_z):
+
+    # sample trajectories
+    states, actions, returns = sample_trajectories(env, policy, batch_size, return_type)
+
+    # initialize memory
+    memory = ReplayMemory(size=memory_size, state_dim=env.d, action_dim=env.d,
+                          return_type=return_type)
 
     # store experiences in memory
-    states = np.vstack(env.trajs_states)
-    actions = np.vstack(env.trajs_actions)
     if return_type == 'initial-return':
         memory.store_vectorized(states, actions, initial_returns=returns)
     else:
