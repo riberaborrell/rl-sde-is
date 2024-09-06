@@ -18,7 +18,7 @@ def reinforce(env, n_layers=2, d_hidden_layer=32, n_episodes=1000, batch_size=10
     # get dir path
     dir_path = get_reinforce_discrete_dir_path(
         env,
-        agent='reinforce-discrete',
+        agent='reinforce-stoch-discrete',
         h_action=h_action,
         batch_size=batch_size,
         lr=lr,
