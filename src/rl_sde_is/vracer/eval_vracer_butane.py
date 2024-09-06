@@ -21,6 +21,7 @@ def main():
         gamma=10.0,
         T=args.T,
         state_init_dist=args.state_init_dist,
+        n_steps_lim=args.n_steps_lim,
     )
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size)
 

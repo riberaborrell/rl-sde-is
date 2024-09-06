@@ -166,6 +166,12 @@ def get_seed_str(**kwargs):
         string = 'seed{:1d}'.format(kwargs['seed'])
     return string
 
+def get_replay_memory_str(**kwargs):
+    string = ''
+    string += 'replay-size{:.1e}_'.format(kwargs['replay_size']) if 'replay_size' in kwargs.keys() else ''
+    string += 'learning-starts{:d}_'.format(kwargs['learning_starts']) if 'learning_starts' in kwargs.keys() else ''
+    return string
+
 def get_agent_dir_path(env, **kwargs):
     '''
     '''
@@ -472,11 +478,12 @@ def get_vracer_dir_path(env, **kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_baseline_str(env, **kwargs) \
               + get_model_arch_str(**kwargs) \
-              + get_action_limit_str(**kwargs) \
+              + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise_init']) \
               + get_lr_and_batch_size_str(**kwargs) \
               + 'policy-freq{:d}_'.format(kwargs['policy_freq']) \
               + 'cut-off{:.3f}_'.format(kwargs['cutoff_scale']) \
+              + get_replay_memory_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 

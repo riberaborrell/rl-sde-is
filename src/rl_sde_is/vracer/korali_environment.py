@@ -7,7 +7,6 @@ from rl_sde_is.vracer.vracer_utils import collect_vracer_results
 
 def env(s, gym_env, args):
 
-
     # Initializing environment and random seed
     sampleId = s["Sample Id"]
     launchId = s["Launch Id"]
@@ -38,9 +37,7 @@ def env(s, gym_env, args):
     # Setting termination status
     s["Termination"] = "Terminal" if terminated else "Truncated"
 
-    # checkpoint results
+    # backup results
     if gym_env.episode_count % args.backup_freq == 0:
-
-        # save results
         data = collect_vracer_results(gym_env)
         save_data(data, args.dir_path)

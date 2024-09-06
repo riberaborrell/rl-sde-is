@@ -26,7 +26,6 @@ class OutputActivation(nn.Module):
             #x[:, self.idx] = self.std_output_activation((self.params_scaling*x)[:, self.idx])
         return x
 
-
 class VracerModel(nn.Module):
 
     def __init__(self, d_in, d_out, hidden_sizes, activation, policy_params_scaling):

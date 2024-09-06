@@ -22,6 +22,7 @@ def main():
         T=args.T,
         reward_type=args.reward_type,
         state_init_dist=args.state_init_dist,
+        n_steps_lim=args.n_steps_lim,
     )
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
 

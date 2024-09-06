@@ -46,8 +46,8 @@ def set_vracer_train_params(e, env, args):
     e["Solver"]["Mini Batch"]["Size"] = args.batch_size
 
     # set Experience Replay, REFER and policy settings
-    e["Solver"]["Experience Replay"]["Start Size"] = 4096 # (2**12)
-    e["Solver"]["Experience Replay"]["Maximum Size"] = 262144 # (2**18)
+    e["Solver"]["Experience Replay"]["Start Size"] = args.learning_starts
+    e["Solver"]["Experience Replay"]["Maximum Size"] = args.replay_size
     e["Solver"]["Experience Replay"]["Off Policy"]["Annealing Rate"] = 0.0
     e["Solver"]["Experience Replay"]["Off Policy"]["Cutoff Scale"] = args.cutoff_scale
     e["Solver"]["Experience Replay"]["Off Policy"]["REFER Beta"] = 0.3
@@ -96,8 +96,8 @@ def set_vracer_variables_toy(e, env, args):
         idx = env.d + i
         e["Variables"][idx]["Name"] = "Control u{:d}".format(i)
         e["Variables"][idx]["Type"] = "Action"
-        e["Variables"][idx]["Lower Bound"] = - args.action_limit
-        e["Variables"][idx]["Upper Bound"] = + args.action_limit
+        #e["Variables"][idx]["Lower Bound"] = - args.action_limit
+        #e["Variables"][idx]["Upper Bound"] = + args.action_limit
         e["Variables"][idx]["Initial Exploration Noise"] = args.expl_noise_init
 
 def set_vracer_variables_butane(e, env, args):
@@ -112,8 +112,8 @@ def set_vracer_variables_butane(e, env, args):
             idx = 12 + i*3+j
             e["Variables"][idx]["Name"] = "Control ({:d}-{:d})".format(i, j)
             e["Variables"][idx]["Type"] = "Action"
-            e["Variables"][idx]["Lower Bound"] = - args.action_limit
-            e["Variables"][idx]["Upper Bound"] = + args.action_limit
+            #e["Variables"][idx]["Lower Bound"] = - args.action_limit
+            #e["Variables"][idx]["Upper Bound"] = + args.action_limit
             e["Variables"][idx]["Initial Exploration Noise"] = args.expl_noise_init
 
 
@@ -133,6 +133,23 @@ def collect_vracer_results(env):
                                                   env.terminal_rewards)
     return data
 
+def save_vracer_alg_parameters(args, data):
+    data['gamma'] = args.gamma
+    data['n_layers'] = args.n_layers
+    data['d_hidden'] = args.d_hidden
+    data['n_steps_lim'] = args.n_steps_lim
+    data['expl_noise_init'] = args.expl_noise_init
+    data['baseline_scale_factor'] = args.baseline_scale_factor
+    data['policy_freq'] = args.policy_freq
+    data['cutoff_scale'] = args.cutoff_scale
+    data['batch_size'] = args.batch_size
+    data['lr'] = args.lr
+    data['replay_size'] = args.replay_size
+    data['learning_starts'] = args.learning_starts
+    data['n_episodes'] = args.n_episodes
+    data['seed'] = args.seed
+    data['dir_path'] = args.dir_path
+
 def vracer(env, args, load=False):
 
     # get dir path
@@ -141,13 +158,15 @@ def vracer(env, args, load=False):
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
-        action_limit=args.action_limit,
+        n_steps_lim=args.n_steps_lim,
         expl_noise_init=args.expl_noise_init,
         baseline_scale_factor=args.baseline_scale_factor,
         policy_freq=args.policy_freq,
         cutoff_scale=args.cutoff_scale,
         batch_size=args.batch_size,
         lr=args.lr,
+        replay_size=args.replay_size,
+        learning_starts=args.learning_starts,
         n_episodes=args.n_episodes,
         seed=args.seed,
 
@@ -184,15 +203,7 @@ def vracer(env, args, load=False):
 
     # save results
     data = collect_vracer_results(env)
+    save_vracer_alg_parameters(args, data)
     save_data(data, args.dir_path)
 
     return data
-
-"""
-def get_timestamp(korali_file: str):
-    with open(korali_file, "r") as f:
-        e = json.load(f)
-        timestamp = e["Timestamp"]
-        #TODO parse it to datetime object
-"""
-
