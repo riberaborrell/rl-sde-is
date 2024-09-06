@@ -144,7 +144,7 @@ def get_lr_and_batch_size_str(**kwargs):
 
 def get_z_estimation_str(**kwargs):
     if 'on-policy' in kwargs['agent']:
-        return 'mfht-estimated_' if kwargs['estimate_z'] else 'mfht-neglected_'
+        return 'z-estimated_' if kwargs['estimate_z'] else 'z-neglected_'
     else:
         return ''
 
