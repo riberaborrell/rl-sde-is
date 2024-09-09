@@ -8,7 +8,7 @@ import torch.optim as optim
 
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
-from rl_sde_is.dpg.replay_memories import ReplayMemory
+from rl_sde_is.dpg.replay_memories import ReplayMemoryModelFreeDPG as ReplayMemory
 from rl_sde_is.utils.models import mlp
 from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_naf_dir_path, load_data, save_data, save_model, load_model
@@ -52,11 +52,11 @@ def compute_q_value(value_function, policy, P, action):
 def update_parameters(model, target_model, optimizer, batch, gamma, polyak):
 
     # unpack tuples in batch
-    states = torch.tensor(batch['states'])
-    actions = torch.tensor(batch['actions'])
-    rewards = torch.tensor(batch['rewards'])
-    next_states = torch.tensor(batch['next_states'])
-    done = torch.tensor(batch['done'])
+    states = batch['states']
+    actions = batch['actions']
+    rewards = batch['rewards']
+    next_states = batch['next_states']
+    done = batch['done']
 
     # get batch size
     batch_size = states.shape[0]

@@ -73,10 +73,9 @@ def main():
     plot_y_per_grad_iteration(x, data['re_I_us'], title=r'Sampled relative error $\widehat{Re}$')
 
     # plot policy
-    if env.d <= 2:
-        policies = get_policies(env, data, iterations)
-        if args.learn_value:
-            value_functions = get_value_functions(env, data, iterations)
+    policies = get_policies(env, data, iterations)
+    if args.learn_value:
+        value_functions = get_value_functions(env, data, iterations)
 
     if env.d == 1:
         plot_det_policies_1d(env, policies, sol_hjb.u_opt)
