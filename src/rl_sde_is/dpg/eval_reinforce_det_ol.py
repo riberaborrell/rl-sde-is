@@ -7,7 +7,7 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.dpg.reinforce_deterministic_core import *
+from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic, load_backup_model
 
 def main():
     args = get_base_parser().parse_args()
@@ -15,6 +15,7 @@ def main():
     # create gym envs 
     env = gym.make(
         'sde-is-{}-{}-v0'.format(args.problem, args.setting),
+        d=args.d,
         dt=args.dt,
         alpha=args.alpha,
         beta=args.beta,
