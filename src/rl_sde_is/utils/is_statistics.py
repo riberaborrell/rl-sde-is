@@ -3,6 +3,7 @@ import numpy as np
 from gym_sde_is.utils.sde import compute_is_functional
 from gym_sde_is.utils.statistics import compute_array_statistics, compute_std_and_re
 
+from rl_sde_is.utils.numeric import compute_running_mean
 from rl_sde_is.utils.path import load_data, save_data
 
 class ISStatistics(object):
@@ -122,3 +123,41 @@ class ISStatistics(object):
         # compute missing attributes
         self.std_fhts, self.re_fhts = compute_std_and_re(self.mean_fhts, self.var_fhts)
         self.std_I_us, self.re_I_us = compute_std_and_re(self.mean_I_us, self.var_I_us)
+
+    def get_n_iterations_until_goal(self, attr_name, threshold, sign='smaller', run_window=10):
+        assert sign in ['smaller', 'bigger'], 'The inequality sign is not correct'
+        if not hasattr(self, attr_name):
+            print('The given attribute has not been tracked')
+            return np.nan
+        run_mean_y = compute_running_mean(getattr(self, attr_name), run_window)
+        indices = np.where(run_mean_y > threshold)[0] \
+                  if sign == 'bigger' else np.where(run_mean_y < threshold)[0]
+        idx = indices[0] * self.eval_freq if len(indices) > 0 else np.nan
+        return idx
+
+
+    def get_stats_multiple_datas(self, datas):
+
+        # get number of iterations
+        iterations = np.arange(self.n_epochs) * self.eval_freq
+
+        # preallocate arrays
+        array_shape = (len(datas), iterations.shape[0])
+        objectives = np.empty(array_shape)
+        mfhts = np.empty(array_shape)
+        max_lengths = np.empty(array_shape)
+        psi_is = np.empty(array_shape)
+        re_I_u = np.empty(array_shape)
+        l2_error = np.empty(array_shape)
+
+        # load evaluation
+        for i, data in enumerate(datas):
+            self.load_stats(data['dir_path'])
+            objectives[i] = self.mean_returns
+            mfhts[i] = self.mean_fhts
+            max_lengths[i] = self.max_lengths
+            psi_is[i] = self.mean_I_us
+            re_I_u[i] = self.re_I_us
+            l2_error[i] = self.policy_l2_errors if hasattr(self, 'policy_l2_errors') else np.nan
+
+        return iterations, objectives, mfhts, max_lengths, psi_is, re_I_u, l2_error
