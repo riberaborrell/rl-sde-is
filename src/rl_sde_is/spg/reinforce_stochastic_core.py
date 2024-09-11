@@ -9,7 +9,7 @@ from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistic
 from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
 
 from rl_sde_is.spg.spg_utils import GaussianPolicyConstantCov, GaussianPolicyLearntCov
-from rl_sde_is.spg.replay_memories import ReplayMemoryReturn as ReplayMemory
+from rl_sde_is.spg.replay_memories import ReplayMemoryReturn as Memory
 from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, \
                                                 train_stochastic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
@@ -80,15 +80,15 @@ def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
     return loss, loss_var
 
 
-def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_batch_size,
-                          memory_size, estimate_z):
+def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
+                          mini_batch_size, estimate_z):
 
     # sample trajectories
     states, actions, returns = sample_trajectories(env, policy, batch_size, return_type)
 
     # initialize memory
-    memory = ReplayMemory(size=memory_size, state_dim=env.d, action_dim=env.d,
-                          return_type=return_type)
+    memory = Memory(size=states.shape[0]+1, state_dim=env.d, action_dim=env.d,
+                     return_type=return_type)
 
     # store experiences in memory
     if return_type == 'initial-return':
@@ -121,9 +121,6 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type, mini_
     # re-scale learning rate back
     optimizer.param_groups[0]['lr'] /= mean_length
 
-    # reset memory
-    memory.reset()
-
     return loss, loss_var
 
 def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
@@ -132,6 +129,9 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
                          memory_size=int(1e6), seed=None,
                          backup_freq=None, live_plot_freq=None, log_freq=100,
                          policy_opt=None, value_function_opt=None, load=False):
+
+    if expectation_type == 'on-policy' and mini_batch_size is None:
+        raise ValueError('The mini_batch_size must be provided when using on-policy')
 
     # get dir path
     dir_path = get_reinforce_stoch_dir_path(
@@ -242,8 +242,8 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         if expectation_type == 'random-time':
             loss, loss_var = sample_loss_random_time(env, policy, optimizer, batch_size, return_type)
         else: #expectation_type == 'on-policy':
-            loss, loss_var = sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
-                                         mini_batch_size, memory_size, estimate_z)
+            loss, loss_var = sample_loss_on_policy(env, policy, optimizer, batch_size,
+                                                   return_type, mini_batch_size, estimate_z)
 
         # end timer
         ct_final = time.time()
@@ -287,6 +287,6 @@ def get_means_and_stds(env, data, iterations):
         load_backup_model(data, it)
         mean, std = evaluate_stoch_policy_model(env, data['policy'])
         means[i] = mean.reshape(env.n_states, env.d)
-        stds[i] = std#.reshape(env.n_states, env.d)
+        stds[i] = std.reshape(env.n_states, env.d)
     return means, stds
 

@@ -73,13 +73,13 @@ def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
 
     return loss, loss_var
 
-def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_batch_size,
-                          memory_size, estimate_z):
+def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
+                          mini_batch_size, estimate_z):
     # sample trajectories
     states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
 
     # initialize memory
-    memory = Memory(size=memory_size, state_dim=env.d)
+    memory = Memory(size=states.shape[0]+1, state_dim=env.d)
 
     # store experiences in memory
     memory.store_vectorized(states, dbts, returns=returns)
@@ -115,9 +115,6 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type, mini_b
 
     # re-scale learning rate back
     optimizer.param_groups[0]['lr'] /= mean_length
-
-    # reset memory
-    memory.reset()
 
     return loss, loss_var
 
@@ -161,6 +158,9 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
                             mini_batch_size=None, memory_size=int(1e6), lr_value=None,
                             backup_freq=None, live_plot_freq=None, log_freq=100,
                             policy_opt=None, value_function_opt=None, load=False):
+
+    if expectation_type == 'on-policy' and mini_batch_size is None:
+        raise ValueError('The mini_batch_size must be provided when using on-policy')
 
     # get dir path
     dir_path = get_reinforce_det_dir_path(
@@ -266,7 +266,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
             loss, loss_var = sample_loss_random_time(env, model, optimizer, batch_size, return_type)
         else: # expectation_type == 'on-policy'
             loss, loss_var = sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
-                                                   mini_batch_size, memory_size, estimate_z)
+                                                   mini_batch_size, estimate_z)
 
         if learn_value:
             value_loss = sample_value_loss(env, value, value_optimizer)

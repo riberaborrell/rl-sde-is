@@ -73,11 +73,11 @@ class ReplayMemoryModelFreeDPG(ReplayMemory):
         self.update_store_idx_and_size()
 
     def store_vectorized(self, states, actions, rewards, next_states, done):
-        n_transitions = states.shape[0]
+        n_experiences = states.shape[0]
         i = self.ptr
-        j = self.ptr + n_transitions
+        j = self.ptr + n_experiences
         if j > self.max_size:
-            raise ValueError('Memory is full')
+            raise ValueError('Replay Memory is too small!')
 
         self.states[i:j] = states
         self.actions[i:j] = actions
@@ -85,8 +85,8 @@ class ReplayMemoryModelFreeDPG(ReplayMemory):
         self.next_states[i:j] = next_states
         self.done[i:j] = done
 
-        self.ptr = (self.ptr + n_transitions) % self.max_size
-        self.size = min(self.size + n_transitions, self.max_size)
+        self.ptr = (self.ptr + n_experiences) % self.max_size
+        self.size = min(self.size + n_experiences, self.max_size)
 
         #if not self.is_full and self.size == self.max_size:
         #    self.is_full = True
@@ -151,7 +151,8 @@ class ReplayMemoryModelBasedDPG(ReplayMemory):
         n_experiences = states.shape[0]
         i = self.ptr
         j = self.ptr + n_experiences
-        assert j < self.max_size, 'The memory size is too low'
+        if j > self.max_size:
+            raise ValueError('Replay Memory is too small!')
 
         # update buffer
         self.states[i:j] = states
