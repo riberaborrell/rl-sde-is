@@ -123,6 +123,12 @@ def get_base_parser():
         help='Estimate the z normalization factor for the spg or dpg gradients.',
     )
     parser.add_argument(
+        '--optim-type',
+        choices=['sgd', 'adam'],
+        default='adam',
+        help='Set optimization routine. Default: adam',
+    )
+    parser.add_argument(
         '--constant-lr',
         action='store_true',
         help='the step size / learning rate parameter is constant.',

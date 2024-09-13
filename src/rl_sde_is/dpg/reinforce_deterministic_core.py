@@ -155,7 +155,7 @@ def sample_value_loss(env, value, optimizer):
 
 def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer, theta_init,
                             batch_size, lr, n_grad_iterations, seed, learn_value, estimate_z=None,
-                            mini_batch_size=None, memory_size=int(1e6), lr_value=None,
+                            mini_batch_size=None, memory_size=int(1e6), optim_type='adam', lr_value=None,
                             backup_freq=None, live_plot_freq=None, log_freq=100,
                             policy_opt=None, value_function_opt=None, load=False):
 
@@ -207,7 +207,13 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
             if learn_value else None
 
     # define optimizer/s
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    if optim_type == 'adam':
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+    elif optim_type == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr=lr)
+    else:
+        raise ValueError('The optimizer {optim} is not implemented')
+
     if learn_value:
         value_optimizer = optim.Adam(value.parameters(), lr=lr_value)
 

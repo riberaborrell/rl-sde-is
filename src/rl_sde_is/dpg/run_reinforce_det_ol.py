@@ -45,6 +45,7 @@ def main():
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
+        optim_type=args.optim_type,
         learn_value=args.learn_value,
         estimate_z=args.estimate_z,
         lr_value=args.lr_value,
