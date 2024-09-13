@@ -40,12 +40,15 @@ def main():
     for i in range(is_stats.n_epochs):
 
         # load policy
-        ep = i * is_stats.eval_freq
-        model = load_model(args.rel_dir_path + '/model{}.json'.format(str(ep).zfill(8)))
+        succ, model = load_model(rel_dir_path=args.rel_dir_path, ep=i * is_stats.eval_freq)
+
+        # break if the model was not loaded
+        if not succ:
+            break
 
         # evaluate policy
         if args.policy_type == 'stoch':
-            raise NotImplementedError
+            evaluate_gaussian_policy_vect(env, model, args.eval_batch_size)
         else:
             evaluate_policy_vect(env, model.mean, args.eval_batch_size)
 

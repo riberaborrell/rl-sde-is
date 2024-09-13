@@ -68,8 +68,11 @@ def get_policy_hyperparameters(file: str):
 
 
 def get_model_hyperparameters(file: str):
-    with open(file, "r") as f:
-        dd = json.load(f)
+    try:
+        with open(file, "r") as f:
+            dd = json.load(f)
+    except FileNotFoundError as e:
+        return False, None
 
     # get input and output dimensions
     d_in = dd["State Vector Size"]
@@ -94,7 +97,7 @@ def get_model_hyperparameters(file: str):
         else:
             raise NotImplementedError(f"not implemented layer type {layer_type}")
 
-    return d_in, d_out, hidden_sizes, activations, params
+    return True, (d_in, d_out, hidden_sizes, activations, params)
 
 def get_model_hyperparameters_from_korali(korali_file: str):
     with open(korali_file, "r") as f:
@@ -136,14 +139,19 @@ def get_model_hyperparameters_from_korali(korali_file: str):
 
     return d_in, d_out, hidden_sizes, activations, params
 
-def load_model(file: str):
+def load_model(rel_dir_path: str, ep: int):
 
     # load policy hyperparameters
+    file = rel_dir_path + '/model{}.json'.format(str(ep).zfill(8))
     vracer_file = path.dirname(file) + '/latest'
     policy_params_scaling = get_policy_hyperparameters(vracer_file)
     #model_params_scaling = [1.] + policy_params_scaling
 
-    d_in, d_out, hidden_sizes, activations, params = get_model_hyperparameters(file)
+    succ, hyperparams = get_model_hyperparameters(file)
+    if not succ:
+        print('There is no backup for episode {:d}'.format(ep))
+        return succ, None
+    d_in, d_out, hidden_sizes, activations, params = hyperparams
 
     # load model
     model = VracerModel(d_in, d_out, hidden_sizes, nn.Tanh(), policy_params_scaling)
@@ -162,7 +170,7 @@ def load_model(file: str):
 
     model.load_state_dict(state_dict)
 
-    return model
+    return succ, model
 
 def get_means(env, args, episodes):
     results_dir = get_vracer_rel_dir_path(env, args)
