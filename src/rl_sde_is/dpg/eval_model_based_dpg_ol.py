@@ -30,7 +30,6 @@ def main():
     # load model based dpg
     data = model_based_dpg(
         env,
-        return_type=args.return_type,
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
