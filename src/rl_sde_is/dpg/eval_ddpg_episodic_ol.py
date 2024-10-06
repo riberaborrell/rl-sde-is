@@ -30,16 +30,20 @@ def main():
     # load ddpg
     data = ddpg_episodic(
         env,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
-        n_steps_lim=args.n_steps_lim,
-        expl_noise=args.expl_noise_init,
-        polyak=args.polyak,
         batch_size=args.batch_size,
         lr_actor=args.lr_actor,
         lr_critic=args.lr_critic,
         n_episodes=args.n_episodes,
+        n_steps_lim=args.n_steps_lim,
         seed=args.seed,
+        replay_size=args.replay_size,
+        learning_starts=args.learning_starts,
+        expl_noise=args.expl_noise_init,
+        action_limit=args.action_limit,
+        polyak=args.polyak,
         load=True,
     )
 
