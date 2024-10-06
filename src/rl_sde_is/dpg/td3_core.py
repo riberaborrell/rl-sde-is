@@ -135,7 +135,8 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
         gamma=gamma,
         n_layers=n_layers,
         d_hidden_layer=d_hidden_layer,
-        n_steps_lim=n_steps_lim,
+        learning_starts=learning_starts,
+        replay_size=replay_size,
         action_limit=action_limit,
         expl_noise_init=expl_noise_init,
         policy_freq=policy_freq,
@@ -145,6 +146,7 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
         lr_actor=lr_actor,
         lr_critic=lr_critic,
         n_episodes=n_episodes,
+        n_steps_lim=n_steps_lim,
         seed=seed,
     )
 

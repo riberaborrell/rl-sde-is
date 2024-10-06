@@ -143,7 +143,7 @@ def get_lr_and_batch_size_str(**kwargs):
     return string
 
 def get_z_estimation_str(**kwargs):
-    if 'on-policy' in kwargs['agent']:
+    if 'on-policy' in kwargs['agent'] or kwargs['agent'] == 'model-based-dpg':
         return 'z-estimated_' if kwargs['estimate_z'] else 'z-neglected_'
     else:
         return ''
@@ -377,10 +377,10 @@ def get_model_based_dpg_dir_path(env, **kwargs):
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
-              + '{}_'.format(kwargs['return_type']) \
-              + 'z-estimated_' if kwargs['estimate_z'] else 'z-neglected_' \
+              + get_z_estimation_str(**kwargs) \
               + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + get_lr_and_batch_size_str(**kwargs) \
+              + get_replay_memory_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + 'learn-value{}_'.format(kwargs['learn_value']) \
               + get_seed_str(**kwargs)
@@ -428,6 +428,7 @@ def get_ddpg_dir_path(env, **kwargs):
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
+              + get_replay_memory_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
@@ -448,6 +449,7 @@ def get_td3_dir_path(env, **kwargs):
               + 'target-noise{:.1f}_'.format(kwargs['target_noise']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
               + get_lr_and_batch_size_str(**kwargs) \
+              + get_replay_memory_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
