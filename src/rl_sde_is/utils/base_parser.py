@@ -279,8 +279,8 @@ def get_base_parser():
     parser.add_argument(
         '--learning-starts',
         type=int,
-        default=4096, # 2^12
-        help='Time step to start learning. Default: 2^12',
+        default=1000,
+        help='Time step to start learning. Default: 1000',
     )
     parser.add_argument(
         '--eval-batch-size',
@@ -291,8 +291,8 @@ def get_base_parser():
     parser.add_argument(
         '--replay-size',
         type=int,
-        default=262144, # 2^18
-        help='Set number of data slices in the replay memory. Default: 2^18',
+        default=100000,
+        help='Set number of data slices in the replay memory. Default: 10^5',
     )
     parser.add_argument(
         '--h-state',

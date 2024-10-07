@@ -179,7 +179,7 @@ def get_means(env, args, episodes):
     for ep in episodes:
 
         # load model
-        model = load_model(results_dir + '/model{:08d}.json'.format(ep))
+        succ, model = load_model(results_dir, ep)
 
         # append actions following policy
         means.append(model.mean(env.state_space_h))
@@ -193,7 +193,7 @@ def get_value_functions(env, args, episodes):
     for ep in episodes:
 
         # load model
-        model = load_model(results_dir + '/model{:08d}.json'.format(ep))
+        succ, model = load_model(results_dir, ep)
 
         # append actions following policy
         value_functions.append(model.value_function(env.state_space_h))
@@ -206,7 +206,7 @@ def eval_model_state_space(env, args, episodes):
     for ep in episodes:
 
         # load model
-        model = load_model(results_dir + '/model{:08d}.json'.format(ep))
+        succ, model = load_model(results_dir, ep)
 
         # append actions following policy
         value_functions.append(model.value_function(env.state_space_h).squeeze())

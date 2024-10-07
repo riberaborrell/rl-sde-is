@@ -424,6 +424,7 @@ def get_ddpg_dir_path(env, **kwargs):
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
+              + 'n-steps-lim{:.1e}_'.format(kwargs['n_steps_lim']) \
               + get_action_limit_str(**kwargs) \
               + 'expl-noise{:.1f}_'.format(kwargs['expl_noise']) \
               + 'polyak{:.3f}_'.format(kwargs['polyak']) \
