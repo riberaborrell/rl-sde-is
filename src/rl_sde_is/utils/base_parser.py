@@ -59,6 +59,24 @@ def get_base_parser():
         help='Potential barrier parameter. Default: 1.',
     )
     parser.add_argument(
+        '--alpha-i',
+        type=float,
+        default=1.,
+        help='Set i-th component of the barrier height parameter of the given potential. Default: [1.]',
+    )
+    parser.add_argument(
+        '--alpha-j',
+        type=float,
+        default=1.,
+        help='Set i-th component of the barrier height parameter of the given potential. Default: [1.]',
+    )
+    parser.add_argument(
+        '--alpha-k',
+        type=float,
+        default=1.,
+        help='Set i-th component of the barrier height parameter of the given potential. Default: [1.]',
+    )
+    parser.add_argument(
         '--beta',
         type=float,
         default=1.,
