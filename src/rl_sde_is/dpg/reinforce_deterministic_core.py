@@ -175,6 +175,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         batch_size=batch_size,
         mini_batch_size=mini_batch_size,
         lr=lr,
+        optim_type=optim_type,
         n_grad_iterations=n_grad_iterations,
         learn_value=learn_value,
         seed=seed,
@@ -225,6 +226,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         'batch_size': batch_size,
         'lr': lr,
         'lr_value': lr_value,
+        'optim_type': optim_type,
         'n_grad_iterations': n_grad_iterations,
         'seed': seed,
         'learn_value': learn_value,
@@ -377,4 +379,3 @@ def get_n_iterations_until_goal(data, key, threshold, sign='smaller', run_window
     indices = np.where(run_mean_y > threshold)[0] if sign == 'bigger' else np.where(run_mean_y < threshold)[0]
     idx = indices[0] if len(indices) > 0 else np.nan
     return idx
-

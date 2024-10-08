@@ -48,6 +48,9 @@ def sample_trajectories(env, policy, batch_size, return_type):
 
     return np.vstack(env.trajs_states), np.vstack(env.trajs_actions), np.hstack(returns)
 
+#TODO: try if normalizing the returns helps to reduce the variance
+# returns = normalize_advs_trick(returns)
+
 def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
     ''' Sample and compute loss function corresponding to the policy gradient with
         random time expectation. Also update the policy parameters.
@@ -126,7 +129,7 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
 def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
                          n_layers, d_hidden_layer, theta_init, policy_noise, batch_size, lr,
                          n_grad_iterations, learn_value, estimate_z=None, mini_batch_size=None,
-                         memory_size=int(1e6), seed=None,
+                         memory_size=int(1e6), optim_type='adam', seed=None,
                          backup_freq=None, live_plot_freq=None, log_freq=100,
                          policy_opt=None, value_function_opt=None, load=False):
 
@@ -148,6 +151,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         batch_size=batch_size,
         mini_batch_size=mini_batch_size,
         lr=lr,
+        optim_type=optim_type,
         n_grad_iterations=n_grad_iterations,
         learn_value=learn_value,
         seed=seed,
@@ -173,7 +177,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
     else: #return_type == 'initial-return':
         env = SaveEpisodeTrajectoryVect(env, batch_size)
 
-    # initialize model and optimizer
+    # initialize policy model
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
 
     if policy_type == 'const-cov':
@@ -185,7 +189,14 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
             state_dim=env.d, action_dim=env.d, hidden_sizes=hidden_sizes,
             activation=nn.Tanh(), std_init=policy_noise,
         )
-    optimizer = optim.Adam(policy.parameters(), lr=lr)
+
+    # define optimizer
+    if optim_type == 'adam':
+        optimizer = optim.Adam(policy.parameters(), lr=lr)
+    elif optim_type == 'sgd':
+        optimizer = optim.SGD(policy.parameters(), lr=lr)
+    else:
+        raise ValueError('The optimizer {optim} is not implemented')
 
     # train params to fit hjb solution
     if theta_init == 'hjb':
@@ -201,6 +212,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         'batch_size' : batch_size,
         'mini_batch_size' : mini_batch_size,
         'lr' : lr,
+        'optim_type': optim_type,
         'n_grad_iterations': n_grad_iterations,
         'seed': seed,
         'backup_freq': backup_freq,

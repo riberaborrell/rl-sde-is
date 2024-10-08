@@ -347,6 +347,7 @@ def get_reinforce_stoch_dir_path(env, **kwargs):
               + '{}_'.format(kwargs['return_type']) \
               + get_z_estimation_str(**kwargs) \
               + get_lr_and_batch_size_str(**kwargs) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
               + get_iter_str(**kwargs) \
               + 'learn-value{}_'.format(kwargs['learn_value']) \
               + get_seed_str(**kwargs)
@@ -364,6 +365,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
               + '{}_'.format(kwargs['return_type']) \
               + get_z_estimation_str(**kwargs) \
               + get_lr_and_batch_size_str(**kwargs) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
               + get_iter_str(**kwargs) \
               + 'learn-value{}_'.format(kwargs['learn_value']) \
               + get_seed_str(**kwargs)
