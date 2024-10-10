@@ -130,10 +130,23 @@ def get_base_parser():
         help='Set type of expectation. Default: random-time',
     )
     parser.add_argument(
+        '--batch-size',
+        type=int,
+        default=1000,
+        help='Set number of trajectories in each batch. Default: 1000',
+    )
+    parser.add_argument(
         '--mini-batch-size',
         type=int,
         default=None,
         help='Set mini batch size for on-policy expectations. Default: None',
+    )
+    parser.add_argument(
+        '--mini-batch-size-type',
+        choices=['constant', 'adaptive'],
+        default='constant',
+        help='Set type of mini batch size. Constant or adaptive relative to the \
+              memory size. Default: constant',
     )
     parser.add_argument(
         '--estimate-z',
@@ -287,12 +300,6 @@ def get_base_parser():
         type=int,
         default=10,
         help='Set slice episodes step. Default: 10',
-    )
-    parser.add_argument(
-        '--batch-size',
-        type=int,
-        default=1000,
-        help='Set number of trajectories in each batch. Default: 1000',
     )
     parser.add_argument(
         '--learning-starts',

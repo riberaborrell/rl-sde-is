@@ -137,9 +137,12 @@ def get_lr_and_batch_size_str(**kwargs):
     string += 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) if 'lr_actor' in kwargs.keys() else ''
     string += 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) if 'lr_critic' in kwargs.keys() else ''
     string += 'K{:d}_'.format(int(kwargs['batch_size'])) if 'batch_size' in kwargs.keys() else ''
-    string += 'mini-K{:d}_'.format(int(kwargs['mini_batch_size'])) \
-               if 'mini_batch_size' in kwargs.keys() and kwargs['mini_batch_size'] is not None \
-               else ''
+
+    if 'mini_batch_size' in kwargs.keys() and kwargs['mini_batch_size'] is not None:
+        if kwargs['mini_batch_size_type'] == 'constant':
+            string += 'mini-K{:d}_'.format(int(kwargs['mini_batch_size']))
+        else: #kwargs['mini_batch_size_type'] == 'adaptive'
+            string += 'mini-K-adapt{:d}_'.format(int(kwargs['mini_batch_size']))
     return string
 
 def get_z_estimation_str(**kwargs):

@@ -41,6 +41,7 @@ def main():
         theta_init=args.theta_init,
         batch_size=args.batch_size,
         mini_batch_size=args.mini_batch_size,
+        mini_batch_size_type=args.mini_batch_size_type,
         memory_size=args.replay_size,
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,

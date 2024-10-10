@@ -74,7 +74,7 @@ def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
     return loss, loss_var
 
 def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
-                          mini_batch_size, estimate_z):
+                          mini_batch_size, mini_batch_size_type, estimate_z):
     # sample trajectories
     states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
 
@@ -85,6 +85,8 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
     memory.store_vectorized(states, dbts, returns=returns)
 
     # sample batch of experiences from memory
+    if mini_batch_size_type == 'adaptive':
+        mini_batch_size = round(memory.size / mini_batch_size)
     batch = memory.sample_batch(mini_batch_size)
 
     # compute actions following the policy
@@ -155,7 +157,7 @@ def sample_value_loss(env, value, optimizer):
 
 def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer, theta_init,
                             batch_size, lr, n_grad_iterations, seed, learn_value, estimate_z=None,
-                            mini_batch_size=None, memory_size=int(1e6), optim_type='adam', lr_value=None,
+                            mini_batch_size=None, mini_batch_size_type='constant', memory_size=int(1e6), optim_type='adam', lr_value=None,
                             backup_freq=None, live_plot_freq=None, log_freq=100,
                             policy_opt=None, value_function_opt=None, load=False):
 
@@ -174,6 +176,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         estimate_z=estimate_z,
         batch_size=batch_size,
         mini_batch_size=mini_batch_size,
+        mini_batch_size_type=mini_batch_size_type,
         lr=lr,
         optim_type=optim_type,
         n_grad_iterations=n_grad_iterations,
@@ -274,7 +277,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
             loss, loss_var = sample_loss_random_time(env, model, optimizer, batch_size, return_type)
         else: # expectation_type == 'on-policy'
             loss, loss_var = sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
-                                                   mini_batch_size, estimate_z)
+                                                   mini_batch_size, mini_batch_size_type, estimate_z)
 
         if learn_value:
             value_loss = sample_value_loss(env, value, value_optimizer)
