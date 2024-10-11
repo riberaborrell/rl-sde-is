@@ -37,6 +37,7 @@ def main():
         mini_batch_size_type=args.mini_batch_size_type,
         memory_size=args.replay_size,
         lr=args.lr,
+        optim_type=args.optim_type,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
         learn_value=args.learn_value,
