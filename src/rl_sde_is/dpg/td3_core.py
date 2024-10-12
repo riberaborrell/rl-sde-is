@@ -406,7 +406,6 @@ def update_figures(env, actor, critic, replay_memory, returns, time_steps, figs_
     # return and time steps
     update_return_and_time_steps_figures(env, returns, time_steps, lines_returns)
 
-
 def load_backup_models(data, ep=0):
     actor = data['actor']
     critic1 = data['critic1']
@@ -421,13 +420,6 @@ def load_backup_models(data, ep=0):
         print('There is no backup for episode {:d}'.format(ep))
         return False
 
-def get_policy(env, data, ep=None):
-    actor = data['actor']
-    if ep is not None:
-        load_backup_models(data, ep)
-        actor = data['actor']
-    return evaluate_det_policy_model(env, data['actor'])
-
 def get_policies(env, data, episodes):
     n_episodes = len(episodes)
     policies = np.empty((n_episodes, env.n_states, env.d), dtype=np.float32)
@@ -437,12 +429,16 @@ def get_policies(env, data, episodes):
     return policies
 
 def get_value_functions(env, data, episodes):
+    assert env.d <= 2, 'only implemented for 1- and 2-dimensional problems'
     n_episodes = len(episodes)
-    value_functions = np.empty((n_episodes, env.n_states), dtype=np.float32)
+    value_functions = np.empty((n_episodes,) + env.n_states_axis, dtype=np.float32)
     for i, ep in enumerate(episodes):
         load_backup_models(data, ep)
-        qvalue = evaluate_qvalue_function_model_1d(env, data['critic1'])
-        value_functions[i] = compute_value_function(qvalue)
+        if env.d == 1:
+            qvalue = evaluate_qvalue_function_model_1d(env, data['critic1'])
+            value_functions[i] = compute_value_function(qvalue)
+        elif env.d == 2:
+            _, value_functions[i], _, _ = compute_tables_critic_2d(env, data['critic1'])
     return value_functions
 
 def report_td3_parameters(data):

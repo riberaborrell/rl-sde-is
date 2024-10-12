@@ -159,9 +159,8 @@ def compute_tables_critic_1d(env, critic):
 def compute_tables_critic_2d(env, critic):
 
     env.discretize_state_action_space(env.h_state, env.h_action)
-
-    grid_states = torch.tensor(env.state_action_space_h[:, :2], dtype=torch.float32)
-    grid_actions = torch.tensor(env.state_action_space_h[:, 2:], dtype=torch.float32)
+    grid_states = torch.tensor(env.state_action_space_h_flat[:, :2], dtype=torch.float32)
+    grid_actions = torch.tensor(env.state_action_space_h_flat[:, 2:], dtype=torch.float32)
 
     # compute q table
     with torch.no_grad():
@@ -174,10 +173,12 @@ def compute_tables_critic_2d(env, critic):
     greedy_actions = env.action_space_h.reshape(env.n_actions, env.d)[actions_idx]
 
     # reshape
-    q_table = q_table.reshape(env.n_states_i1, env.n_states_i2, env.n_actions_i1, env.n_actions_i2)
-    v_table = v_table.reshape(env.n_states_i1, env.n_states_i2)
-    a_table = a_table.reshape(env.n_states_i1, env.n_states_i2, env.n_actions_i1, env.n_actions_i2)
-    greedy_actions = greedy_actions.reshape(env.n_states_i1, env.n_states_i2, env.d)
+    n_states_i1, n_states_i2 = env.state_space_h.shape[:2]
+    n_actions_i1, n_actions_i2 = env.action_space_h.shape[:2]
+    q_table = q_table.reshape(n_states_i1, n_states_i2, n_actions_i1, n_actions_i2)
+    v_table = v_table.reshape(n_states_i1, n_states_i2)
+    a_table = a_table.reshape(n_states_i1, n_states_i2, n_actions_i1, n_actions_i2)
+    greedy_actions = greedy_actions.reshape(n_states_i1, n_states_i2, env.d)
 
     return q_table, v_table, a_table, greedy_actions
 

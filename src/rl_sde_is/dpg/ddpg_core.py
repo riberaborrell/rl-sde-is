@@ -355,26 +355,6 @@ def update_figures(env, actor, critic, replay_memory, returns, time_steps, figs_
     # return and time steps
     update_return_and_time_steps_figures(env, returns, time_steps, lines_returns)
 
-def initialize_1d_figures(env, actor, critic, value_function_opt, policy_opt):
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic_1d(env, critic)
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic_1d(env, actor, critic)
-    lines = initialize_actor_critic_1d_figures(env, q_table, v_table_actor_critic, v_table_critic,
-                                               a_table, policy_actor, policy_critic,
-                                               value_function_opt, policy_opt)
-    return lines
-
-def update_1d_figures(env, actor, critic, lines):
-    q_table, v_table_critic, a_table, policy_critic = compute_tables_critic_1d(env, critic)
-    v_table_actor_critic, policy_actor = compute_tables_actor_critic_1d(env, actor, critic)
-    update_actor_critic_1d_figures(env, q_table, v_table_actor_critic, v_table_critic,
-                                   a_table, policy_actor, policy_critic, lines)
-
-def initialize_2d_figures(env, actor, policy_hjb):
-    states = torch.FloatTensor(env.state_space_h)
-    initial_policy = compute_det_policy_actions(env, actor, states)
-    Q_policy = initialize_det_policy_2d_figure(env, initial_policy, policy_hjb)
-    return Q_policy
-
 def update_2d_figures(env, actor, Q_policy):
     states = torch.FloatTensor(env.state_space_h)
     policy = compute_det_policy_actions(env, actor, states)
@@ -401,11 +381,25 @@ def get_policies(env, data, episodes):
     return policies
 
 def get_value_functions(env, data, episodes):
+    assert env.d <= 2, 'only implemented for 1- and 2-dimensional problems'
     n_episodes = len(episodes)
-    value_functions = np.empty((n_episodes, env.n_states), dtype=np.float32)
+    value_functions = np.empty((n_episodes,) + env.n_states_axis, dtype=np.float32)
     for i, ep in enumerate(episodes):
         load_backup_models(data, ep)
-        qvalue = evaluate_qvalue_function_model_1d(env, data['critic'])
-        value_functions[i] = compute_value_function(qvalue)
+        if env.d == 1:
+            qvalue = evaluate_qvalue_function_model_1d(env, data['critic'])
+            value_functions[i] = compute_value_function(qvalue)
+        elif env.d == 2:
+            _, value_functions[i], _, _ = compute_tables_critic_2d(env, data['critic'])
     return value_functions
 
+def report_ddpg_parameters(data):
+    msg = 'exploration noise: {:.3f}, learning starts: {:d}, ' \
+          'replay size: {:0.0e}, updating freq: {:d}, n steps lim: {:d}, '.format(
+        data['exploration_noise_init'],
+        data['learning_starts'],
+        data['replay_size'],
+        data['update_freq'],
+        data['n_steps_lim'],
+    )
+    print(msg)
