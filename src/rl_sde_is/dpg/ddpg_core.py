@@ -180,7 +180,7 @@ def ddpg_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, 
 
     # define list to store results
     returns = np.full(n_episodes, np.nan, dtype=np.float32)
-    time_steps = np.full(n_episodes, np.nan, dtype=np.int32)
+    time_steps = np.full(n_episodes, -2**31, dtype=np.int32)
     cts = np.full(n_episodes, np.nan, dtype=np.float32)
     actor_losses, critic_losses = [], []
 

@@ -9,7 +9,7 @@ from rl_sde_is.utils.plots import *
 def main():
     parser = get_base_parser()
     parser.description = 'Run ddpg for the sde importance sampling environment \
-                          with a ol toy example.'
+                          with a ol toy example (with hjb reference solution).'
     args = parser.parse_args()
 
     # create gym environment
@@ -60,15 +60,9 @@ def main():
         return
 
     # plot returns and time steps
-    n_episodes = data['n_episodes']
-    x = np.arange(n_episodes)
+    x = np.arange(data['n_episodes'])
     plot_y_per_episode(x, data['returns'], run_window=10, title='Returns', legend=True)
     plot_y_per_episode(x, data['time_steps'], run_window=10, title='Time steps')
-
-    # get models
-    actor = data['actor']
-    critic = data['critic']
-
 
 if __name__ == '__main__':
     main()

@@ -8,21 +8,23 @@ from rl_sde_is.utils.plots import *
 def main():
     parser = get_base_parser()
     parser.description = 'Run td3 for the sde importance sampling environment \
-                          with the butane molecule.'
+                          with a ol toy example (without hjb reference solution).'
     args = parser.parse_args()
 
     # create gym environment
     env = gym.make(
-        'sde-is-butane-{}-v0'.format(args.setting),
-        temperature=args.temperature,
-        gamma=10.0,
-        T=args.T,
+        'sde-is-{}-{}-v0'.format(args.problem, args.setting),
+        d=args.d,
+        dt=args.dt,
+        beta=args.beta,
+        alpha=args.alpha,
         state_init_dist=args.state_init_dist,
     )
 
     # run td3
     data = td3_episodic(
         env=env,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,

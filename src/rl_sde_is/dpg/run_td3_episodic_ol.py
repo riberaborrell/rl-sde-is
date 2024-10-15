@@ -1,7 +1,7 @@
 import gymnasium as gym
 import gym_sde_is
 
-from rl_sde_is.dpg.td3_core import *
+from rl_sde_is.dpg.td3_core import td3_episodic
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
 
@@ -9,7 +9,7 @@ from rl_sde_is.utils.plots import *
 def main():
     parser = get_base_parser()
     parser.description = 'Run td3 for the sde importance sampling environment \
-                          with a ol toy example.'
+                          with a ol toy example (with hjb reference solution).'
     args = parser.parse_args()
 
     # create gym environment
@@ -32,6 +32,7 @@ def main():
     # run td3
     data = td3_episodic(
         env=env,
+        gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
         batch_size=args.batch_size,
@@ -52,8 +53,8 @@ def main():
         backup_freq=args.backup_freq,
         log_freq=args.log_freq,
         live_plot_freq=args.live_plot_freq,
-        policy_opt=sol_hjb.u_opt,
         value_function_opt=-sol_hjb.value_function,
+        policy_opt=sol_hjb.u_opt,
         load=args.load,
     )
 
@@ -62,8 +63,7 @@ def main():
         return
 
     # plot returns and time steps
-    n_episodes = data['n_episodes']
-    x = np.arange(n_episodes)
+    x = np.arange(data['n_episodes'])
     plot_y_per_episode(x, data['returns'], run_window=10, title='Returns', legend=True)
     plot_y_per_episode(x, data['time_steps'], run_window=10, title='Time steps')
 
