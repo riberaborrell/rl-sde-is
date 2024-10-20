@@ -155,9 +155,10 @@ def sample_value_loss(env, value, optimizer):
     return loss
 
 
-def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer, theta_init,
-                            batch_size, lr, n_grad_iterations, seed, learn_value, estimate_z=None,
-                            mini_batch_size=None, mini_batch_size_type='constant', memory_size=int(1e6), optim_type='adam', lr_value=None,
+def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
+                            theta_init, batch_size, lr, n_grad_iterations, seed, learn_value,
+                            estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
+                            memory_size=int(1e6), optim_type='adam', lr_value=None,
                             backup_freq=None, live_plot_freq=None, log_freq=100,
                             policy_opt=None, value_function_opt=None, load=False):
 
@@ -227,6 +228,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         'n_layers': n_layers,
         'd_hidden_layer': d_hidden_layer,
         'batch_size': batch_size,
+        'mini_batch_size' : mini_batch_size,
         'lr': lr,
         'lr_value': lr_value,
         'optim_type': optim_type,

@@ -135,6 +135,16 @@ class ISStatistics(object):
         idx = indices[0] * self.eval_freq if len(indices) > 0 else np.nan
         return idx
 
+    def get_stats(self):
+
+        # get number of iterations
+        iterations = np.arange(self.n_epochs) * self.eval_freq
+
+        # l2 error
+        l2_error = self.policy_l2_errors if hasattr(self, 'policy_l2_errors') else np.nan
+
+        return iterations, self.mean_returns, self.mean_fhts, self.max_lengths, \
+               self.mean_I_us, self.re_I_us, l2_error
 
     def get_stats_multiple_datas(self, datas):
 

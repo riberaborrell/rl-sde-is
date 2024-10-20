@@ -13,7 +13,7 @@ from rl_sde_is.spg.replay_memories import ReplayMemoryReturn as Memory
 from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, \
                                                 train_stochastic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
+from rl_sde_is.utils.numeric import cumsum_numpy as cumsum, compute_running_mean
 from rl_sde_is.utils.path import get_reinforce_stoch_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
 
@@ -84,7 +84,7 @@ def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
 
 
 def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
-                          mini_batch_size, estimate_z):
+                          mini_batch_size, mini_batch_size_type, estimate_z):
 
     # sample trajectories
     states, actions, returns = sample_trajectories(env, policy, batch_size, return_type)
@@ -100,8 +100,12 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
         memory.store_vectorized(states, actions, n_returns=returns)
 
     # sample batch of experiences from memory
+    if mini_batch_size_type == 'adaptive':
+        mini_batch_size = round(memory.size / mini_batch_size)
     batch = memory.sample_batch(mini_batch_size)
     _, log_probs = policy.forward(batch['states'], batch['actions'])
+
+    # estimate mean trajectory length
     mean_length = env.lengths.mean() if estimate_z else 1
 
     # calculate loss
@@ -126,11 +130,11 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
 
     return loss, loss_var
 
-def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
-                         n_layers, d_hidden_layer, theta_init, policy_noise, batch_size, lr,
-                         n_grad_iterations, learn_value, estimate_z=None, mini_batch_size=None,
-                         memory_size=int(1e6), optim_type='adam', seed=None,
-                         backup_freq=None, live_plot_freq=None, log_freq=100,
+def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type, policy_noise,
+                         n_layers, d_hidden_layer, theta_init, batch_size, lr, n_grad_iterations,
+                         seed, learn_value, estimate_z=None, mini_batch_size=None,
+                         mini_batch_size_type='constant', memory_size=int(1e6), optim_type='adam',
+                         lr_value=None, backup_freq=None, live_plot_freq=None, log_freq=100,
                          policy_opt=None, value_function_opt=None, load=False):
 
     if expectation_type == 'on-policy' and mini_batch_size is None:
@@ -150,6 +154,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         estimate_z=estimate_z,
         batch_size=batch_size,
         mini_batch_size=mini_batch_size,
+        mini_batch_size_type=mini_batch_size_type,
         lr=lr,
         optim_type=optim_type,
         n_grad_iterations=n_grad_iterations,
@@ -190,6 +195,10 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
             activation=nn.Tanh(), std_init=policy_noise,
         )
 
+    # initialize value function model
+    value = ValueFunction(state_dim=env.d, hidden_sizes=d_hidden_layers, activation=nn.Tanh()) \
+            if learn_value else None
+
     # define optimizer
     if optim_type == 'adam':
         optimizer = optim.Adam(policy.parameters(), lr=lr)
@@ -197,6 +206,9 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         optimizer = optim.SGD(policy.parameters(), lr=lr)
     else:
         raise ValueError('The optimizer {optim} is not implemented')
+
+    if learn_value:
+        value_optimizer = optim.Adam(value.parameters(), lr=lr_value)
 
     # train params to fit hjb solution
     if theta_init == 'hjb':
@@ -223,6 +235,8 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
 
     # save model initial parameters
     save_model(policy, dir_path, 'policy_n-it{}'.format(0))
+    if learn_value:
+        save_model(value, dir_path, 'value_n-it{}'.format(0))
 
     # create object to store the is statistics of the learning
     is_stats = ISStatistics(
@@ -254,8 +268,10 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         if expectation_type == 'random-time':
             loss, loss_var = sample_loss_random_time(env, policy, optimizer, batch_size, return_type)
         else: #expectation_type == 'on-policy':
-            loss, loss_var = sample_loss_on_policy(env, policy, optimizer, batch_size,
-                                                   return_type, mini_batch_size, estimate_z)
+            loss, loss_var = sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
+                                                   mini_batch_size, mini_batch_size_type, estimate_z)
+        if learn_value:
+            value_loss = sample_value_loss(env, value, value_optimizer)
 
         # end timer
         ct_final = time.time()
@@ -302,3 +318,12 @@ def get_means_and_stds(env, data, iterations):
         stds[i] = std.reshape(env.n_states, env.d)
     return means, stds
 
+def get_n_iterations_until_goal(data, key, threshold, sign='smaller', run_window=100):
+    assert sign in ['smaller', 'bigger'], 'The inequality sign is not correct'
+    if key not in data.keys():
+        print('The given attribute has not been tracked')
+        return np.nan
+    run_mean_y = compute_running_mean(data[key], run_window)
+    indices = np.where(run_mean_y > threshold)[0] if sign == 'bigger' else np.where(run_mean_y < threshold)[0]
+    idx = indices[0] if len(indices) > 0 else np.nan
+    return idx
