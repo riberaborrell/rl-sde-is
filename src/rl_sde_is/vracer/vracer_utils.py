@@ -100,7 +100,7 @@ def set_vracer_variables_toy(e, env, args):
         #e["Variables"][idx]["Upper Bound"] = + args.action_limit
         e["Variables"][idx]["Initial Exploration Noise"] = args.expl_noise_init
 
-def set_vracer_variables_butane(e, env, args):
+def set_vracer_variables_butane_abs(e, env, args):
     for i in range(4):
         for j in range(3):
             idx = i*3+j
@@ -116,6 +116,18 @@ def set_vracer_variables_butane(e, env, args):
             #e["Variables"][idx]["Upper Bound"] = + args.action_limit
             e["Variables"][idx]["Initial Exploration Noise"] = args.expl_noise_init
 
+def set_vracer_variables_butane(e, env, args):
+    for i in range(7):
+        e["Variables"][i]["Name"] = "s_{{:d}}".format(i)
+        e["Variables"][i]["Type"] = "State"
+
+    for i in range(7):
+        idx = 7 + i
+        e["Variables"][idx]["Name"] = "a_{{:d}}".format(i)
+        e["Variables"][idx]["Type"] = "Action"
+        #e["Variables"][idx]["Lower Bound"] = - args.action_limit
+        #e["Variables"][idx]["Upper Bound"] = + args.action_limit
+        e["Variables"][idx]["Initial Exploration Noise"] = args.expl_noise_init
 
 def set_vracer_eval_params(e, env, args):
     e["Solver"]["Mode"] = "Testing"
@@ -178,7 +190,7 @@ def vracer(env, args, load=False):
         return load_data(args.dir_path)
 
     # record statistic wrapper
-    env = RecordEpisodeStatistics(env, args.n_episodes)
+    env = RecordEpisodeStatistics(env, args.n_episodes)#, track_ct=True)
 
     # define Korali experiment 
     e = korali.Experiment()
