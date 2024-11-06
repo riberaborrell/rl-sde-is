@@ -315,12 +315,14 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
 
         if ep % log_freq == 0:
             msg = 'ep.: {:2d}, return: {:.3e} (avg. {:.2e}, max. {:.2e}), ' \
-                  'time steps: {:.3e}, ct: {:.3f}'.format(
+                    'time steps: {:.3e} (avg. {:.3e}, max. {:.3e}), ct: {:.3f}'.format(
                 ep,
                 returns[ep],
                 np.mean(returns[:ep+1][-run_window:]),
                 np.max(returns[:ep+1][-run_window:]),
                 time_steps[ep],
+                np.mean(time_steps[:ep+1][-run_window:]),
+                np.max(time_steps[:ep+1][-run_window:]),
                 cts[ep],
             )
             print(msg)

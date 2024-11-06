@@ -8,6 +8,7 @@ import torch.nn as nn
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
+from gym_sde_is.utils.butane import compute_state_vect, compute_force_from_action_vect_torch
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, ValueFunction
 from rl_sde_is.dpg.replay_memories import ReplayMemoryModelBasedDPG as Memory
@@ -48,13 +49,30 @@ def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
     # sample trajectories
     states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
 
-    # convert to torch tensors
-    states = torch.FloatTensor(states)
+    if 'butane' not in env.unwrapped.name:
+
+        # compute actions following the policy
+        states = torch.FloatTensor(states)
+        actions = model.forward(states)
+    else:
+
+        # compute relative coordinates
+        states_rel = compute_state_vect(states)
+
+        # torchify states
+        states = torch.FloatTensor(states)
+        states_rel = torch.FloatTensor(states_rel)
+
+        # compute relatice actions following the model
+        actions_rel = model.forward(states_rel)
+
+        # compute absolute actions
+        n_actions = actions_rel.shape[0]
+        actions = compute_force_from_action_vect_torch(states, actions_rel).view(n_actions, -1)
+
+    # torchify dbts and returns
     dbts = torch.FloatTensor(dbts)
     returns = torch.FloatTensor(returns)
-
-    # compute actions following the policy
-    actions = model.forward(states)
 
     # compute girsanov deterministic and stochastic integrals
     girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt_torch
