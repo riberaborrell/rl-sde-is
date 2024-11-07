@@ -13,9 +13,12 @@ def main():
                           for the butane molecule'
     args = parser.parse_args()
 
+    assert args.dt <= 5e-4
+
     # create gym environment
     env = gym.make(
         'sde-is-butane-{}-v0'.format(args.setting),
+        dt=args.dt,
         temperature=args.temperature,
         gamma=10.0,
         T=args.T,
