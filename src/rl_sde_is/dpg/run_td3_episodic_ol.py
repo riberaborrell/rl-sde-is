@@ -30,7 +30,7 @@ def main():
     sol_hjb = env.get_hjb_solver(h_coarse)
 
     # run td3
-    data = td3_episodic(
+    succ, data = td3_episodic(
         env=env,
         gamma=args.gamma,
         n_layers=args.n_layers,
@@ -59,7 +59,7 @@ def main():
     )
 
     # plots
-    if not args.plot:
+    if not args.plot or not succ:
         return
 
     # plot returns and time steps

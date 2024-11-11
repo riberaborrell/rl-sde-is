@@ -13,7 +13,7 @@ from rl_sde_is.spg.replay_memories import ReplayMemoryReturn as Memory
 from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, \
                                                 train_stochastic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.utils.numeric import cumsum_numpy as cumsum, compute_running_mean
+from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_stoch_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
 
@@ -296,7 +296,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
     stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
     data = data | stats_dict
     save_data(data, dir_path)
-    return data
+    return True, data
 
 def load_backup_model(data, i=0):
     try:
@@ -317,13 +317,3 @@ def get_means_and_stds(env, data, iterations):
         means[i] = mean.reshape(env.n_states, env.d)
         stds[i] = std.reshape(env.n_states, env.d)
     return means, stds
-
-def get_n_iterations_until_goal(data, key, threshold, sign='smaller', run_window=100):
-    assert sign in ['smaller', 'bigger'], 'The inequality sign is not correct'
-    if key not in data.keys():
-        print('The given attribute has not been tracked')
-        return np.nan
-    run_mean_y = compute_running_mean(data[key], run_window)
-    indices = np.where(run_mean_y > threshold)[0] if sign == 'bigger' else np.where(run_mean_y < threshold)[0]
-    idx = indices[0] if len(indices) > 0 else np.nan
-    return idx

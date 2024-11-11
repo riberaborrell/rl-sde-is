@@ -1,11 +1,7 @@
 import gymnasium as gym
 import gym_sde_is
-from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
 
 from rl_sde_is.spg.reinforce_stochastic_core import reinforce_stochastic, get_means_and_stds
 from rl_sde_is.utils.base_parser import get_base_parser
@@ -32,7 +28,7 @@ def main():
     sol_hjb = env.get_hjb_solver(args.h_state)
 
     # run reinforce with gaussian stochastic policy
-    data = reinforce_stochastic(
+    succ, data = reinforce_stochastic(
         env,
         expectation_type=args.expectation_type,
         return_type=args.return_type,
@@ -60,7 +56,7 @@ def main():
     )
 
     # plot results
-    if not args.plot:
+    if not args.plot or not succ:
         return
 
     # plot statistics

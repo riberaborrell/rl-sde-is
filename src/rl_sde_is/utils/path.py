@@ -55,6 +55,9 @@ def save_data(data_dict, dir_path, file_name: str = 'agent.npz'):
     np.savez(file_path, **data_dict)
 
 def load_data(dir_path, file_name: str = 'agent.npz'):
+    ''' Load data from a file in the given directory path.
+        It returns a boolean value indicating whether the file was found or not and the dictionary
+    '''
     try:
         file_path = os.path.join(get_data_dir(), dir_path, file_name)
         data = dict(np.load(file_path, allow_pickle=True))
@@ -62,10 +65,10 @@ def load_data(dir_path, file_name: str = 'agent.npz'):
             if data[file_name].ndim == 0:
                 data[file_name] = data[file_name].item()
         data['dir_path'] = dir_path
-        return data
+        return True, data
     except FileNotFoundError as e:
         print(e)
-        sys.exit()
+        return False, None
 
 def save_model(model, dir_path, file_name):
     torch.save(

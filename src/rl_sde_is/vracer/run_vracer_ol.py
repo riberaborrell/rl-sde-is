@@ -19,15 +19,18 @@ def main():
         dt=args.dt,
         beta=args.beta,
         alpha=args.alpha,
+        T=args.T,
+        reward_type=args.reward_type,
+        baseline_scale_factor=args.baseline_scale_factor,
         state_init_dist=args.state_init_dist,
         n_steps_lim=args.n_steps_lim,
     )
 
     # run vracer
-    data = vracer(env, args, load=args.load)
+    succ, data = vracer(env, args, load=args.load)
 
     # plots
-    if not args.plot: return
+    if not args.plot or not succ: return
 
     # returns, mfhts, and is functional
     x = np.arange(args.n_episodes)

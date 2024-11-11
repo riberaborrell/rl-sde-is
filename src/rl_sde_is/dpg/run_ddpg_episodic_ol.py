@@ -30,7 +30,7 @@ def main():
     sol_hjb = env.get_hjb_solver(h_coarse)
 
     # run ddpg
-    data = ddpg_episodic(
+    succ, data = ddpg_episodic(
         env=env,
         gamma=args.gamma,
         n_layers=args.n_layers,
@@ -56,7 +56,7 @@ def main():
     )
 
     # plots
-    if not args.plot:
+    if not args.plot or not succ:
         return
 
     # plot returns and time steps

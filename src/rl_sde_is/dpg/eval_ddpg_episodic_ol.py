@@ -28,7 +28,7 @@ def main():
                             iter_str='ep.:', track_l2_error=args.track_l2_error)
 
     # load ddpg
-    data = ddpg_episodic(
+    _, data = ddpg_episodic(
         env,
         gamma=args.gamma,
         n_layers=args.n_layers,

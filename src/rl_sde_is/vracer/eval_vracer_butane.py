@@ -27,7 +27,7 @@ def main():
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size)
 
     # load vracer
-    data = vracer(env, args, load=True)
+    _, _ = vracer(env, args, load=True)
 
     # create object to store the is statistics of the learning
     assert args.policy_type in ['stoch', 'stoch-mean'], 'Policy type not recognized'

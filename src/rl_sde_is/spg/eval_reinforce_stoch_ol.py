@@ -31,7 +31,7 @@ def main():
     )
 
     # load reinforce with gaussian stochastic policy
-    data = reinforce_stochastic(
+    _, data = reinforce_stochastic(
         env,
         expectation_type=args.expectation_type,
         return_type=args.return_type,

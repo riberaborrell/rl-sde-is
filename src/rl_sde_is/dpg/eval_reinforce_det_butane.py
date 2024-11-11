@@ -5,16 +5,17 @@ import gym_sde_is
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 
-from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic
+from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic, load_backup_model
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.is_statistics import ISStatistics
 
 def main():
     args = get_base_parser().parse_args()
 
-    # create gym envs 
+    # create gym env
     env = gym.make(
         'sde-is-butane-{}-v0'.format(args.setting),
+        dt=args.dt,
         temperature=args.temperature,
         gamma=10.0,
         T=args.T,
@@ -27,7 +28,7 @@ def main():
                             args.n_grad_iterations, iter_str='grad. it.:')
 
     # load reinforce algorithm with a deterministic policy
-    data = reinforce_deterministic(
+    _, data = reinforce_deterministic(
         env,
         expectation_type='random-time',
         return_type='initial-return',

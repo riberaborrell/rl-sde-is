@@ -27,10 +27,10 @@ def main():
     )
 
     # vracer
-    data = vracer(env, args, load=args.load)
+    succ, data = vracer(env, args, load=args.load)
 
     # plots
-    if not args.plot: return
+    if not args.plot or not succ: return
 
     # returns, mfhts, and is functional
     x = np.arange(args.n_episodes)

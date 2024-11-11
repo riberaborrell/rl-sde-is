@@ -24,7 +24,7 @@ def main():
     )
 
     # run td3
-    data = td3_episodic(
+    succ, data = td3_episodic(
         env=env,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
@@ -49,7 +49,7 @@ def main():
     )
 
     # plots
-    if not args.plot:
+    if not args.plot or not succ:
         return
 
     # plot returns and time steps

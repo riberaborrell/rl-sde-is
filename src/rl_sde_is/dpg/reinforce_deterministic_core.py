@@ -16,7 +16,7 @@ from rl_sde_is.utils.approximate_methods import evaluate_det_policy_model, \
                                                 evaluate_value_function_model, \
                                                 train_deterministic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.utils.numeric import dot_vect, cumsum_numpy as cumsum, compute_running_mean
+from rl_sde_is.utils.numeric import dot_vect, cumsum_numpy as cumsum
 from rl_sde_is.utils.path import get_reinforce_det_dir_path, load_data, save_data, \
                                  save_model, load_model
 from rl_sde_is.utils.plots import *
@@ -328,7 +328,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
     stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
     data = data | stats_dict
     save_data(data, dir_path)
-    return data
+    return True, data
 
 def initialize_figures(env, model, value, policy_opt, value_function_opt):
     # evaluate policy and value function
@@ -392,13 +392,3 @@ def get_value_functions(env, data, iterations):
         load_backup_model(data, it)
         value_functions[i] = evaluate_value_function_model(env, data['value'])
     return value_functions
-
-def get_n_iterations_until_goal(data, key, threshold, sign='smaller', run_window=100):
-    assert sign in ['smaller', 'bigger'], 'The inequality sign is not correct'
-    if key not in data.keys():
-        print('The given attribute has not been tracked')
-        return np.nan
-    run_mean_y = compute_running_mean(data[key], run_window)
-    indices = np.where(run_mean_y > threshold)[0] if sign == 'bigger' else np.where(run_mean_y < threshold)[0]
-    idx = indices[0] if len(indices) > 0 else np.nan
-    return idx

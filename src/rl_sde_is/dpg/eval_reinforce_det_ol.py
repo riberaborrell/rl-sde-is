@@ -28,7 +28,7 @@ def main():
                             iter_str='grad. it.:', track_l2_error=args.track_l2_error)
 
     # load reinforce algorithm with a deterministic policy
-    data = reinforce_deterministic(
+    _, data = reinforce_deterministic(
         env,
         expectation_type=args.expectation_type,
         return_type=args.return_type,

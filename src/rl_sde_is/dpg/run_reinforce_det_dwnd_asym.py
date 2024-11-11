@@ -27,7 +27,7 @@ def main():
     )
 
     # run reinforce algorithm with a deterministic policy
-    data = reinforce_deterministic(
+    succ, data = reinforce_deterministic(
         env,
         expectation_type=args.expectation_type,
         return_type=args.return_type,
@@ -53,7 +53,7 @@ def main():
     )
 
     # do plots
-    if not args.plot:
+    if not args.plot or not succ:
         return
 
     # get backup iterations

@@ -110,7 +110,9 @@ class ISStatistics(object):
 
     def load_stats(self, dir_path):
         # get data dictionary
-        data = load_data(dir_path, file_name='eval-{}.npz'.format(self.policy_type))
+        succ, data = load_data(dir_path, file_name='eval-{}.npz'.format(self.policy_type))
+        if not succ:
+            return
 
         assert self.eval_freq == data['eval_freq'], 'eval freq mismatch'
         assert self.eval_batch_size == data['eval_batch_size'], 'eval batch size mismatch'

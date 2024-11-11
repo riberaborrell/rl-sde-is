@@ -28,7 +28,7 @@ def main():
                             iter_str='ep.:', track_l2_error=args.track_l2_error)
 
     # load td3
-    data = td3_episodic(
+    _, data = td3_episodic(
         env,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
