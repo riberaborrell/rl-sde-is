@@ -1,0 +1,87 @@
+import gymnasium as gym
+import gym_sde_is
+
+from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic, \
+                                                       get_time_dependent_policies, get_value_functions
+from rl_sde_is.utils.base_parser import get_base_parser
+from rl_sde_is.utils.plots import *
+
+
+def main():
+    parser = get_base_parser()
+    parser.description = 'Run model-based reinforce for deterministic policies for the sde \
+                          importance sampling environment with a ol toy example.'
+    args = parser.parse_args()
+
+    # create gym environment
+    env = gym.make(
+        'sde-is-{}-{}-v0'.format(args.problem, 'fht-prob'),
+        dt=args.dt,
+        beta=args.beta,
+        alpha=args.alpha,
+        T=args.T,
+        state_init_dist=args.state_init_dist,
+    )
+
+    # discretize state and action space (plot purposes only)
+    h_coarse = 0.01
+    env.discretize_state_space(h_state=h_coarse)
+
+    # run reinforce algorithm with a deterministic policy
+    succ, data = reinforce_deterministic(
+        env,
+        expectation_type=args.expectation_type,
+        return_type=args.return_type,
+        gamma=args.gamma,
+        n_layers=args.n_layers,
+        d_hidden_layer=args.d_hidden,
+        theta_init=args.theta_init,
+        batch_size=args.batch_size,
+        mini_batch_size=args.mini_batch_size,
+        mini_batch_size_type=args.mini_batch_size_type,
+        memory_size=args.replay_size,
+        lr=args.lr,
+        optim_type=args.optim_type,
+        n_grad_iterations=args.n_grad_iterations,
+        seed=args.seed,
+        learn_value=args.learn_value,
+        estimate_z=args.estimate_z,
+        lr_value=args.lr_value,
+        log_freq=args.log_freq,
+        backup_freq=args.backup_freq,
+        #live_plot_freq=args.live_plot_freq,
+        load=args.load,
+    )
+
+    # do plots
+    if not args.plot or not succ:
+        return
+
+    # get backup iterations
+    iterations = np.arange(0, args.n_grad_iterations + args.backup_freq, args.backup_freq)
+
+    # plot statistics
+    x = np.arange(data['n_grad_iterations']+1)
+    plot_y_per_grad_iteration(x, data['mean_returns'], title='Objective function')
+    plot_y_per_grad_iteration(x, data['losses'], title='Effective loss')
+    plot_y_per_grad_iteration(x, data['loss_vars'], title='Effective loss (variance)')
+    plot_y_per_grad_iteration(x, data['mean_fhts'], title='MFHT')
+
+    # plot policy
+    if env.d <= 2:
+        policies_init = get_time_dependent_policies(env, data, iterations, 0.)
+        #policies_final = get_time_dependent_policies(env, data, iterations, env.n_steps_lim)
+        policies_final = get_time_dependent_policies(env, data, iterations, env.T)
+        #value_functions = get_value_functions(env, data, iterations)
+
+    if env.d == 1:
+        plot_det_policies_1d(env, policies_init)
+        plot_det_policies_1d(env, policies_final)
+        #plot_ys_1d(env, value_functions, -sol_hjb.value_function)
+
+    if env.d == 2:
+        plot_det_policy_2d(env, policies[0].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
+        plot_det_policy_2d(env, policies[-1].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
+
+if __name__ == "__main__":
+    main()

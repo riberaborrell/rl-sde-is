@@ -13,6 +13,7 @@ from gym_sde_is.utils.butane import compute_state_vect, compute_force_from_actio
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, ValueFunction
 from rl_sde_is.dpg.replay_memories import ReplayMemoryModelBasedDPG as Memory
 from rl_sde_is.utils.approximate_methods import evaluate_det_policy_model, \
+                                                evaluate_time_dependent_det_policy_model, \
                                                 evaluate_value_function_model, \
                                                 train_deterministic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
@@ -97,7 +98,7 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
     states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
 
     # initialize memory
-    memory = Memory(size=states.shape[0]+1, state_dim=env.d)
+    memory = Memory(size=states.shape[0]+1, state_dim=env.d_state)
 
     # store experiences in memory
     memory.store_vectorized(states, dbts, returns=returns)
@@ -222,11 +223,11 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
     # initialize policy model 
-    model = DeterministicPolicy(state_dim=env.d, action_dim=env.d,
+    model = DeterministicPolicy(state_dim=env.d_state, action_dim=env.d_action,
                                 hidden_sizes=d_hidden_layers, activation=nn.Tanh())
 
     # initialize value function model
-    value = ValueFunction(state_dim=env.d, hidden_sizes=d_hidden_layers, activation=nn.Tanh()) \
+    value = ValueFunction(state_dim=env.d_state, hidden_sizes=d_hidden_layers, activation=nn.Tanh()) \
             if learn_value else None
 
     # define optimizer/s
@@ -383,6 +384,14 @@ def get_policies(env, data, iterations):
     for i, it in enumerate(iterations):
         load_backup_model(data, it)
         policies[i] = evaluate_det_policy_model(env, data['model'])
+    return policies
+
+def get_time_dependent_policies(env, data, iterations, time_step):
+    n_iterations = len(iterations)
+    policies = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
+    for i, it in enumerate(iterations):
+        load_backup_model(data, it)
+        policies[i] = evaluate_time_dependent_det_policy_model(env, data['model'], time_step)
     return policies
 
 def get_value_functions(env, data, iterations):
