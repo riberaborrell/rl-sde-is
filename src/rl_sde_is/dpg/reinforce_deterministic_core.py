@@ -98,7 +98,7 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
     states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
 
     # initialize memory
-    memory = Memory(size=states.shape[0]+1, state_dim=env.d_state)
+    memory = Memory(size=states.shape[0]+1, state_dim=env.d_state, action_dim=env.d_action)
 
     # store experiences in memory
     memory.store_vectorized(states, dbts, returns=returns)

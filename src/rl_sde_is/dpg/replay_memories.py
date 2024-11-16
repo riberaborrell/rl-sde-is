@@ -1,13 +1,21 @@
+from typing import Optional
+
 import numpy as np
 import torch
 
 from rl_sde_is.utils.numeric import cumsum_numpy as cumsum, discount_cumsum_scipy as discount_cumsum
 
 class ReplayMemory:
-    def __init__(self, size):
+    def __init__(self, size: int, state_dim: int,
+                 action_dim: Optional[int] = None, is_action_continuous: bool = True):
 
         # memory parameters
         self.max_size = size
+        self.state_dim = state_dim
+        self.is_action_continuous = is_action_continuous
+        if is_action_continuous:
+            assert action_dim is not None, ''
+            self.action_dim = action_dim
 
     def reset_counters(self):
         ''' reset counters and flags'''
@@ -23,23 +31,15 @@ class ReplayMemory:
             self.is_full = True
             print('Replay memory is full!')
 
-    def sample_batch_idx(self, batch_size, replace=True):
+    def sample_batch_idx(self, batch_size: int, replace: bool = True) -> np.ndarray:
         ''' sample uniformly the batch indices'''
         return np.random.choice(self.size, size=batch_size, replace=replace)
 
 
 class ReplayMemoryModelFreeDPG(ReplayMemory):
 
-    def __init__(self, state_dim, action_dim=None, is_action_continuous=True, **kwargs):
-
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-        # memory parameters
-        self.state_dim = state_dim
-        self.is_action_continuous = is_action_continuous
-        if is_action_continuous:
-            assert action_dim is not None, ''
-            self.action_dim = action_dim
 
         # initialize arrays and reset counters
         self.reset()
@@ -110,12 +110,10 @@ class ReplayMemoryModelFreeDPG(ReplayMemory):
 
 class ReplayMemoryModelBasedDPG(ReplayMemory):
 
-    def __init__(self, state_dim=1, gamma=1.0, **kwargs):
-
+    def __init__(self, gamma: float=1.0, **kwargs):
         super().__init__(**kwargs)
 
         # memory parameters
-        self.state_dim = state_dim
         self.gamma = gamma
 
         # initialize arrays and reset counters
@@ -125,7 +123,7 @@ class ReplayMemoryModelBasedDPG(ReplayMemory):
 
         # initialize arrays
         self.states = np.full((self.max_size, self.state_dim), np.nan, dtype=np.float32)
-        self.dbts = np.full((self.max_size, self.state_dim), np.nan, dtype=np.float32)
+        self.dbts = np.full((self.max_size, self.action_dim), np.nan, dtype=np.float32)
         self.rewards = np.full(self.max_size, np.nan, dtype=np.float32)
         self.dones = np.zeros(self.max_size, dtype=bool)
         self.returns = np.full(self.max_size, np.nan, dtype=np.float32)
@@ -147,7 +145,7 @@ class ReplayMemoryModelBasedDPG(ReplayMemory):
 
         self.update_store_idx_and_size()
 
-    def store_vectorized(self, states, dbts, rewards=None, returns=None):
+    def store_vectorized(self, states, dbts, rewards=None, dones=None, returns=None):
         n_experiences = states.shape[0]
         i = self.ptr
         j = self.ptr + n_experiences
@@ -159,6 +157,8 @@ class ReplayMemoryModelBasedDPG(ReplayMemory):
         self.dbts[i:j] = dbts
         if rewards is not None:
             self.rewards[i:j] = rewards
+        if dones is not None:
+            self.dones[i:j] = dones
         if returns is not None:
             self.returns[i:j] = returns
 
