@@ -354,7 +354,7 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
     data['replay_states'] = replay_memory.states[:replay_memory.size]
     data['replay_actions'] = replay_memory.actions[:replay_memory.size]
     save_data(data, dir_path)
-    return data
+    return True, data
 
 def initialize_figures(env, n_episodes, actor, critic, replay_memory, value_function_opt, policy_opt):
 
