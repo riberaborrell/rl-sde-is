@@ -90,14 +90,10 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
     states, actions, returns = sample_trajectories(env, policy, batch_size, return_type)
 
     # initialize memory
-    memory = Memory(size=states.shape[0]+1, state_dim=env.d, action_dim=env.d,
-                     return_type=return_type)
+    memory = Memory(size=states.shape[0]+1, state_dim=env.d, action_dim=env.d)
 
     # store experiences in memory
-    if return_type == 'initial-return':
-        memory.store_vectorized(states, actions, initial_returns=returns)
-    else:
-        memory.store_vectorized(states, actions, n_returns=returns)
+    memory.store_vectorized(states, actions, returns=returns)
 
     # sample batch of experiences from memory
     if mini_batch_size_type == 'adaptive':
@@ -109,8 +105,7 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
     mean_length = env.lengths.mean() if estimate_z else 1
 
     # calculate loss
-    returns = batch['n-returns'] if return_type == 'n-return' else batch['initial-returns']
-    phi = - (log_probs * returns)
+    phi = - (log_probs * batch['returns'])
     loss = phi.mean()
     with torch.no_grad():
         loss_var = phi.var().numpy()

@@ -1,5 +1,8 @@
+from typing import Optional
+
 import numpy as np
 import torch
+import scipy
 
 nf32 = np.float32
 ni32 = np.int32
@@ -31,7 +34,7 @@ def logistic(x, L=1, k=1, x0=0):
 def logistic_torch(x, L=1, k=1, x0=0):
         return L / (1 + torch.exp(-k * (x - x0)))
 
-def compute_running_mean(x: np.array, run_window=10):
+def compute_running_mean(x: np.array, run_window: Optional[int] = 10):
     ''' running mean / moving average of the array along the given running window.
     '''
     return np.array([
@@ -39,7 +42,7 @@ def compute_running_mean(x: np.array, run_window=10):
         else np.mean(x[:i+1]) for i in range(len(x))
     ])
 
-def compute_running_variance(array, run_window=10):
+def compute_running_variance(array: np.array, run_window: Optional[int] = 10):
     ''' running variance of the array along the given running window.
     '''
     return np.array([
@@ -47,12 +50,11 @@ def compute_running_variance(array, run_window=10):
         else np.var(array[:i+1]) for i in range(len(array))
     ])
 
-def cumsum_list(x):
-    x = np.array(x)
-    return x[::-1].cumsum()[::-1]
-
 def cumsum_numpy(x):
     return x[::-1].cumsum()[::-1]
+
+def cumsum_list(x):
+    return cumsum_numpy(np.array(x))
 
 def cumsum_torch(x):
     return torch.flip(torch.cumsum(torch.flip(x, [0]), 0), [0])
@@ -76,8 +78,8 @@ def discount_cumsum_torch(x, gamma):
     return z
 
 
+#TODO: check if this is correct
 def discount_cumsum_scipy(x, gamma):
-    import scipy
     """
     magic from rllab for computing discounted cumulative sums of vectors.
     See https://github.com/openai/spinningup/blob/master/spinup/algos/pytorch/vpg/core.py
@@ -94,8 +96,9 @@ def discount_cumsum_scipy(x, gamma):
     """
     return scipy.signal.lfilter([1], [1, float(-gamma)], x[::-1], axis=0)[::-1]
 
-def normalize_advs_trick(x):
-    return (x - np.mean(x))/(np.std(x) + 1e-8)
+def normalize_array(x: np.array, eps: Optional[float] = 1e-5):
+    ''' Normalize the array by subtracting the mean and dividing by the standard deviation.'''
+    return (x - np.mean(x)) / (np.std(x) + 1e-5)
 
 def sample_items_original(prob_matrix, items):
     n = prob_matrix.shape[1]
