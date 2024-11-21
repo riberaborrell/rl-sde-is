@@ -13,7 +13,7 @@ from rl_sde_is.spg.replay_memories import ReplayMemoryReturn as Memory
 from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, \
                                                 train_stochastic_policy_from_hjb
 from rl_sde_is.utils.is_statistics import ISStatistics
-from rl_sde_is.utils.numeric import cumsum_numpy as cumsum
+from rl_sde_is.utils.numeric import cumsum_numpy as cumsum, normalize_array
 from rl_sde_is.utils.path import get_reinforce_stoch_dir_path, load_data, save_data, save_model, load_model
 from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
 
@@ -58,6 +58,9 @@ def sample_loss_random_time(env, policy, optimizer, batch_size, return_type):
 
     # sample trajectories
     states, actions, returns = sample_trajectories(env, policy, batch_size, return_type)
+
+    # normalize n-returns
+    returns = normalize_array(returns, eps=1e-5)
 
     # convert to torch tensors
     states = torch.FloatTensor(states)
@@ -104,8 +107,11 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
     # estimate mean trajectory length
     mean_length = env.lengths.mean() if estimate_z else 1
 
+    # normalize n-returns
+    returns = normalize_array(batch['returns'], eps=1e-5)
+
     # calculate loss
-    phi = - (log_probs * batch['returns'])
+    phi = - (log_probs * returns)
     loss = phi.mean()
     with torch.no_grad():
         loss_var = phi.var().numpy()

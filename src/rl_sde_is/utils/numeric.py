@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -96,9 +96,12 @@ def discount_cumsum_scipy(x, gamma):
     """
     return scipy.signal.lfilter([1], [1, float(-gamma)], x[::-1], axis=0)[::-1]
 
-def normalize_array(x: np.array, eps: Optional[float] = 1e-5):
-    ''' Normalize the array by subtracting the mean and dividing by the standard deviation.'''
-    return (x - np.mean(x)) / (np.std(x) + 1e-5)
+def normalize_array(x: Union[np.ndarray, torch.Tensor], eps: Optional[float] = 1e-5):
+    ''' Normalize the np.array or torch.tensor by subtracting the mean
+        and dividing by the standard deviation.
+    '''
+    assert x.ndim == 1, 'Input must be a 1D array'
+    return (x - x.mean()) / (x.std() + 1e-5)
 
 def sample_items_original(prob_matrix, items):
     n = prob_matrix.shape[1]
