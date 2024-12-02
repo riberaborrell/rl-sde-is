@@ -9,6 +9,7 @@ from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.is_statistics import ISStatistics
 from rl_sde_is.vracer.vracer_utils import *
 from rl_sde_is.vracer.load_model import load_model
+from rl_sde_is.vracer.load_ct_metrics import load_ct_metrics
 
 def main():
     args = get_base_parser().parse_args()
@@ -28,7 +29,10 @@ def main():
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
 
     # load vracer
-    _, _ = vracer(env, args, load=True)
+    _, data = vracer(env, args, load=True)
+
+    # extract ct metrics from output files
+    load_ct_metrics(data)
 
     # create object to store the is statistics of the learning
     assert args.policy_type in ['stoch', 'stoch-mean'], 'Policy type not recognized'

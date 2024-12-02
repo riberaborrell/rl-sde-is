@@ -80,7 +80,7 @@ def set_vracer_train_params(e, env, args):
     #e["Solver"]["Termination Criteria"]["Max Experiences"] = args.n_total_steps
 
     # console and file output configuration
-    e["Console Output"]["Verbosity"] = "Detailed" # "Silent", "Minimal"
+    e["Console Output"]["Verbosity"] = "Detailed"
     e["Console Output"]["Frequency"] = args.log_freq
     e["File Output"]["Enabled"] = True
     e["File Output"]["Frequency"] = args.backup_freq
