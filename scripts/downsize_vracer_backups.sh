@@ -17,6 +17,7 @@ find $data_dir_path -type f -name "gen*.json" | while read -r input_file; do
     "Action Vector Size": ."Problem"."Action Vector Size",
     "Policy Hyperparameters": ."Solver"."Training"."Current Policies"."Policy Hyperparameters",
     "Neural Network": ."Solver"."Neural Network",
+    "Timestamp": ."Timestamp",
   }' "$input_file" > "$output_file"
 
   # Check if jq succeeded

@@ -79,8 +79,9 @@ def set_vracer_train_params(e, env, args):
     e["Solver"]["Termination Criteria"]["Max Episodes"] = args.n_episodes
     #e["Solver"]["Termination Criteria"]["Max Experiences"] = args.n_total_steps
 
-    # file output configuration
-    e["Console Output"]["Verbosity"] = "Detailed"
+    # console and file output configuration
+    e["Console Output"]["Verbosity"] = "Detailed" # "Silent", "Minimal"
+    e["Console Output"]["Frequency"] = args.log_freq
     e["File Output"]["Enabled"] = True
     e["File Output"]["Frequency"] = args.backup_freq
     e["File Output"]["Path"] = get_vracer_rel_dir_path(env, args)
@@ -136,6 +137,11 @@ def set_vracer_eval_params(e, env, args):
     e["File Output"]["Enabled"] = True
     e["File Output"]["Frequency"] = 1
     e["File Output"]["Path"] = get_vracer_rel_dir_path(env, args)
+
+def get_timestamp_from_korali(korali_file: str):
+    with open(korali_file, "r") as f:
+        dd = json.load(f)
+    return dd["Timestamp"]
 
 def collect_vracer_results(env):
     data = {}
@@ -195,7 +201,7 @@ def vracer(env, args, load=False):
     # define Korali experiment 
     e = korali.Experiment()
 
-    # define Problem Configuration
+    # define Problem configuration
     set_korali_problem(e, env, args)
 
     # set V-RACER training parameters
@@ -218,4 +224,6 @@ def vracer(env, args, load=False):
     save_vracer_alg_parameters(args, data)
     save_data(data, args.dir_path)
 
-    return data
+    # add dir path to the korali output file
+    print('[korali] Directory Path: {}'.format(args.dir_path))
+    return True, data
