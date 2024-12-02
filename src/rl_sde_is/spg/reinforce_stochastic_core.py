@@ -250,7 +250,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         track_ct=True,
     )
     keys_chosen = [
-        'max_lengths', 'mean_fhts', 'var_fhts',
+        'max_lengths', 'total_lengths', 'mean_fhts', 'var_fhts',
         'mean_returns', 'var_returns',
         'losses', 'loss_vars',
         'cts',
