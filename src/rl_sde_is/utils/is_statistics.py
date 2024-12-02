@@ -33,6 +33,7 @@ class ISStatistics(object):
         self.mean_lengths = np.full(self.n_epochs, np.nan)
         self.var_lengths = np.full(self.n_epochs, np.nan)
         self.max_lengths = np.full(self.n_epochs, np.nan)
+        self.total_lengths = np.full(self.n_epochs, np.nan)
 
         # fht
         self.mean_fhts = np.full(self.n_epochs, np.nan)
@@ -71,7 +72,8 @@ class ISStatistics(object):
             assert ct is not None, 'CT is not provided'
 
         self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(env.lengths)
-        self.max_lengths[i] = np.max(env.lengths)
+        self.max_lengths[i] = env.lengths.max()
+        self.total_lengths[i] = env.lengths.sum()
         self.mean_fhts[i], self.var_fhts[i], _, _ = compute_array_statistics(env.lengths * env.dt)
         self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(env.returns)
         if self.track_is:

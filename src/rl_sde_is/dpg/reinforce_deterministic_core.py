@@ -277,7 +277,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         track_ct=True,
     )
     keys_chosen = [
-        'max_lengths', 'mean_fhts', 'var_fhts',
+        'max_lengths', 'total_lengths', 'mean_fhts', 'var_fhts',
         'mean_returns', 'var_returns',
         'mean_I_us', 'var_I_us', 're_I_us',
         'losses', 'loss_vars',
