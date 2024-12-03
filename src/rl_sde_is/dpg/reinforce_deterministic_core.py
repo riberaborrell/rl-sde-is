@@ -76,7 +76,7 @@ def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
     returns = torch.FloatTensor(returns)
 
     # compute girsanov deterministic and stochastic integrals
-    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt_torch
+    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt
     girs_stoch_int = dot_vect(dbts, actions)
 
     # calculate loss
@@ -115,7 +115,7 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
     mean_length = env.lengths.mean() if estimate_z else 1
 
     # compute girsanov deterministic and stochastic integrals
-    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt_torch
+    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt
     girs_stoch_int = dot_vect(batch['dbts'], actions)
 
     # calculate loss

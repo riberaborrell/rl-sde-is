@@ -16,9 +16,10 @@ def evaluate_det_policy_model(env, model):
     with torch.no_grad():
         return model.forward(state_space_h).numpy().reshape(env.n_states, env.d)
 
-def evaluate_time_dependent_det_policy_model(env, model, time_step):
+def evaluate_time_dependent_det_policy_model(env, model, time):
     states = env.state_space_h
-    time_and_states = np.hstack((np.ones((env.n_states, 1)) * time_step, states))
+    time = time * np.ones(env.n_states).reshape(states.shape[:-1]+(1,))
+    time_and_states = np.concatenate((time, states), axis=-1)
     time_and_states = torch.FloatTensor(time_and_states)
     with torch.no_grad():
         return model.forward(time_and_states).numpy().reshape(env.n_states, env.d)
