@@ -1,0 +1,79 @@
+import gymnasium as gym
+import numpy as np
+
+import gym_sde_is
+from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
+from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
+
+from rl_sde_is.utils.base_parser import get_base_parser
+from rl_sde_is.utils.is_statistics import ISStatistics
+from rl_sde_is.dpg.td3_core import td3_episodic, load_backup_models
+
+def main():
+    args = get_base_parser().parse_args()
+
+    # create gym envs 
+    env = gym.make(
+        'sde-is-butane-{}-v0'.format(args.setting),
+        dt=args.dt,
+        temperature=args.temperature,
+        gamma=10.0,
+        T=args.T,
+        state_init_dist=args.state_init_dist,
+        n_steps_lim=args.n_steps_lim,
+    )
+    env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
+
+    # create object to store the is statistics of the learning
+    is_stats = ISStatistics(args.eval_freq, args.eval_batch_size, args.n_episodes,
+                            iter_str='ep.:')
+
+    # load td3
+    _, data = td3_episodic(
+        env,
+        n_layers=args.n_layers,
+        d_hidden_layer=args.d_hidden,
+        batch_size=args.batch_size,
+        lr_actor=args.lr_actor,
+        lr_critic=args.lr_critic,
+        n_episodes=args.n_episodes,
+        n_steps_lim=args.n_steps_lim,
+        seed=args.seed,
+        replay_size=args.replay_size,
+        learning_starts=args.learning_starts,
+        expl_noise_init=args.expl_noise_init,
+        policy_freq=args.policy_freq,
+        target_noise=args.target_noise,
+        action_limit=args.action_limit,
+        polyak=args.polyak,
+        load=True,
+    )
+
+    # evaluate policy by fixing the initial position
+    if args.state_init_dist == 'uniform':
+        env.unwrapped.state_init_dist = 'delta'
+
+    for i in range(is_stats.n_epochs):
+
+        # load policy
+        succ = load_backup_models(data, i * is_stats.eval_freq)
+
+        # break if the model was not loaded
+        if not succ:
+            break
+
+        # evaluate policy
+        evaluate_policy_torch_vect(env, data['actor'], args.eval_batch_size)
+
+        # save and log epoch 
+        is_stats.save_epoch(i, env)
+        is_stats.log_epoch(i)
+
+    # save is statistics
+    is_stats.save_stats(data['dir_path'])
+
+    # close env
+    env.close()
+
+if __name__ == '__main__':
+    main()
