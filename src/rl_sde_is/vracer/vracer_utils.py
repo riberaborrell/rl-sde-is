@@ -130,6 +130,16 @@ def set_vracer_variables_butane(e, env, args):
         #e["Variables"][idx]["Upper Bound"] = + args.action_limit
         e["Variables"][idx]["Initial Exploration Noise"] = args.expl_noise_init
 
+def set_vracer_variables_butane_reduced(e, env, args):
+    e["Variables"][0]["Name"] = "Dihedral"
+    e["Variables"][0]["Type"] = "State"
+
+    e["Variables"][1]["Name"] = "Dihedral action"
+    e["Variables"][1]["Type"] = "Action"
+    #e["Variables"][1]["Lower Bound"] = - args.action_limit
+    #e["Variables"][1]["Upper Bound"] = + args.action_limit
+    e["Variables"][1]["Initial Exploration Noise"] = args.expl_noise_init
+
 def set_vracer_eval_params(e, env, args):
     e["Solver"]["Mode"] = "Testing"
     e["Solver"]["Testing"]["Sample Ids"] = [i for i in range(args.n_episodes)]
@@ -208,10 +218,13 @@ def vracer(env, args, load=False):
     set_vracer_train_params(e, env, args)
 
     # set V-RACER variables
-    if 'butane' in env.name:
-        set_vracer_variables_butane(e, env, args)
-    else:
+    if 'butane' not in env.name:
         set_vracer_variables_toy(e, env, args)
+    elif 'butane' in env.name and env.is_reduced:
+        set_vracer_variables_butane_reduced(e, env, args)
+    else:
+    #elif 'butane' in env.name and not env.is_reduced:
+        set_vracer_variables_butane(e, env, args)
 
     # korali engine
     k = korali.Engine()

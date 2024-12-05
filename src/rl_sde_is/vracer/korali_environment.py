@@ -10,10 +10,10 @@ def env(s, gym_env, args):
     # Initializing environment and random seed
     sampleId = s["Sample Id"]
     launchId = s["Launch Id"]
-    _, _ = gym_env.reset(seed=sampleId * 1024 + launchId)
+    obs, _ = gym_env.reset(seed=sampleId * 1024 + launchId)
 
     # initial state
-    s["State"] = gym_env.unwrapped.state.tolist()
+    s["State"] = obs.tolist()
 
     done = False
     while not done:
