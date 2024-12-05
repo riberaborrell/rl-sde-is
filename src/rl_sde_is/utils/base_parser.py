@@ -16,6 +16,11 @@ def get_base_parser():
         help='Set setting type. Default: doublewell-1d',
     )
     parser.add_argument(
+        '--is-reduced',
+        action='store_true',
+        help='Reduced relative coordinates state space for the butane env. Default: False',
+    )
+    parser.add_argument(
         '--agent-type',
         choices=['random', 'uncontrolled', 'hjb', 'trained'],
         default='random',

@@ -16,11 +16,11 @@ def main():
     env = gym.make(
         'sde-is-butane-{}-v0'.format(args.setting),
         dt=args.dt,
+        is_reduced=args.is_reduced,
         temperature=args.temperature,
         gamma=10.0,
         T=args.T,
         state_init_dist=args.state_init_dist,
-        n_steps_lim=args.n_steps_lim,
     )
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
 

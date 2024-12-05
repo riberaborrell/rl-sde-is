@@ -8,7 +8,7 @@ import torch.nn as nn
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
 from gym_sde_is.utils.evaluate import evaluate_policy_torch_vect
-from gym_sde_is.utils.butane import compute_state_vect, compute_force_from_action_vect_torch
+from gym_sde_is.utils.butane import * #compute_state_vect, compute_force_from_action_vect_torch
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, ValueFunction
 from rl_sde_is.dpg.replay_memories import ReplayMemoryModelBasedDPG as Memory
@@ -58,7 +58,7 @@ def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
     else:
 
         # compute relative coordinates
-        states_rel = compute_state_vect(states)
+        states_rel = compute_dihedral_vect(states) if env.is_reduced else compute_state_vect(states)
 
         # torchify states
         states = torch.FloatTensor(states)
@@ -69,7 +69,10 @@ def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
 
         # compute absolute actions
         n_actions = actions_rel.shape[0]
-        actions = compute_force_from_action_vect_torch(states, actions_rel).view(n_actions, -1)
+        if env.is_reduced:
+            actions = compute_force_from_dihedral_action_vect_torch(states, actions_rel).view(n_actions, -1)
+        else:
+            actions = compute_force_from_action_vect_torch(states, actions_rel).view(n_actions, -1)
 
     # torchify dbts and returns
     dbts = torch.FloatTensor(dbts)

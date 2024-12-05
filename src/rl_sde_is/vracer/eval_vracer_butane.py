@@ -18,6 +18,7 @@ def main():
     env = gym.make(
         'sde-is-butane-{}-v0'.format(args.setting),
         dt=args.dt,
+        is_reduced=args.is_reduced,
         temperature=args.temperature,
         gamma=10.0,
         T=args.T,
@@ -27,7 +28,10 @@ def main():
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size)
 
     # load vracer
-    _, _ = vracer(env, args, load=True)
+    _, data = vracer(env, args, load=True)
+
+    # extract ct metrics from output files
+    load_ct_metrics(data)
 
     # create object to store the is statistics of the learning
     assert args.policy_type in ['stoch', 'stoch-mean'], 'Policy type not recognized'

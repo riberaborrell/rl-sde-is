@@ -20,6 +20,7 @@ def main():
     env = gym.make(
         'sde-is-butane-{}-v0'.format(args.setting),
         dt=args.dt,
+        is_reduced=args.is_reduced,
         temperature=args.temperature,
         gamma=10.0,
         T=args.T,
