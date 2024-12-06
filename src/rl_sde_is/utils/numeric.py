@@ -115,3 +115,19 @@ def sample_items(prob_matrix, items):
     r = np.random.rand(prob_matrix.shape[1])
     k = (s < r).sum(axis=0)
     return items[k]
+
+def interpolate_array(xs, ys, n_points=100):
+
+    assert xs.ndim == ys.ndim == 2, ''
+
+    common_x = np.linspace(xs.min(axis=1).max(), xs.max(axis=1).min(), n_points)
+
+    # interpolate y-array onto the common x grid
+    interpolated_y = []
+    for x, y in zip(xs, ys):
+        interp_func = scipy.interpolate.interp1d(
+            x, y, kind='linear', bounds_error=False, fill_value="extrapolate",
+        )
+        interpolated_y.append(interp_func(common_x))
+
+    return common_x, np.array(interpolated_y)

@@ -107,10 +107,10 @@ class ISStatistics(object):
             msg += 'ct: {:.3e}'.format(self.cts[i])
         print(msg)
 
-    def save_stats(self, dir_path):
+    def save_eval_stats(self, dir_path):
         save_data(self.__dict__, dir_path, file_name='eval-{}.npz'.format(self.policy_type))
 
-    def load_stats(self, dir_path):
+    def load_eval_stats(self, dir_path):
         # get data dictionary
         succ, data = load_data(dir_path, file_name='eval-{}.npz'.format(self.policy_type))
         if not succ:
@@ -150,28 +150,31 @@ class ISStatistics(object):
         return iterations, self.mean_returns, self.mean_fhts, self.max_lengths, \
                self.mean_I_us, self.re_I_us, l2_error
 
-    def get_stats_multiple_datas(self, datas):
+    def get_eval_stats_multiple_datas(self, datas):
+
+        # stats dictionary
+        stats = {}
 
         # get number of iterations
         iterations = np.arange(self.n_epochs) * self.eval_freq
 
+        # list of keys to track
+        keys = [
+            'mean_returns', 'mean_fhts', 'max_lengths', 'total_lengths',
+             'mean_I_us', 're_I_us', 'policy_l2_errors'
+        ]
+
         # preallocate arrays
         array_shape = (len(datas), iterations.shape[0])
-        objectives = np.empty(array_shape)
-        mfhts = np.empty(array_shape)
-        max_lengths = np.empty(array_shape)
-        psi_is = np.empty(array_shape)
-        re_I_u = np.empty(array_shape)
-        l2_error = np.empty(array_shape)
+        for key in keys:
+            stats[key] = np.empty(array_shape)
 
         # load evaluation
         for i, data in enumerate(datas):
-            self.load_stats(data['dir_path'])
-            objectives[i] = self.mean_returns
-            mfhts[i] = self.mean_fhts
-            max_lengths[i] = self.max_lengths
-            psi_is[i] = self.mean_I_us
-            re_I_u[i] = self.re_I_us
-            l2_error[i] = self.policy_l2_errors if hasattr(self, 'policy_l2_errors') else np.nan
+            self.load_eval_stats(data['dir_path'])
 
-        return iterations, objectives, mfhts, max_lengths, psi_is, re_I_u, l2_error
+            for key in keys:
+                if hasattr(self, key):
+                    stats[key][i] = getattr(self, key)
+
+        return stats
