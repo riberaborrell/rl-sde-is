@@ -6,6 +6,7 @@ from matplotlib import colors, cm
 import rl_sde_is.utils.figures
 from rl_sde_is.utils.numeric import compute_running_mean, compute_running_variance
 
+# tableau palettes from matplotlib 
 COLORS_TAB10 = [plt.cm.tab10(i) for i in range(20)]
 COLORS_TAB20 = [plt.cm.tab20(i) for i in range(20)]
 COLORS_TAB20b = [plt.cm.tab20b(i) for i in range(20)]
@@ -49,8 +50,8 @@ def get_plot_function(ax, plot_scale):
     else:
         raise ValueError('plot_scale must be one of: lineal, semilogx, semilogy, loglog')
 
-def plot_y_per_x(x, y, run_window: int = 1, hlines=None, title: str = '', xlabel: str = '',
-                 xlim=None, ylim=None, plot_scale='linear', legend: bool = False, loc=None):
+def plot_y_per_x(x, y, run_window=1, hlines=None, title='', plot_scale='linear',
+                 xlabel='', xlim=None, ylim=None, legend=False, loc=None, file_path=None):
 
     run_mean_y = compute_running_mean(y, run_window) if run_window > 1 else None
     fig, ax = plt.subplots()
@@ -66,8 +67,7 @@ def plot_y_per_x(x, y, run_window: int = 1, hlines=None, title: str = '', xlabel
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label)
     if legend: plt.legend(loc=loc)
-    plt.show()
-
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_y_per_episode(x, y, **kwargs):
     plot_y_per_x(x, y, xlabel='Episodes', **kwargs)
@@ -78,8 +78,11 @@ def plot_y_per_grad_iteration(x, y, **kwargs):
 def plot_y_per_time_steps(x, y, **kwargs):
     plot_y_per_x(x, y, xlabel='Time steps', **kwargs)
 
+def plot_y_per_ct(x, y, **kwargs):
+    plot_y_per_x(x, y, xlabel='CT(s)', **kwargs)
+
 def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
-                     plot_scale='linear', legend: bool = False, loc: str = 'upper right'):
+                     plot_scale='linear', legend: bool = False, loc: str = 'upper right', file_path=None):
     y = np.mean(ys, axis=0)
     error = np.sqrt(np.var(ys, axis=0))
     fig, ax = plt.subplots()
@@ -94,7 +97,7 @@ def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label)
     if legend: plt.legend(loc=loc)
-    plt.show()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_y_avg_per_episode(x, ys, **kwargs):
     plot_y_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
@@ -104,6 +107,9 @@ def plot_y_avg_per_grad_iteration(x, ys, **kwargs):
 
 def plot_y_avg_per_time_steps(x, ys, **kwargs):
     plot_y_avg_per_x(x, ys, xlabel='Time steps', **kwargs)
+
+def plot_y_avg_per_ct(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='CT(s)', **kwargs)
 
 def plot_mean_and_std_per_x(x, mean_y, std_y, hlines=None, title: str = '', xlabel: str = '',
                             xlim=None, ylim=None, plot_scale='linear', legend: bool = False,
@@ -132,30 +138,34 @@ def plot_mean_and_std_per_time_steps(x, mean_y, std_y, **kwargs):
     plot_mean_and_std_per_x(x, mean_y, std_y, xlabel='Time steps', **kwargs)
 
 
-def plot_ys_per_x(x, ys, run_window: int = 100, hlines=None, title: str = '', xlabel: str = '',
-                  xlim=None, ylim=None, labels=None, colors=None, legend: bool = False, loc=None):
+def plot_ys_per_x(x, ys, run_window=1, hlines=None, title='', plot_scale='linear',
+                  xlabel='', xlim=None, ylim=None, labels=None, colors=None,
+                  legend=False, loc=None, file_path=None):
     n_lines = len(ys)
     if labels is None:
         labels = [None for i in range(n_lines)]
     if colors is None:
         colors = [COLORS_TAB10[i] for i in range(n_lines)]
+    if type(x) is not list:
+        x = [x for i in range(n_lines)]
     run_mean_ys = np.array([compute_running_mean(y, run_window) if run_window > 1 else None for y in ys])
     fig, ax = plt.subplots()
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
+    plot_fn = get_plot_function(ax, plot_scale)
     for i in range(n_lines):
         if run_window == 1:
-            plt.plot(x, ys[i], label=labels[i], color=colors[i])
+            plot_fn(x[i], ys[i], label=labels[i], color=colors[i], lw=4)
         else:
-            plt.plot(x, ys[i], label=labels[i], color=colors[i], alpha=0.25)
-            plt.plot(x, run_mean_ys[i], label=labels[i], color=colors[i])
+            plot_fn(x[i], ys[i], label=labels[i], color=colors[i], alpha=0.25, lw=4)
+            plot_fn(x[i], run_mean_ys[i], label=labels[i], color=colors[i])
     if hlines:
         for (hline, color, ls, label) in hlines:
-            ax.axhline(y=hline, c=color, ls=ls, label=label)
+            ax.axhline(y=hline, c=color, ls=ls, label=label, lw=4.)
     if legend: plt.legend(loc=loc)
-    plt.show()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_ys_per_episode(x, ys, **kwargs):
     plot_ys_per_x(x, ys, xlabel='Episodes', **kwargs)
@@ -165,6 +175,49 @@ def plot_ys_per_grad_iteration(x, ys, **kwargs):
 
 def plot_ys_per_time_steps(x, ys, **kwargs):
     plot_ys_per_x(x, ys, xlabel='Time steps', **kwargs)
+
+def plot_ys_per_ct(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='CT(s)', **kwargs)
+
+
+def plot_ys_avg_per_x(x, ys, plot_std=True, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
+                      plot_scale='linear', labels=None, colors=None, legend: bool = False,
+                      loc: str = 'upper right', file_path=None):
+    n_lines = len(ys)
+    if labels is None:
+        labels = [None for i in range(n_lines)]
+    if colors is None:
+        colors = [COLORS_TAB10[i] for i in range(n_lines)]
+    if type(x) is not list:
+        x = [x for i in range(n_lines)]
+    ys_mean = [np.mean(y, axis=0) for y in ys]
+    errors = [np.sqrt(np.var(y, axis=0)) for y in ys] if plot_std else None
+    fig, ax = plt.subplots()
+    plot_fn = get_plot_function(ax, plot_scale)
+    ax.set_title(title, size=20)
+    ax.set_xlabel(xlabel)
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    for i in range(n_lines):
+        plot_fn(x[i], ys_mean[i], c=colors[i], label='Mean')
+        ax.fill_between(x[i], ys_mean[i]-errors[i], ys_mean[i]+errors[i], color=colors[i], alpha=0.4, label='Standard deviation') if plot_std else None
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
+
+def plot_ys_avg_per_episode(x, ys, **kwargs):
+    plot_ys_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+
+def plot_ys_avg_per_grad_iteration(x, ys, **kwargs):
+    plot_ys_avg_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+
+def plot_ys_avg_per_time_steps(x, ys, **kwargs):
+    plot_ys_avg_per_x(x, ys, xlabel='Time steps', **kwargs)
+
+def plot_ys_avg_per_ct(x, ys, **kwargs):
+    plot_ys_avg_per_x(x, ys, xlabel='CT(s)', **kwargs)
 
 def plot_time_steps_histogram(time_steps):
     n_steps_max = np.max(time_steps)
@@ -249,6 +302,23 @@ def plot_det_policy_l2_error_episodes(l2_errors, episodes=None, ylim=None):
     if ylim is not None:
         ax.set_ylim(ylim)
     plt.show()
+
+def plot_lr_grid_search(lrs, ys, title='', xlim=None, ylim=None, colors=None,
+                        labels=None, ls='-', sign=1, file_path=None):
+    n_seeds = ys[0].shape[0]
+    fig, ax = plt.subplots()
+    ax.set_title(title),
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    for i in range(len(lrs)):
+        for j in range(n_seeds):
+            if labels is not None:
+                ax.loglog(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8, label=labels[i][j])
+            else:
+                ax.loglog(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8)
+    if labels is not None:
+        ax.legend()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def get_state_action_1d_extent(env):
     ''' set extent bounds for 1d state space in the x-axis and
@@ -346,7 +416,7 @@ def plot_reward_table(env, r_table):
 def plot_reward_following_policy(env, rewards):
 
     fig, ax = plt.subplots()
-    ax.set_title('$r(s, \mu(s))$')
+    ax.set_title(r'$r(s, \mu(s))$')
     ax.set_xlabel('States')
     ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
     ax.plot(env.state_space_h, rewards)
@@ -441,10 +511,7 @@ def plot_q_value_function_1d(env, q_table, vmin=None, file_path=None):
 
     plt.subplots_adjust(left=0.12, right=0.96, bottom=0.12, top=0.98)
 
-    if file_path is not None:
-        plt.savefig(file_path, format='pdf')
-    else:
-        plt.show()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_advantage_function_1d(env, a_table, policy_opt=None, policy_critic=None,
                                vmin=None, file_path=None):
@@ -477,10 +544,7 @@ def plot_advantage_function_1d(env, a_table, policy_opt=None, policy_critic=None
 
     ax.legend()
 
-    if file_path is not None:
-        plt.savefig(file_path, format='pdf')
-    else:
-        plt.show()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_value_function_1d(env, value_function, value_function_opt=None, ylim=None,
                            legend: bool = False, loc=None):
@@ -619,7 +683,7 @@ def plot_det_policy_1d(env, policy, policy_opt=None, loc=None):
     plt.show()
 
 def plot_det_policies_1d(env, policies, policy_opt=None, labels=None, colors=None,
-                         ylim=None, loc='upper right', file_path=None):
+                         xlim=None, ylim=None, loc='upper right', file_path=None):
 
     n_policies = len(policies)
 
@@ -630,13 +694,12 @@ def plot_det_policies_1d(env, policies, policy_opt=None, labels=None, colors=Non
         colors = [None for i in range(n_policies + 1)]
 
     fig, ax = plt.subplots()
-    ax.set_title(TITLES_FIG['policy'])
+    #ax.set_title(TITLES_FIG['policy'])
     #ax.set_xlabel('x')
     ax.set_xlabel('States')
-    #ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
-    ax.set_xlim(-1.8, 1.8)
-    if ylim is not None:
-        ax.set_ylim(ylim)
+    ax.set_xlim(env.state_space_h[0], env.state_space_h[-1])
+    #if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
 
     x = env.state_space_h
     for i in range(n_policies):
@@ -648,10 +711,9 @@ def plot_det_policies_1d(env, policies, policy_opt=None, labels=None, colors=Non
         #plt.legend(loc=loc, fontsize=10)
         ax.legend(loc=loc, fontsize=12)
 
-    if file_path is not None:
-        plt.savefig(file_path, format='pdf')
-    else:
-        plt.show()
+    plt.subplots_adjust(left=0.11, right=0.85, bottom=0.13, top=0.98)
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
+
 
 def plot_det_policies_1d_black_and_white(env, policies, policy_opt):
     n_policies = policies.shape[0]
@@ -669,7 +731,7 @@ def plot_det_policies_1d_black_and_white(env, policies, policy_opt):
     plt.show()
 
 def plot_ys_1d(env, ys, y_opt=None, title: str = '', xlim=None, ylim=None, labels=None,
-               colors=None, legend: bool = False, loc='upper right', file_path=None):
+               colors=None, target_set_patches=None, legend: bool = False, loc='upper right', file_path=None):
 
     n_lines = len(ys)
 
@@ -693,12 +755,18 @@ def plot_ys_1d(env, ys, y_opt=None, title: str = '', xlim=None, ylim=None, label
     if y_opt is not None:
         ax.plot(x, y_opt, c=colors[i+1], ls=':', label=labels[i+1])
 
+    if target_set_patches is not None:
+        for patch in target_set_patches:
+            ax.add_patch(patch)
+
+    #plt.text(-4.1, 6, r'$A$', size=25, rotation=0., alpha=0.6)
+    #plt.text(3.5, 6, r'$B$', size=25, rotation=0., alpha=0.6)
+
     if legend: plt.legend(loc=loc, fontsize=12)
 
-    if file_path is not None:
-        plt.savefig(file_path, format='pdf')
-    else:
-        plt.show()
+    # save or show figure
+    plt.subplots_adjust(left=0.11, right=0.85, bottom=0.13, top=0.98)
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 
 def initialize_det_policy_1d_figure(env, policy, policy_critic=None,
@@ -816,7 +884,7 @@ def plot_det_policy_1d_actor_critic(env, policy_actor, policy_critic,
     ax.legend(loc=loc)
     plt.show()
 
-def plot_det_policy_2d(env, policy, policy_opt, title: str = '',
+def plot_det_policy_2d(env, policy, policy_opt=None, title: str = '',
                        vmin=None, vmax=None, file_path=None):
     X = env.state_space_h[:, :, 0]
     Y = env.state_space_h[:, :, 1]
@@ -824,9 +892,13 @@ def plot_det_policy_2d(env, policy, policy_opt, title: str = '',
     V = policy[:, :, 1]
     X, Y, U, V = coarse_quiver_arrows(U, V, X, Y, l=25)
 
-    U_hjb = policy_opt[:, :, 0]
-    V_hjb = policy_opt[:, :, 1]
-    _, _, U_hjb, V_hjb = coarse_quiver_arrows(U_hjb, V_hjb, l=25)
+    if policy_opt is not None:
+        U_hjb = policy_opt[:, :, 0]
+        V_hjb = policy_opt[:, :, 1]
+        _, _, U_hjb, V_hjb = coarse_quiver_arrows(U_hjb, V_hjb, l=25)
+        C_hjb = np.sqrt(U_hjb**2 + V_hjb**2)
+        vmin = np.min(C_hjb) if vmin is None else vmin
+        vmax = np.max(C_hjb) if vmax is None else vmax
 
     # initialize figure
     fig, ax = plt.subplots()
@@ -838,9 +910,6 @@ def plot_det_policy_2d(env, policy, policy_opt, title: str = '',
 
     # initialize norm object
     C = np.sqrt(U**2 + V**2)
-    C_hjb = np.sqrt(U_hjb**2 + V_hjb**2)
-    vmin = np.min(C_hjb) if vmin is None else vmin
-    vmax = np.max(C_hjb) if vmax is None else vmax
     norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
     # vector field plot
@@ -862,10 +931,7 @@ def plot_det_policy_2d(env, policy, policy_opt, title: str = '',
     cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
     fig.colorbar(Q, cax=cbar_ax)
 
-    if file_path is not None:
-        plt.savefig(file_path, format='pdf')
-    else:
-        plt.show()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def initialize_stoch_policy_1d_figure(env, policy, policy_opt):
 
@@ -1556,10 +1622,7 @@ def plot_replay_memory_1d(env, states, actions, file_path=None):
         extent=get_state_action_1d_extent(env),
     )
 
-    if file_path is not None:
-        plt.savefig(file_path, format='pdf')
-    else:
-        plt.show()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_replay_memory_states_2d(env, states, file_path=None):
 
@@ -1589,10 +1652,7 @@ def plot_replay_memory_states_2d(env, states, file_path=None):
         extent=get_state_2d_extent(env),
     )
 
-    if file_path is not None:
-        plt.savefig(file_path, format='pdf')
-    else:
-        plt.show()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def initialize_replay_memory_1d_figure(env, replay_memory):
 
@@ -1616,7 +1676,7 @@ def initialize_replay_memory_1d_figure(env, replay_memory):
     y_edges = env.action_space_h[::5].squeeze()
 
     H, _, _ = np.histogram2d(states, actions, bins=(x_edges, y_edges))
-    H /= n_points
+    H /= n_points if n_points > 0 else 1
 
     # frequency table
     ax.set_title('Histogram Replay Buffer (State-action)', fontsize=10)
