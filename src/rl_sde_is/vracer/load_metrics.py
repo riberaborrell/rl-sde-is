@@ -4,7 +4,7 @@ import re
 import numpy as np
 
 from rl_sde_is.utils.path import save_data
-from rl_sde_is.utils.config import PROJECT_ROOT_DIR
+from rl_sde_is.utils.config import OUTPUT_ROOT_DIR
 
 def find_output_files_with_dirpath(dir_path: str) -> list[str]:
     """
@@ -17,11 +17,10 @@ def find_output_files_with_dirpath(dir_path: str) -> list[str]:
     - A list of file paths that contain the search string and match the given file extension.
     """
 
-    directory = os.path.join(PROJECT_ROOT_DIR, 'output')
     matching_files = []
 
     try:
-        for root, _, files in os.walk(directory):
+        for root, _, files in os.walk(OUTPUT_ROOT_DIR):
             for file in files:
 
                 # skip files that don't match the .out extension
@@ -119,7 +118,7 @@ def extract_korali_metrics_from_file(file_path: str):
     return policy_eval_times, policy_update_times, running_times, generation_times
 
 
-def load_ct_metrics(data: dict):
+def load_metrics(data: dict):
     """
     Find output file corresponding to the vracer simulation and extract computational time metrics.
 
