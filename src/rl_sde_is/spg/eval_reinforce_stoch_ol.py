@@ -76,7 +76,7 @@ def main():
         env.close()
 
     # save is statistics
-    is_stats.save_stats(data['dir_path'])
+    is_stats.save_eval_stats(data['dir_path'])
 
 
 if __name__ == '__main__':

@@ -63,7 +63,7 @@ def main():
         is_stats.log_epoch(i)
 
     # save is statistics
-    is_stats.save_stats(args.dir_path)
+    is_stats.save_eval_stats(args.dir_path)
 
     # close env
     env.close()
