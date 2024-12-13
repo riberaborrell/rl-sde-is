@@ -226,6 +226,9 @@ def vracer(env, args, load=False):
     #elif 'butane' in env.name and not env.is_reduced:
         set_vracer_variables_butane(e, env, args)
 
+    # add dir path to the korali output file
+    print('[Korali] Directory Path: {}'.format(args.dir_path))
+
     # korali engine
     k = korali.Engine()
 
@@ -237,6 +240,4 @@ def vracer(env, args, load=False):
     save_vracer_alg_parameters(args, data)
     save_data(data, args.dir_path)
 
-    # add dir path to the korali output file
-    print('[korali] Directory Path: {}'.format(args.dir_path))
     return True, data

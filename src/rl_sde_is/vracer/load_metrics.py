@@ -6,6 +6,10 @@ import numpy as np
 from rl_sde_is.utils.path import save_data
 from rl_sde_is.utils.config import OUTPUT_ROOT_DIR
 
+def read_first_line(file_path: str):
+    with open(file_path, "rb") as f:
+        return f.readline().decode("utf-8")
+
 def find_output_files_with_dirpath(dir_path: str) -> list[str]:
     """
     Find output files in the directory that contain the given directory path.
@@ -29,20 +33,21 @@ def find_output_files_with_dirpath(dir_path: str) -> list[str]:
 
                 file_path = os.path.join(root, file)
                 try:
-                    with open(file_path, "r") as f:
+                    # read the first line of the file
+                    first_line = read_first_line(file_path)
 
-                        # read the last line of the file
-                        lines = f.readlines()
-                        last_line = lines[-1] if lines else None
+                    # skip if empty file or not vracer output file
+                    if not first_line or 'Korali' not in first_line:
+                        continue
 
-                        # skip if empty file or not vracer output file
-                        if not last_line or 'korali' not in last_line:
-                            continue
+                    # get dir path and check if it matches
+                    match = re.search(r"Directory Path", first_line)
+                    if not match:
+                        continue
+                    found_dir_path = first_line.strip().split('Directory Path: ')[1]
+                    if dir_path == found_dir_path:
+                        matching_files.append(file_path)
 
-                        # get dir path and check if it matches
-                        found_dir_path = last_line.strip().split('Directory Path: ')[1]
-                        if dir_path == found_dir_path:
-                            matching_files.append(file_path)
                 except Exception as e:
                     print(f"Error reading file '{file_path}': {e}")
 
@@ -61,20 +66,29 @@ def extract_korali_metrics_from_file(file_path: str):
     Returns:
     - Tuple of lists containing the different computational time metrics for all generations
     """
-    current_generation = None
-    policy_eval_times, policy_update_times, running_times, generation_times = [], [], [], []
+    generations, policy_updates, policy_eval_times, policy_update_times, running_times, generation_times \
+        = [], [], [], [], [], []
 
     try:
         with open(file_path, "r") as file:
             for line in file:
                 line = line.strip()
 
-                # update the current generation number
+                # extract current generation number
                 if "Current Generation:" in line:
                     try:
-                        current_generation = int(line.split("Current Generation: #")[1])
+                        gen = int(line.split("Current Generation: #")[1])
+                        generations.append(gen)
                     except (ValueError, IndexError):
-                       current_generation = None
+                        generations.append(None)
+
+                # extract number of policy updates 
+                if "Policy Update Count:" in line:
+                    try:
+                        k = int(line.split("Policy Update Count: ")[1])
+                        policy_updates.append(k)
+                    except (ValueError, IndexError):
+                        policy_updates.append(None)
 
                  # extract policy evaluation time 
                 if "Avg Policy Evaluation Time:" in line:
@@ -115,7 +129,7 @@ def extract_korali_metrics_from_file(file_path: str):
     except Exception as e:
         print(f"Error processing file '{file_path}': {e}")
 
-    return policy_eval_times, policy_update_times, running_times, generation_times
+    return generations, policy_updates, policy_eval_times, policy_update_times, running_times, generation_times
 
 
 def load_metrics(data: dict):
@@ -129,12 +143,15 @@ def load_metrics(data: dict):
     # find output files for the vracer simulation
     matching_files = find_output_files_with_dirpath(data['dir_path'])
     if not matching_files:
+        print(f"No vracer output files found for '{data['dir_path']}'.")
         return
 
     # extract ct metrics from the last output file
-    policy_eval_times, policy_update_times, running_times, generation_times \
+    generations, policy_updates, policy_eval_times, policy_update_times, running_times, generation_times \
         = extract_korali_metrics_from_file(matching_files[-1])
 
+    data['generations'] = np.array(generations, dtype=np.int32)
+    data['policy_updates'] = np.array(policy_updates, dtype=np.int32)
     data['policy_eval_times'] = np.array(policy_eval_times, dtype=np.float32)
     data['policy_update_times'] = np.array(policy_update_times, dtype=np.float32)
     data['cts'] = np.array(running_times, dtype=np.float32)

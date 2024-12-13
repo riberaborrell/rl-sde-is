@@ -29,7 +29,9 @@ def main():
     env = RecordEpisodeStatisticsVect(env, args.eval_batch_size, args.track_l2_error)
 
     # load vracer
-    _, data = vracer(env, args, load=True)
+    succ, data = vracer(env, args, load=True)
+    if not succ:
+        return
 
     # extract ct metrics from output files
     load_metrics(data)
