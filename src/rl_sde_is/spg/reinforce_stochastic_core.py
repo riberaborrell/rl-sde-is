@@ -283,9 +283,12 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
                             loss_var=loss_var, ct=ct_final - ct_initial)
         is_stats.log_epoch(i) if i % log_freq == 0 else None
 
-        # backup models and results
+        # backup models
         if backup_freq and (i + 1) % backup_freq== 0:
             save_model(policy, dir_path, 'policy_n-it{}'.format(i + 1))
+
+        # backup statistics
+        if (i + 1) % 100 == 0:
             stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
             save_data(data | stats_dict, dir_path)
 
