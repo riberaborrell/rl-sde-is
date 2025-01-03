@@ -170,6 +170,11 @@ def get_base_parser():
         help='the step size / learning rate parameter is constant.',
     )
     parser.add_argument(
+        '--scheduled-lr',
+        action='store_true',
+        help='the step size / learning rate parameter is custom scheduled.',
+    )
+    parser.add_argument(
         '--lr',
         type=float,
         default=0.01,

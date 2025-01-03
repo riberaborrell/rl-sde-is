@@ -44,6 +44,7 @@ def main():
         mini_batch_size_type=args.mini_batch_size_type,
         memory_size=args.replay_size,
         lr=args.lr,
+        scheduled_lr=args.scheduled_lr,
         optim_type=args.optim_type,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
@@ -73,6 +74,7 @@ def main():
     plot_y_per_grad_iteration(x, data['loss_vars'], title='Effective loss (variance)')
     plot_y_per_grad_iteration(x, data['mean_fhts'], title='MFHT')
     plot_y_per_grad_iteration(x, data['re_I_us'], title=r'Sampled relative error $\widehat{Re}$')
+    plot_y_per_grad_iteration(x, data['lrs'], title=r'Learning rate', plot_scale='semilogy')
 
     # plot policy
     policies = get_policies(env, data, iterations)

@@ -1,3 +1,4 @@
+import functools
 import time
 
 import numpy as np
@@ -12,6 +13,7 @@ from gym_sde_is.utils.butane import * #compute_state_vect, compute_force_from_ac
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, ValueFunction
 from rl_sde_is.dpg.replay_memories import ReplayMemoryModelBasedDPG as Memory
+from rl_sde_is.utils.schedulers import simple_lr_schedule, two_phase_lr_schedule, three_phase_lr_schedule
 from rl_sde_is.utils.approximate_methods import evaluate_det_policy_model, \
                                                 evaluate_time_dependent_det_policy_model, \
                                                 evaluate_value_function_model, \
@@ -45,7 +47,7 @@ def sample_trajectories(env, model, batch_size, return_type):
 
     return np.vstack(states), np.vstack(dbts), np.hstack(returns)
 
-def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
+def sample_loss_random_time(env, model, optimizer, scheduler, batch_size, return_type):
 
     # sample trajectories
     states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
@@ -92,6 +94,9 @@ def sample_loss_random_time(env, model, optimizer, batch_size, return_type):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+
+    # scheduler
+    scheduler.step()
 
     return loss, loss_var
 
@@ -180,7 +185,7 @@ def sample_value_loss(env, value, optimizer):
 def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
                             theta_init, batch_size, lr, n_grad_iterations, seed, learn_value,
                             estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
-                            memory_size=int(1e6), optim_type='adam', lr_value=None,
+                            memory_size=int(1e6), optim_type='adam', scheduled_lr=False, lr_value=None,
                             backup_freq=None, live_plot_freq=None, log_freq=100,
                             policy_opt=None, value_function_opt=None, load=False):
 
@@ -201,6 +206,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         mini_batch_size=mini_batch_size,
         mini_batch_size_type=mini_batch_size_type,
         lr=lr,
+        scheduled_lr=scheduled_lr,
         optim_type=optim_type,
         n_grad_iterations=n_grad_iterations,
         learn_value=learn_value,
@@ -241,6 +247,18 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
     else:
         raise ValueError('The optimizer {optim} is not implemented')
 
+    # define scheduler
+    if scheduled_lr:
+        #lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
+        #                                lr_final=1e-2, n_iter=n_grad_iterations+1)
+        #lr_schedule = functools.partial(two_phase_lr_schedule, lr_init=lr,
+        #                                lr_final=1e-3, n_iter_adaptive=500)
+        lr_schedule = functools.partial(three_phase_lr_schedule, lr_init=lr, lr_middle=1e-1,
+                                        lr_final=1e-3, n_iter_1=500, n_iter_2=250)
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
+    else:
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda it: 1)
+
     if learn_value:
         value_optimizer = optim.Adam(value.parameters(), lr=lr_value)
 
@@ -278,13 +296,14 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         policy_type='det',
         track_loss=True,
         track_ct=True,
+        track_lr=True,
     )
     keys_chosen = [
         'max_lengths', 'total_lengths', 'mean_fhts', 'var_fhts',
         'mean_returns', 'var_returns',
         'mean_I_us', 'var_I_us', 're_I_us',
         'losses', 'loss_vars',
-        'cts',
+        'cts', 'lrs',
     ]
 
     # initialize live figures
@@ -298,7 +317,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
 
         # compute model based policy effective loss
         if expectation_type == 'random-time':
-            loss, loss_var = sample_loss_random_time(env, model, optimizer, batch_size, return_type)
+            loss, loss_var = sample_loss_random_time(env, model, optimizer, scheduler, batch_size, return_type)
         else: # expectation_type == 'on-policy'
             loss, loss_var = sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
                                                    mini_batch_size, mini_batch_size_type, estimate_z)
@@ -313,7 +332,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         # save and log epoch 
         env.statistics_to_numpy()
         is_stats.save_epoch(i, env, loss=loss.detach().numpy(),
-                            loss_var=loss_var, ct=ct_final - ct_initial)
+                            loss_var=loss_var, ct=ct_final - ct_initial, lr=scheduler.get_last_lr()[0])
         is_stats.log_epoch(i) if i % log_freq == 0 else None
 
         # backup models
