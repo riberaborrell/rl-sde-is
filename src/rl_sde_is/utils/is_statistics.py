@@ -78,21 +78,25 @@ class ISStatistics(object):
         if self.track_lr:
             assert lr is not None, 'lr is not provided'
 
-        self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(env.lengths)
-        self.max_lengths[i] = env.lengths.max()
-        self.total_lengths[i] = env.lengths.sum()
-        self.mean_fhts[i], self.var_fhts[i], _, _ = compute_array_statistics(env.lengths * env.dt)
-        self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(env.returns)
+        lengths = env.get_wrapper_attr('lengths')
+        self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(lengths)
+        self.max_lengths[i] = lengths.max()
+        self.total_lengths[i] = lengths.sum()
+        self.mean_fhts[i], self.var_fhts[i], _, _ = compute_array_statistics(lengths * env.unwrapped.dt)
+        self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(env.get_wrapper_attr('returns'))
         if self.track_is:
-            is_functional = compute_is_functional(env.girs_stoch_int,
-                                                  env.running_rewards, env.terminal_rewards)
+            is_functional = compute_is_functional(
+                env.get_wrapper_attr('girs_stoch_int'),
+                env.get_wrapper_attr('running_rewards'),
+                env.get_wrapper_attr('terminal_rewards'),
+            )
             self.mean_I_us[i], self.var_I_us[i], _, self.re_I_us[i] \
                 = compute_array_statistics(is_functional)
         if self.track_loss:
             self.losses[i] = loss
             self.loss_vars[i] = loss_var
         if self.track_l2_error:
-            self.policy_l2_errors[i] = np.mean(env.l2_errors)
+            self.policy_l2_errors[i] = np.mean(env.get_wrapper_attr('l2_errors'))
         if self.track_ct:
             self.cts[i] = ct
         if self.track_lr:

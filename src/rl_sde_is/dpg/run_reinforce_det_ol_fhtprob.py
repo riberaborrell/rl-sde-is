@@ -25,7 +25,7 @@ def main():
 
     # discretize state and action space (plot purposes only)
     h_coarse = 0.01
-    env.discretize_state_space(h_state=h_coarse)
+    env.unwrapped.discretize_state_space(h_state=h_coarse)
 
     # run reinforce algorithm with a deterministic policy
     succ, data = reinforce_deterministic(
@@ -68,18 +68,19 @@ def main():
     plot_y_per_grad_iteration(x, data['mean_fhts'], title='MFHT')
 
     # plot policy
-    if env.d <= 2:
+    if env.unwrapped.d <= 2:
+        env = env.unwrapped
         policies_init = get_time_dependent_policies(env, data, iterations, 0.)
         #policies_final = get_time_dependent_policies(env, data, iterations, env.n_steps_lim)
         policies_final = get_time_dependent_policies(env, data, iterations, env.T)
         #value_functions = get_value_functions(env, data, iterations)
 
-    if env.d == 1:
+    if env.unwrapped.d == 1:
         plot_det_policies_1d(env, policies_init)
         plot_det_policies_1d(env, policies_final)
         #plot_ys_1d(env, value_functions, -sol_hjb.value_function)
 
-    if env.d == 2:
+    if env.unwrapped.d == 2:
         plot_det_policy_2d(env, policies[0].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
         plot_det_policy_2d(env, policies[-1].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
 

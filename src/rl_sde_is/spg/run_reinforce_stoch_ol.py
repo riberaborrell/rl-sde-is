@@ -22,10 +22,10 @@ def main():
     )
 
     # discretize state and action space (plot purposes only)
-    env.discretize_state_space(h_state=args.h_state)
+    env.unwrapped.discretize_state_space(h_state=args.h_state)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver(args.h_state)
+    sol_hjb = env.unwrapped.get_hjb_solver(args.h_state)
 
     # run reinforce with gaussian stochastic policy
     succ, data = reinforce_stochastic(
@@ -69,6 +69,7 @@ def main():
     # get backup policies
     iterations = np.arange(0, args.n_grad_iterations + args.backup_freq, args.backup_freq)[::20]
 
+    env = env.unwrapped
     if env.d <= 2:
         means, stds = get_means_and_stds(env, data, iterations)
 

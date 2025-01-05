@@ -198,7 +198,7 @@ def get_dynamic_programming_tables_dir_path(env):
               + 'h-action{:.0e}_'.format(env.h_action) \
               + 'dt{:.0e}'.format(env.dt)
 
-    return get_dir_path(env.unwrapped.__str__(), 'dp-tables', param_str)
+    return get_dir_path(env.__str__(), 'dp-tables', param_str)
 
 def get_dynamic_programming_dir_path(env, **kwargs):
     '''
@@ -209,7 +209,7 @@ def get_dynamic_programming_dir_path(env, **kwargs):
               + 'dt{:.0e}_'.format(env.dt) \
               + 'n-it{:.0e}'.format(kwargs['n_iterations'])
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_tabular_td_prediction_dir_path(env, **kwargs):
     '''
@@ -223,7 +223,7 @@ def get_tabular_td_prediction_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_semi_gradient_td_prediction_dir_path(env, **kwargs):
     '''
@@ -235,7 +235,7 @@ def get_semi_gradient_td_prediction_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_tabular_mc_prediction_dir_path(env, **kwargs):
     '''
@@ -248,7 +248,7 @@ def get_tabular_mc_prediction_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 
 def get_sarsa_lambda_dir_path(env, **kwargs):
@@ -264,7 +264,7 @@ def get_sarsa_lambda_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_mc_learning_dir_path(env, **kwargs):
     '''
@@ -278,7 +278,7 @@ def get_mc_learning_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_qlearning_dir_path(env, **kwargs):
     '''
@@ -293,7 +293,7 @@ def get_qlearning_dir_path(env, **kwargs):
               + 'K{:.0e}'.format(kwargs['n_episodes']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 #TODO: check
 def get_qlearning_batch_dir_path(env, **kwargs):
@@ -309,7 +309,7 @@ def get_qlearning_batch_dir_path(env, **kwargs):
               + 'epochs{:.0e}_'.format(kwargs['n_epochs']) \
               + 'K{:.0e}'.format(kwargs['n_episodes'])
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_dqn_dir_path(env, **kwargs):
     '''
@@ -325,7 +325,7 @@ def get_dqn_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_reinforce_discrete_dir_path(env, **kwargs):
     '''
@@ -339,7 +339,7 @@ def get_reinforce_discrete_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_reinforce_stoch_dir_path(env, **kwargs):
     '''
@@ -359,7 +359,7 @@ def get_reinforce_stoch_dir_path(env, **kwargs):
               + 'learn-value{}_'.format(kwargs['learn_value']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 
 def get_reinforce_det_dir_path(env, **kwargs):
@@ -377,7 +377,7 @@ def get_reinforce_det_dir_path(env, **kwargs):
               + 'learn-value{}_'.format(kwargs['learn_value']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_model_based_dpg_dir_path(env, **kwargs):
     '''
@@ -394,7 +394,7 @@ def get_model_based_dpg_dir_path(env, **kwargs):
               + 'learn-value{}_'.format(kwargs['learn_value']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_dpg_dir_path(env, **kwargs):
     '''
@@ -442,7 +442,7 @@ def get_ddpg_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_td3_dir_path(env, **kwargs):
     '''
@@ -463,7 +463,7 @@ def get_td3_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_naf_dir_path(env, **kwargs):
     '''
@@ -481,7 +481,7 @@ def get_naf_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), kwargs['agent'], param_str)
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 def get_vracer_dir_path(env, **kwargs):
 
@@ -499,5 +499,5 @@ def get_vracer_dir_path(env, **kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(env.unwrapped.__str__(), 'vracer', param_str)
+    return get_dir_path(env.__str__(), 'vracer', param_str)
 

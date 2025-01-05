@@ -130,7 +130,7 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
 
     # get dir path
     dir_path = get_td3_dir_path(
-        env,
+        env.unwrapped,
         agent='td3-episodic',
         gamma=gamma,
         n_layers=n_layers,
@@ -164,15 +164,15 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
 
     # initialize actor representations
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-    actor = DeterministicPolicy(state_dim=env.d, action_dim=env.d,
+    actor = DeterministicPolicy(state_dim=env.unwrapped.d, action_dim=env.unwrapped.d,
                                 hidden_sizes=hidden_sizes, activation=nn.Tanh())
     actor_target = deepcopy(actor)
 
     # initialize critic representations
-    critic1 = QValueFunction(state_dim=env.d, action_dim=env.d,
+    critic1 = QValueFunction(state_dim=env.unwrapped.d, action_dim=env.unwrapped.d,
                              hidden_sizes=hidden_sizes, activation=nn.Tanh())
     critic_target1 = deepcopy(critic1)
-    critic2 = QValueFunction(state_dim=env.d, action_dim=env.d,
+    critic2 = QValueFunction(state_dim=env.unwrapped.d, action_dim=env.unwrapped.d,
                              hidden_sizes=hidden_sizes, activation=nn.Tanh())
     critic_target2 = deepcopy(critic2)
 
@@ -182,7 +182,7 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
     critic_optimizer = optim.Adam(critic_params, lr=lr_critic)
 
     # initialize replay memory
-    replay_memory = ReplayMemory(state_dim=env.d, action_dim=env.d, size=replay_size)
+    replay_memory = ReplayMemory(state_dim=env.unwrapped.d, action_dim=env.unwrapped.d, size=replay_size)
 
     # save algorithm parameters
     data = {
@@ -235,7 +235,7 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
 
     # initialize figures if plot
     if live_plot_freq:
-        figs_placeholder = initialize_figures(env, n_episodes, actor, critic1,
+        figs_placeholder = initialize_figures(env.unwrapped, n_episodes, actor, critic1,
                                               replay_memory, value_function_opt, policy_opt)
 
     # sample trajectories
@@ -348,7 +348,7 @@ def td3_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, n
 
         # update plots
         if live_plot_freq and (ep + 1) % live_plot_freq == 0:
-            update_figures(env, actor, critic1, replay_memory, returns, time_steps, figs_placeholder)
+            update_figures(env.unwrapped, actor, critic1, replay_memory, returns, time_steps, figs_placeholder)
 
     # add final memory replay states and actions
     data['replay_states'] = replay_memory.states[:replay_memory.size]

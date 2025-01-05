@@ -103,7 +103,7 @@ def ddpg_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, 
 
     # get dir path
     dir_path = get_ddpg_dir_path(
-        env,
+        env.unwrapped,
         agent='ddpg-episodic',
         gamma=gamma,
         n_layers=n_layers,
@@ -135,12 +135,12 @@ def ddpg_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, 
 
     # initialize actor representations
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-    actor = DeterministicPolicy(state_dim=env.d, action_dim=env.d,
+    actor = DeterministicPolicy(state_dim=env.unwrapped.d, action_dim=env.unwrapped.d,
                                 hidden_sizes=hidden_sizes, activation=nn.Tanh())
     actor_target = deepcopy(actor)
 
     # initialize critic representations
-    critic = QValueFunction(state_dim=env.d, action_dim=env.d,
+    critic = QValueFunction(state_dim=env.unwrapped.d, action_dim=env.unwrapped.d,
                             hidden_sizes=hidden_sizes, activation=nn.Tanh())
     critic_target = deepcopy(critic)
 
@@ -149,7 +149,7 @@ def ddpg_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, 
     critic_optimizer = optim.Adam(critic.parameters(), lr=lr_critic)
 
     # initialize replay memory
-    replay_memory = ReplayMemory(state_dim=env.d, action_dim=env.d, size=replay_size)
+    replay_memory = ReplayMemory(state_dim=env.unwrapped.d, action_dim=env.unwrapped.d, size=replay_size)
 
     # save algorithm parameters
     data = {
@@ -189,7 +189,7 @@ def ddpg_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, 
 
     # initialize figures if plot:
     if live_plot_freq:
-        figs_placeholder = initialize_figures(env, n_episodes, actor, critic,
+        figs_placeholder = initialize_figures(env.unwrapped, n_episodes, actor, critic,
                                               replay_memory, value_function_opt, policy_opt)
 
     # sample trajectories
@@ -295,7 +295,7 @@ def ddpg_episodic(env, gamma=1., n_layers=3, d_hidden_layer=32, n_episodes=100, 
 
         # update plots
         if live_plot_freq and (ep + 1) % live_plot_freq == 0:
-            update_figures(env, actor, critic, replay_memory, returns, time_steps, figs_placeholder)
+            update_figures(env.unwrapped, actor, critic, replay_memory, returns, time_steps, figs_placeholder)
 
     # add final memory replay states and actions
     data['replay_states'] = replay_memory.states[:replay_memory.size]

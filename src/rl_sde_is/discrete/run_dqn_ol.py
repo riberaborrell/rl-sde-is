@@ -24,13 +24,12 @@ def main():
     )
 
     # discretize action space
-    h_coarse = 0.1
-    env.discretize_state_space(h_coarse)
-    env.discretize_action_space(args.h_action)
+    h_coarse = 0.01
+    env.unwrapped.discretize_state_space(h_coarse)
+    env.unwrapped.discretize_action_space(args.h_action)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver()
-    sol_hjb.coarse_solution(h_coarse)
+    sol_hjb = env.unwrapped.get_hjb_solver(h_coarse)
 
     # run dqn 
     data = dqn(
@@ -53,7 +52,6 @@ def main():
     returns = data['returns']
     time_steps = data['time_steps']
     loss = data['losses']
-    breakpoint()
 
     # plot returns and time steps
     x = np.arange(n_episodes)

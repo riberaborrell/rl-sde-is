@@ -9,7 +9,7 @@ import torch.optim as optim
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
 from rl_sde_is.discrete.discrete_utils import DQNModel, DuelingCritic
-from rl_sde_is.dpg.replay_buffers import ReplayBuffer
+from rl_sde_is.dpg.replay_memories import ReplayMemoryModelFreeDPG as ReplayMemory
 from rl_sde_is.utils.tabular_methods import get_epsilons_exp_decay
 from rl_sde_is.utils.approximate_methods import *
 from rl_sde_is.utils.path import get_dqn_dir_path, load_data, save_data, save_model, load_model
@@ -20,7 +20,7 @@ def select_action(env, model, state, epsilon):
 
     # sample action randomly
     if np.random.rand() <= epsilon:
-        return np.random.choice(np.arange(env.n_actions))
+        return np.random.choice(np.arange(env.unwrapped.n_actions))
 
     # choose greedy action
     else:
@@ -78,7 +78,7 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32, n_episodes=100, n_steps_li
 
     # get dir path
     dir_path = get_dqn_dir_path(
-        env,
+        env.unwrapped,
         agent='dqn-episodic',
         gamma=gamma,
         n_layers=n_layers,
@@ -104,7 +104,7 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32, n_episodes=100, n_steps_li
 
     # initialize q-value function representation
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-    model = DQNModel(state_dim=env.d, n_actions=env.n_actions,
+    model = DQNModel(state_dim=env.unwrapped.d, n_actions=env.unwrapped.n_actions,
     #model = DuelingCritic(state_dim=env.d, n_actions=env.n_actions,
                      hidden_sizes=hidden_sizes, activation=nn.Tanh())
     target_model = deepcopy(model)
@@ -113,7 +113,7 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32, n_episodes=100, n_steps_li
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     # initialize replay buffer
-    replay_buffer = ReplayBuffer(state_dim=env.d, action_dim=env.n_actions,
+    replay_buffer = ReplayMemory(state_dim=env.unwrapped.d, action_dim=env.unwrapped.n_actions,
                                  size=replay_size, is_action_continuous=False)
 
     # decaying array of epsilons for the exploration
@@ -176,14 +176,14 @@ def dqn(env, gamma=1., n_layers=2, d_hidden_layer=32, n_episodes=100, n_steps_li
 
             # sample action randomly
             if k_total < learning_starts:
-                action_idx = np.random.choice(np.arange(env.n_actions))
+                action_idx = np.random.choice(np.arange(env.unwrapped.n_actions))
 
             # get action following the actor
             else:
                 action_idx = select_action(env, model, state, 0.5)
 
             # env step
-            action = env.action_space_h[action_idx]
+            action = env.unwrapped.action_space_h[action_idx]
             next_state, r, done, _, info = env.step(action)
 
             # store tuple

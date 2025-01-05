@@ -20,7 +20,7 @@ from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_g
 def sample_trajectories(env, policy, batch_size, return_type):
 
     # initialization
-    state, _ = env.reset(batch_size=batch_size)
+    state, _ = env.reset(options={'batch_size': batch_size})
 
     # terminal state flag
     done = np.full((batch_size,), False)
@@ -32,7 +32,7 @@ def sample_trajectories(env, policy, batch_size, return_type):
 
         # env step
         state, _, _, truncated, _ = env.step_vect(action)
-        done = np.logical_or(env.been_terminated, truncated)
+        done = np.logical_or(env.unwrapped.been_terminated, truncated)
 
     # compute returns
     returns = []
@@ -40,7 +40,9 @@ def sample_trajectories(env, policy, batch_size, return_type):
 
         # compute initial returns
         if return_type == 'initial-return':
-            returns.append(np.full(env.lengths[i], env.returns[i]))
+            returns.append(
+                np.full(env.get_wrapper_attr('lengths')[i], env.get_wrapper_attr('returns')[i])
+            )
 
         # compute n-step returns
         else: # return_type == 'n-return'
@@ -93,7 +95,7 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
     states, actions, returns = sample_trajectories(env, policy, batch_size, return_type)
 
     # initialize memory
-    memory = Memory(size=states.shape[0]+1, state_dim=env.d, action_dim=env.d)
+    memory = Memory(size=states.shape[0]+1, state_dim=env.unwrapped.d, action_dim=env.unwrapped.d)
 
     # store experiences in memory
     memory.store_vectorized(states, actions, returns=returns)
@@ -105,7 +107,7 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
     _, log_probs = policy.forward(batch['states'], batch['actions'])
 
     # estimate mean trajectory length
-    mean_length = env.lengths.mean() if estimate_z else 1
+    mean_length = env.get_wrapper_attr('lengths').mean() if estimate_z else 1
 
     # normalize n-returns
     returns = normalize_array(batch['returns'], eps=1e-5)
@@ -143,7 +145,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
 
     # get dir path
     dir_path = get_reinforce_stoch_dir_path(
-        env,
+        env.unwrapped,
         agent='reinforce-stoch-{}'.format(expectation_type),
         gamma=gamma,
         n_layers=n_layers,
@@ -187,17 +189,17 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
     hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
 
     if policy_type == 'const-cov':
-        policy = GaussianPolicyConstantCov(state_dim=env.d, action_dim=env.d,
+        policy = GaussianPolicyConstantCov(state_dim=env.unwrapped.d, action_dim=env.unwrapped.d,
                                            hidden_sizes=hidden_sizes, activation=nn.Tanh(),
                                            std=policy_noise)
     else:
         policy = GaussianPolicyLearntCov(
-            state_dim=env.d, action_dim=env.d, hidden_sizes=hidden_sizes,
+            state_dim=env.unwrapped.d, action_dim=env.unwrapped.d, hidden_sizes=hidden_sizes,
             activation=nn.Tanh(), std_init=policy_noise,
         )
 
     # initialize value function model
-    value = ValueFunction(state_dim=env.d, hidden_sizes=d_hidden_layers, activation=nn.Tanh()) \
+    value = ValueFunction(state_dim=env.unwrapped.d, hidden_sizes=d_hidden_layers, activation=nn.Tanh()) \
             if learn_value else None
 
     # define optimizer
@@ -256,9 +258,9 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         'cts',
     ]
 
-    if live_plot_freq and env.d == 1:
-        mean, sigma = evaluate_stoch_policy_model(env, policy)
-        lines = initialize_gaussian_policy_1d_figure(env, mean, sigma, policy_opt=policy_opt)
+    if live_plot_freq and env.unwrapped.d == 1:
+        mean, sigma = evaluate_stoch_policy_model(env.unwrapped, policy)
+        lines = initialize_gaussian_policy_1d_figure(env.unwrapped, mean, sigma, policy_opt=policy_opt)
 
     for i in np.arange(n_grad_iterations+1):
 
@@ -278,7 +280,7 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
         ct_final = time.time()
 
         # save and log epoch 
-        env.statistics_to_numpy()
+        env.env.statistics_to_numpy()
         is_stats.save_epoch(i, env, loss=loss.detach().numpy(),
                             loss_var=loss_var, ct=ct_final - ct_initial)
         is_stats.log_epoch(i) if i % log_freq == 0 else None
@@ -293,9 +295,9 @@ def reinforce_stochastic(env, expectation_type, return_type, gamma, policy_type,
             save_data(data | stats_dict, dir_path)
 
         # update plots
-        if live_plot_freq and env.d == 1 and i % live_plot_freq == 0:
-            mean, sigma = evaluate_stoch_policy_model(env, policy)
-            update_gaussian_policy_1d_figure(env, mean, sigma, lines)
+        if live_plot_freq and env.unwrapped.d == 1 and i % live_plot_freq == 0:
+            mean, sigma = evaluate_stoch_policy_model(env.unwrapped, policy)
+            update_gaussian_policy_1d_figure(env.unwrapped, mean, sigma, lines)
 
     stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
     data = data | stats_dict

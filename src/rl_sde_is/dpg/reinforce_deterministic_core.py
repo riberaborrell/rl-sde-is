@@ -39,7 +39,9 @@ def sample_trajectories(env, model, batch_size, return_type):
 
         # compute initial returns
         if return_type == 'initial-return':
-            returns.append(np.full(env.lengths[i]-1, env.returns[i]))
+            returns.append(
+                np.full(env.get_wrapper_attr('lengths')[i]-1, env.get_wrapper_attr('returns')[i])
+            )
 
         # compute n-step returns
         else: # retrun_type == 'n-return'
@@ -60,7 +62,7 @@ def sample_loss_random_time(env, model, optimizer, scheduler, batch_size, return
     else:
 
         # compute relative coordinates
-        states_rel = compute_dihedral_vect(states) if env.is_reduced else compute_state_vect(states)
+        states_rel = compute_dihedral_vect(states) if env.unwrapped.is_reduced else compute_state_vect(states)
 
         # torchify states
         states = torch.FloatTensor(states)
@@ -71,7 +73,7 @@ def sample_loss_random_time(env, model, optimizer, scheduler, batch_size, return
 
         # compute absolute actions
         n_actions = actions_rel.shape[0]
-        if env.is_reduced:
+        if env.unwrapped.is_reduced:
             actions = compute_force_from_dihedral_action_vect_torch(states, actions_rel).view(n_actions, -1)
         else:
             actions = compute_force_from_action_vect_torch(states, actions_rel).view(n_actions, -1)
@@ -81,7 +83,7 @@ def sample_loss_random_time(env, model, optimizer, scheduler, batch_size, return
     returns = torch.FloatTensor(returns)
 
     # compute girsanov deterministic and stochastic integrals
-    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt
+    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.unwrapped.dt
     girs_stoch_int = dot_vect(dbts, actions)
 
     # calculate loss
@@ -106,7 +108,7 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
     states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
 
     # initialize memory
-    memory = Memory(size=states.shape[0]+1, state_dim=env.d_state, action_dim=env.d_action)
+    memory = Memory(size=states.shape[0]+1, state_dim=env.unwrapped.d_state, action_dim=env.unwrapped.d_action)
 
     # store experiences in memory
     memory.store_vectorized(states, dbts, returns=returns)
@@ -120,10 +122,10 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
     actions = model.forward(batch['states'])
 
     # estimate mean trajectory length
-    mean_length = env.lengths.mean() if estimate_z else 1
+    mean_length = env.get_wrapper_attr('lengths').mean() if estimate_z else 1
 
     # compute girsanov deterministic and stochastic integrals
-    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.dt
+    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.unwrapped.dt
     girs_stoch_int = dot_vect(batch['dbts'], actions)
 
     # calculate loss
@@ -194,7 +196,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
 
     # get dir path
     dir_path = get_reinforce_det_dir_path(
-        env,
+        env.unwrapped,
         agent='reinforce-det-{}'.format(expectation_type),
         gamma=gamma,
         n_layers=n_layers,
@@ -232,7 +234,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
     d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
 
     # initialize policy model 
-    model = DeterministicPolicy(state_dim=env.d_state, action_dim=env.d_action,
+    model = DeterministicPolicy(state_dim=env.unwrapped.d_state, action_dim=env.unwrapped.d_action,
                                 hidden_sizes=d_hidden_layers, activation=nn.Tanh())
 
     # initialize value function model
@@ -308,7 +310,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
 
     # initialize live figures
     if live_plot_freq:
-        figs_placeholder = initialize_figures(env, model, value, policy_opt, value_function_opt)
+        figs_placeholder = initialize_figures(env.unwrapped, model, value, policy_opt, value_function_opt)
 
     for i in np.arange(n_grad_iterations+1):
 
@@ -330,7 +332,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         ct_final = time.time()
 
         # save and log epoch 
-        env.statistics_to_numpy()
+        env.env.statistics_to_numpy()
         is_stats.save_epoch(i, env, loss=loss.detach().numpy(),
                             loss_var=loss_var, ct=ct_final - ct_initial, lr=scheduler.get_last_lr()[0])
         is_stats.log_epoch(i) if i % log_freq == 0 else None
@@ -348,7 +350,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
 
         # update figure
         if live_plot_freq and i % live_plot_freq == 0:
-            update_figures(env, model, value, figs_placeholder)
+            update_figures(env.unwrapped, model, value, figs_placeholder)
 
     # add learning results
     stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}

@@ -24,11 +24,11 @@ def main():
 
     # discretize state and action space (plot purposes only)
     h_coarse = 0.01
-    env.discretize_state_space(h_state=h_coarse)
-    env.discretize_action_space(h_action=h_coarse)
+    env.unwrapped.discretize_state_space(h_state=h_coarse)
+    env.unwrapped.discretize_action_space(h_action=h_coarse)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver(h_coarse)
+    sol_hjb = env.unwrapped.get_hjb_solver(h_coarse)
 
     # run reinforce algorithm with a deterministic policy
     succ, data = reinforce_deterministic(
@@ -77,16 +77,17 @@ def main():
     plot_y_per_grad_iteration(x, data['lrs'], title=r'Learning rate', plot_scale='semilogy')
 
     # plot policy
-    policies = get_policies(env, data, iterations)
+    policies = get_policies(env.unwrapped, data, iterations)
     if args.learn_value:
         value_functions = get_value_functions(env, data, iterations)
 
-    if env.d == 1:
+    if env.unwrapped.d == 1:
         plot_det_policies_1d(env, policies, sol_hjb.u_opt)
         if args.learn_value:
             plot_ys_1d(env, value_functions, -sol_hjb.value_function)
 
-    if env.d == 2:
+    if env.unwrapped.d == 2:
+        env = env.unwrapped
         plot_det_policy_2d(env, policies[0].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
         plot_det_policy_2d(env, policies[-1].reshape(env.n_states_axis+(env.d,)), sol_hjb.u_opt)
 

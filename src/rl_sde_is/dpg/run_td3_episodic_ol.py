@@ -23,11 +23,11 @@ def main():
 
     # discretize state and action space (plot purposes only)
     h_coarse = 0.1
-    env.discretize_state_space(h_state=h_coarse)
-    env.discretize_action_space(h_action=h_coarse)
+    env.unwrapped.discretize_state_space(h_state=h_coarse)
+    env.unwrapped.discretize_action_space(h_action=h_coarse)
 
     # get hjb solver
-    sol_hjb = env.get_hjb_solver(h_coarse)
+    sol_hjb = env.unwrapped.get_hjb_solver(h_coarse)
 
     # run td3
     succ, data = td3_episodic(
@@ -73,6 +73,7 @@ def main():
     critic2 = data['critic2']
 
     # 1d-problems
+    env = env.unwrapped
     if env.d == 1:
 
         # get backup models

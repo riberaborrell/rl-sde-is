@@ -182,7 +182,7 @@ def vracer(env, args, load=False):
 
     # get dir path
     args.dir_path = get_vracer_dir_path(
-        env,
+        env.unwrapped,
         gamma=args.gamma,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden,
@@ -218,13 +218,13 @@ def vracer(env, args, load=False):
     set_vracer_train_params(e, env, args)
 
     # set V-RACER variables
-    if 'butane' not in env.name:
-        set_vracer_variables_toy(e, env, args)
-    elif 'butane' in env.name and env.is_reduced:
-        set_vracer_variables_butane_reduced(e, env, args)
+    if 'butane' not in env.unwrapped.name:
+        set_vracer_variables_toy(e, env.unwrapped, args)
+    elif 'butane' in env.unwrapped.name and env.unwrapped.is_reduced:
+        set_vracer_variables_butane_reduced(e, env.unwrapped, args)
     else:
     #elif 'butane' in env.name and not env.is_reduced:
-        set_vracer_variables_butane(e, env, args)
+        set_vracer_variables_butane(e, env.unwrapped, args)
 
     # add dir path to the korali output file
     print('[Korali] Directory Path: {}'.format(args.dir_path))
