@@ -181,6 +181,12 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
+        '--lr-final',
+        type=float,
+        default=None,
+        help='Set learning rate. Default: None',
+    )
+    parser.add_argument(
         '--lr-actor',
         type=float,
         default=0.0001,

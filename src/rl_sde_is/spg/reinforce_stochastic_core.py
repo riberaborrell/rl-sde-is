@@ -122,14 +122,21 @@ def sample_loss_on_policy(env, policy, optimizer, batch_size, return_type,
     optimizer.zero_grad()
     loss.backward()
 
+    # scale gradients before updating parameters
+    if estimate_z:
+        with torch.no_grad():
+            for param in policy.parameters():
+                if param.grad is not None:
+                    param.grad *= mean_length
+
     # scale learning rate
-    optimizer.param_groups[0]['lr'] *= mean_length
+    #optimizer.param_groups[0]['lr'] *= mean_length
 
     #update parameters
     optimizer.step()
 
     # re-scale learning rate back
-    optimizer.param_groups[0]['lr'] /= mean_length
+    #optimizer.param_groups[0]['lr'] /= mean_length
 
     return loss, loss_var
 

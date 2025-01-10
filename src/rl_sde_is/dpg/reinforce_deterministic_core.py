@@ -13,7 +13,7 @@ from gym_sde_is.utils.butane import * #compute_state_vect, compute_force_from_ac
 
 from rl_sde_is.dpg.dpg_utils import DeterministicPolicy, ValueFunction
 from rl_sde_is.dpg.replay_memories import ReplayMemoryModelBasedDPG as Memory
-from rl_sde_is.utils.schedulers import simple_lr_schedule, two_phase_lr_schedule, three_phase_lr_schedule
+from rl_sde_is.utils.schedulers import simple_lr_schedule
 from rl_sde_is.utils.approximate_methods import evaluate_det_policy_model, \
                                                 evaluate_time_dependent_det_policy_model, \
                                                 evaluate_value_function_model, \
@@ -138,14 +138,21 @@ def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
     optimizer.zero_grad()
     loss.backward()
 
+    # scale gradients before updating parameters
+    if estimate_z:
+        with torch.no_grad():
+            for param in model.parameters():
+                if param.grad is not None:
+                    param.grad *= mean_length
+
     # scale learning rate
-    optimizer.param_groups[0]['lr'] *= mean_length
+    #optimizer.param_groups[0]['lr'] *= mean_length
 
     #update parameters
     optimizer.step()
 
     # re-scale learning rate back
-    optimizer.param_groups[0]['lr'] /= mean_length
+    #optimizer.param_groups[0]['lr'] /= mean_length
 
     return loss, loss_var
 
@@ -187,8 +194,8 @@ def sample_value_loss(env, value, optimizer):
 def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
                             theta_init, batch_size, lr, n_grad_iterations, seed, learn_value,
                             estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
-                            memory_size=int(1e6), optim_type='adam', scheduled_lr=False, lr_value=None,
-                            backup_freq=None, live_plot_freq=None, log_freq=100,
+                            memory_size=int(1e6), optim_type='adam', scheduled_lr=False, lr_final=None,
+                            lr_value=None, backup_freq=None, live_plot_freq=None, log_freq=100,
                             policy_opt=None, value_function_opt=None, load=False):
 
     if expectation_type == 'on-policy' and mini_batch_size is None:
@@ -209,6 +216,7 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
         mini_batch_size_type=mini_batch_size_type,
         lr=lr,
         scheduled_lr=scheduled_lr,
+        lr_final=lr_final,
         optim_type=optim_type,
         n_grad_iterations=n_grad_iterations,
         learn_value=learn_value,
@@ -251,12 +259,8 @@ def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers,
 
     # define scheduler
     if scheduled_lr:
-        #lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
-        #                                lr_final=1e-2, n_iter=n_grad_iterations+1)
-        #lr_schedule = functools.partial(two_phase_lr_schedule, lr_init=lr,
-        #                                lr_final=1e-3, n_iter_adaptive=500)
-        lr_schedule = functools.partial(three_phase_lr_schedule, lr_init=lr, lr_middle=1e-1,
-                                        lr_final=1e-3, n_iter_1=500, n_iter_2=250)
+        lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
+                                        lr_final=lr_final, n_iter=n_grad_iterations+1)
         scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
     else:
         scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda it: 1)
