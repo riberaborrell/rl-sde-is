@@ -435,6 +435,18 @@ def get_base_parser():
         help='Type of return estimator. Default: "total rewards"',
     )
     parser.add_argument(
+        '--norm-returns',
+        action='store_true',
+        default=False,
+        help='Toggles returns normalization'
+    )
+    parser.add_argument(
+        '--norm-adv',
+        action='store_true',
+        default=False,
+        help='Toggles advantages normalization'
+    )
+    parser.add_argument(
         '--log-freq',
         type=int,
         default=100,
@@ -487,5 +499,10 @@ def get_base_parser():
         '--track',
         action='store_true',
         help='track gym environment with wandb',
+    )
+    parser.add_argument(
+        '--cuda',
+        action='store_true',
+        help='if toggled, cuda will be enabled by default',
     )
     return parser

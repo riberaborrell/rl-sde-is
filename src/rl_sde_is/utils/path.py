@@ -77,7 +77,10 @@ def save_model(model, dir_path, file_name):
     )
 
 def load_model(model, dir_path, file_name):
-    model.load_state_dict(torch.load(os.path.join(get_data_dir(), dir_path, file_name)))
+    model.load_state_dict(torch.load(
+        os.path.join(get_data_dir(), dir_path, file_name),
+        weights_only=True,
+    ))
 
 
 def get_dir_path(env_str, algorithm_name, param_str):
@@ -163,6 +166,8 @@ def get_iter_str(**kwargs):
         string = 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps'])
     elif 'n_grad_iterations' in kwargs.keys():
         string = 'n-grad-iter{:.0e}_'.format(kwargs['n_grad_iterations'])
+    elif 'n_iterations' in kwargs.keys():
+        string = 'n-iter{:.0e}_'.format(kwargs['n_iterations'])
     else:
         string = ''
     return string
@@ -501,4 +506,26 @@ def get_vracer_dir_path(env, **kwargs):
               + get_seed_str(**kwargs)
 
     return get_dir_path(env.__str__(), 'vracer', param_str)
+
+def get_ppo_dir_path(**kwargs):
+    '''
+    '''
+    env = kwargs['env'].unwrapped
+
+    # set parameters string
+    param_str = 'dt{:.0e}_'.format(env.dt) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'policy-noise-init{:.2f}_'.format(kwargs['policy_noise_init']) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + get_iter_str(**kwargs) \
+              + 'n-mini-batches{:d}_'.format(kwargs['n_mini_batches']) \
+              + 'update-epochs{:d}_'.format(kwargs['update_epochs']) \
+              + 'clip-coef{:.2f}_'.format(kwargs['clip_coef']) \
+              + 'ent-coef{:.2f}_'.format(kwargs['ent_coef']) \
+              + 'vf-coef{:.2f}_'.format(kwargs['vf_coef']) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
