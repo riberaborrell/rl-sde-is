@@ -10,6 +10,7 @@ import torch.optim as optim
 
 from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
 from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
+from gym_sde_is.utils.butane import compute_state_vect, compute_dihedral_vect
 
 from rl_sde_is.po.models import ActorCriticModel
 from rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model, evaluate_value_function_model
@@ -208,6 +209,10 @@ class PPO:
             # sample trajectories
             states, actions, log_probs, values, returns, advantages = self.sample_trajectories()
 
+            # compute relative coordinates
+            if 'butane' in self.env.unwrapped.name:
+                states_rel = compute_dihedral_vect(states) if self.env.unwrapped.is_reduced else compute_state_vect(states)
+
             # convert to torch tensors
             states = torch.Tensor(states).to(self.device)
             actions = torch.Tensor(actions).to(self.device)
@@ -215,6 +220,8 @@ class PPO:
             values = torch.Tensor(values).to(self.device)
             returns = torch.Tensor(returns).to(self.device)
             advantages = torch.Tensor(advantages).to(self.device)
+            if 'butane' in self.env.unwrapped.name:
+                states_rel = torch.Tensor(states_rel)
 
             # n total steps in batch
             n_total_steps = states.shape[0]
@@ -242,9 +249,13 @@ class PPO:
                     end = start + mini_batch_size if j < self.n_mini_batches - 1 else n_total_steps
                     mb_inds = b_inds[start:end]
 
-                    # compute new log probs and entropy of the updated gaussian distribution
-                    new_values = self.model.critic(states[mb_inds])
-                    dist, new_log_probs = self.model.actor(states[mb_inds], actions[mb_inds])
+                    # compute new values of the updated critic network and
+                    # new log probs of the updated gaussian distribution (actor network)
+                    mb_states = states[mb_inds] if 'butane' not in self.env.unwrapped.name else states_rel[mb_inds]
+                    new_values = self.model.critic(mb_states)
+                    dist, new_log_probs = self.model.actor(mb_states, actions[mb_inds])
+
+                    # compute entropy of the new distribution
                     entropy = dist.entropy().sum(1)
 
                     # compute the ratio of the new and old log probs
@@ -298,11 +309,6 @@ class PPO:
 
             # end timer
             ct_final = time.time()
-
-            #TODO: do we need this statistics?
-            #y_pred, y_true = values.cpu().numpy(), returns.cpu().numpy()
-            #var_y = np.var(y_true)
-            #explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
             # save and log epoch 
             self.env.env.statistics_to_numpy()
