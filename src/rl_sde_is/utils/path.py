@@ -347,9 +347,12 @@ def get_reinforce_discrete_dir_path(env, **kwargs):
 
     return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
-def get_reinforce_stoch_dir_path(env, **kwargs):
+def get_reinforce_stoch_dir_path(**kwargs):
     '''
     '''
+
+    # get environment
+    env = kwargs['env'].unwrapped
 
     # set parameters string
     param_str = 'dt{:.0e}_'.format(env.dt) \
@@ -368,9 +371,13 @@ def get_reinforce_stoch_dir_path(env, **kwargs):
     return get_dir_path(env.__str__(), kwargs['agent'], param_str)
 
 
-def get_reinforce_det_dir_path(env, **kwargs):
+def get_reinforce_det_dir_path(**kwargs):
     '''
     '''
+
+    # get environment
+    env = kwargs['env'].unwrapped
+
     # set parameters string
     param_str = 'dt{:.0e}_'.format(env.dt) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \

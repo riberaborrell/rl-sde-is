@@ -1,8 +1,7 @@
 import gymnasium as gym
 import gym_sde_is
 
-from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic, \
-                                                       get_policies, get_value_functions
+from rl_sde_is.dpg.reinforce_deterministic_core import ReinforceDeterministic
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
 
@@ -31,7 +30,7 @@ def main():
     sol_hjb = env.unwrapped.get_hjb_solver(h_coarse)
 
     # run reinforce algorithm with a deterministic policy
-    succ, data = reinforce_deterministic(
+    agent = ReinforceDeterministic(
         env,
         expectation_type=args.expectation_type,
         return_type=args.return_type,
@@ -42,7 +41,7 @@ def main():
         batch_size=args.batch_size,
         mini_batch_size=args.mini_batch_size,
         mini_batch_size_type=args.mini_batch_size_type,
-        memory_size=args.replay_size,
+        #memory_size=args.replay_size,
         lr=args.lr,
         scheduled_lr=args.scheduled_lr,
         lr_final=args.lr_final,
@@ -52,6 +51,8 @@ def main():
         learn_value=args.learn_value,
         estimate_z=args.estimate_z,
         lr_value=args.lr_value,
+    )
+    succ, data = agent.run_agent(
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,
         live_plot_freq=args.live_plot_freq,
@@ -79,9 +80,9 @@ def main():
 
     # plot policy
     env = env.unwrapped
-    policies = get_policies(env, data, iterations)
+    policies = agent.get_policies(data, iterations)
     if args.learn_value:
-        value_functions = get_value_functions(env, data, iterations)
+        value_functions = agent.get_value_functions(data, iterations)
 
     if env.d == 1:
         plot_det_policies_1d(env, policies, sol_hjb.u_opt)

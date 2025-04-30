@@ -1,33 +1,28 @@
 import numpy as np
 
-from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic
-from rl_sde_is.spg.reinforce_stochastic_core import reinforce_stochastic
+from rl_sde_is.dpg.reinforce_deterministic_core import ReinforceDeterministic
+from rl_sde_is.spg.reinforce_stochastic_core import ReinforceStochastic
 from rl_sde_is.utils.numeric import compute_running_mean
 
-def get_coarse_lrs(lr_low, lr_high):
-    assert lr_low < lr_high, ''
-    assert np.log10(lr_low) % 1 == 0, ''
-    assert np.log10(lr_high) % 1 == 0, ''
+LEARNING_RATES = [
+    1e-7, 2e-7, 5e-7, 1e-6, 2e-6, 5e-6,
+    1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4,
+    1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2,
+    1e-1, 2e-1, 5e-1, 1e0, 2e0, 5e0,
+    1e1, 2e1, 5e1, 1e2, 2e2, 5e2, 1e3,
+]
 
-    e_low, e_high = int(np.log10(lr_low)), int(np.log10(lr_high))
-    lrs = []
-    for e in range(e_low, e_high+1):
-        lrs.append(10**(e))
-    return lrs
+def get_coarse_lrs(lr_low, lr_high):
+    assert LEARNING_RATES[0] <= lr_low < lr_high <= LEARNING_RATES[-1], ''
+    return [
+        lr for lr in LEARNING_RATES
+            if lr >= lr_low and lr <= lr_high and np.log10(lr) % 1 == 0
+    ]
 
 def get_fine_lrs(lr_low, lr_high):
-    assert lr_low < lr_high, ''
-    assert np.log10(lr_low) % 1 == 0, ''
-    assert np.log10(lr_high) % 1 == 0, ''
+    assert LEARNING_RATES[0] <= lr_low < lr_high <= LEARNING_RATES[-1], ''
+    return [lr for lr in LEARNING_RATES if lr >= lr_low and lr <= lr_high]
 
-    e_low, e_high = int(np.log10(lr_low)), int(np.log10(lr_high))
-    lrs = []
-    for e in range(e_low, e_high):
-        lrs.append(10**(e))
-        lrs.append(2*10**(e))
-        lrs.append(5*10**(e))
-    lrs.append(10**(e_high))
-    return lrs
 
 def get_arrays_multiple_datas(datas: list[dict], keys: list[str]) -> dict:
     ''' Get the values of the given keys from multiple dictionaries.
@@ -100,7 +95,7 @@ def get_z_factor_experiment(env, kwargs, kwargs_rt, kwargs_op, lrs, seeds, key, 
         return last_key_values, n_iter, time_steps, cts
 
     # deterministic policy or stochastic policy
-    reinforce_fn = reinforce_stochastic if 'policy_type' in kwargs else reinforce_deterministic
+    reinforce_class = ReinforceStochastic if 'policy_type' in kwargs else ReinforceDeterministic
 
     # preallocate arrays
     lasts = [np.full((len(seeds), len(lrs[i])), np.nan) for i in range(3)]
@@ -112,24 +107,40 @@ def get_z_factor_experiment(env, kwargs, kwargs_rt, kwargs_op, lrs, seeds, key, 
 
         # random time horizon
         for j, lr in enumerate(lrs[0]):
-            succ, data = reinforce_fn(env, lr=lr, seed=seed, **kwargs, **kwargs_rt)
+            agent = reinforce_class(env, lr=lr, seed=seed, **kwargs, **kwargs_rt)
+            succ, data = agent.run_agent(load=True)
             if succ:
                 lasts[0][i, j], n_grad_iters[0][i, j], time_steps[0][i, j], cts[0][i, j] \
                     = get_info(data, key, threshold, sign, run_window)
 
         # on policy expectation with z-factor estimated 
         for j, lr in enumerate(lrs[1]):
-            succ, data = reinforce_fn(env, estimate_z=True, lr=lr, seed=seed, **kwargs, **kwargs_op)
+            agent = reinforce_class(env, estimate_z=True, lr=lr, seed=seed, **kwargs, **kwargs_op)
+            succ, data = agent.run_agent(load=True)
             if succ:
                 lasts[1][i, j], n_grad_iters[1][i, j], time_steps[1][i, j], cts[1][i, j] \
                     = get_info(data, key, threshold, sign, run_window)
 
         # on policy expectation with z-factor neglected 
         for j, lr in enumerate(lrs[2]):
-            succ, data = reinforce_fn(env, estimate_z=False, lr=lr, seed=seed, **kwargs, **kwargs_op)
+            agent = reinforce_class(env, estimate_z=False, lr=lr, seed=seed, **kwargs, **kwargs_op)
+            succ, data = agent.run_agent(load=True)
             if succ:
                 lasts[2][i, j], n_grad_iters[2][i, j], time_steps[2][i, j], cts[2][i, j] \
                     = get_info(data, key, threshold, sign, run_window)
 
     return lasts, n_grad_iters, time_steps, cts
 
+
+def find_optimal_lr(lrs, lasts, maximize=True):
+    idx, optimal_lrs, max_lasts_avg = [], [], []
+    for i in range(3):
+        lasts_avg = np.mean(lasts[i], axis=0)
+        #print(lasts_avg)
+        if maximize:
+            idx.append(np.nanargmax(lasts_avg))
+        else:
+            idx.append(np.nanargmin(lasts_avg))
+        max_lasts_avg.append(lasts_avg[idx[i]])
+        optimal_lrs.append(lrs[i][idx[i]])
+    return idx, optimal_lrs, max_lasts_avg

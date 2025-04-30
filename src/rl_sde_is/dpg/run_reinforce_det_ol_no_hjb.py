@@ -38,6 +38,7 @@ def main():
         memory_size=args.replay_size,
         lr=args.lr,
         scheduled_lr=args.scheduled_lr,
+        lr_final=args.lr_final,
         optim_type=args.optim_type,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,

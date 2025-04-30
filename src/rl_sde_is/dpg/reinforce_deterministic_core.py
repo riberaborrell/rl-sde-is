@@ -24,411 +24,445 @@ from rl_sde_is.utils.path import get_reinforce_det_dir_path, load_data, save_dat
                                  save_model, load_model
 from rl_sde_is.utils.plots import *
 
-def sample_trajectories(env, model, batch_size, return_type):
 
-    # evaluate policy. Trajectories are stored and statistics are computed
-    evaluate_policy_torch_vect(env, model, batch_size)
+class ReinforceDeterministic:
+    def __init__(self, env, gamma=1.0, expectation_type='random-time', return_type='initial-return',
+                 estimate_z=True, theta_init='null', n_layers=2, d_hidden_layer=32,
+                 optim_type='sgd', batch_size=100, mini_batch_size_type='adaptive',
+                 mini_batch_size=1, lr=1e-2, learn_value=False, lr_value=None,
+                 n_grad_iterations=100, seed=None, scheduled_lr=False, lr_final=None,
+                 norm_returns=True, cuda=False):
 
-    # get states, dbts and returns
-    states, dbts, returns = [], [], []
-    for i in range(batch_size):
 
-        # states and dbts
-        states.append(env.trajs_states[i][:-1])
-        dbts.append(env.trajs_dbts[i][:-1])
+        if expectation_type == 'on-policy' and mini_batch_size is None:
+            raise ValueError('The mini_batch_size must be provided when using on-policy')
 
-        # compute initial returns
-        if return_type == 'initial-return':
-            returns.append(
-                np.full(env.get_wrapper_attr('lengths')[i]-1, env.get_wrapper_attr('returns')[i])
-            )
+        # agent
+        self.agent = 'reinforce-det-{}'.format(expectation_type)
 
-        # compute n-step returns
-        else: # retrun_type == 'n-return'
-            returns.append(cumsum(env.trajs_rewards[i])[1:])
+        # environment
+        self.env = env
 
-    return np.vstack(states), np.vstack(dbts), np.hstack(returns)
+        # discount
+        self.gamma = gamma
 
-def sample_loss_random_time(env, model, optimizer, scheduler, batch_size, return_type):
+        # get state and action dimensions
+        self.state_dim = env.unwrapped.d_state
+        self.action_dim = env.unwrapped.d_action
 
-    # sample trajectories
-    states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
+        # expectation type and return type
+        self.expectation_type = expectation_type
+        self.return_type = return_type
 
-    if 'butane' not in env.unwrapped.name:
+        # state space (on-policy) expectation
+        if expectation_type == 'on-policy':
+            self.estimate_z = estimate_z
+            self.mini_batch_size = mini_batch_size
+            self.mini_batch_size_type = mini_batch_size_type
+
+        # normalize returns
+        self.norm_returns = norm_returns
+
+        # deterministic policy
+        self.theta_init = theta_init
+        self.n_layers = n_layers
+        self.d_hidden_layer = d_hidden_layer
+
+        # stohastic gradient descent
+        self.optim_type = optim_type
+        self.batch_size = batch_size
+        self.lr = lr
+        self.learn_value = learn_value
+        if learn_value:
+            self.lr_value = lr_value
+        self.n_grad_iterations = n_grad_iterations
+
+        # scheduled lr
+        self.scheduled_lr=scheduled_lr
+        self.lr_final=lr_final
+
+        # cuda device
+        self.device = torch.device("cuda" if torch.cuda.is_available() and cuda else "cpu")
+
+        # get dimensions of each layer
+        d_hidden_layers = [self.d_hidden_layer for i in range(self.n_layers-1)]
+
+        # initialize policy model 
+        self.model = DeterministicPolicy(
+            state_dim=self.state_dim, action_dim=self.action_dim,
+             hidden_sizes=d_hidden_layers, activation=nn.Tanh(),
+        ).to(self.device)
+
+        # initialize value function model
+        self.value = ValueFunction(
+            state_dim=self.state_dim, hidden_sizes=d_hidden_layers, activation=nn.Tanh(),
+        ).to(self.device) if self.learn_value else None
+
+        # seed
+        self.seed = seed
+
+    def sample_trajectories(self):
+
+        # evaluate policy. Trajectories are stored and statistics are computed
+        evaluate_policy_torch_vect(self.env, self.model, self.batch_size)
+
+        # get states, dbts and returns
+        states, dbts, returns = [], [], []
+        for i in range(self.batch_size):
+
+            # states and dbts
+            states.append(self.env.trajs_states[i][:-1])
+            dbts.append(self.env.trajs_dbts[i][:-1])
+
+            # compute initial returns
+            if self.return_type == 'initial-return':
+                returns.append(
+                    np.full(self.env.get_wrapper_attr('lengths')[i]-1, self.env.get_wrapper_attr('returns')[i])
+                )
+
+            # compute n-step returns
+            else: # retrun_type == 'n-return'
+                returns.append(cumsum(self.env.trajs_rewards[i])[1:])
+
+        return np.vstack(states), np.vstack(dbts), np.hstack(returns)
+
+    def sample_loss_random_time(self):
+
+        # sample trajectories
+        states, dbts, returns = self.sample_trajectories()
+
+        if 'butane' not in self.env.unwrapped.name:
+
+            # compute actions following the policy
+            states = torch.FloatTensor(states)
+            actions = self.model.forward(states)
+        else:
+
+            # compute relative coordinates
+            states_rel = compute_dihedral_vect(states) if self.env.unwrapped.is_reduced else compute_state_vect(states)
+
+            # torchify states
+            states = torch.FloatTensor(states)
+            states_rel = torch.FloatTensor(states_rel)
+
+            # compute relative actions following the model
+            actions_rel = self.model.forward(states_rel)
+
+            # compute absolute actions
+            n_actions = actions_rel.shape[0]
+            if self.env.unwrapped.is_reduced:
+                actions = compute_force_from_dihedral_action_vect_torch(states, actions_rel).view(n_actions, -1)
+            else:
+                actions = compute_force_from_action_vect_torch(states, actions_rel).view(n_actions, -1)
+
+        # torchify dbts and returns
+        dbts = torch.FloatTensor(dbts)
+        returns = torch.FloatTensor(returns)
+
+        # compute girsanov deterministic and stochastic integrals
+        girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * self.env.unwrapped.dt
+        girs_stoch_int = dot_vect(dbts, actions)
+
+        # calculate loss
+        phi = girs_det_int - returns * girs_stoch_int
+        loss = phi.sum() / self.batch_size
+        with torch.no_grad():
+            loss_var = phi.var().numpy()
+
+        # reset gradients, compute gradients and update parameters
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        # scheduler
+        self.scheduler.step()
+
+        return loss, loss_var
+
+    def sample_loss_on_policy(self):
+
+        # sample trajectories
+        states, dbts, returns = self.sample_trajectories()
+
+        # initialize memory
+        memory = Memory(size=states.shape[0]+1, state_dim=self.state_dim, action_dim=self.action_dim)
+
+        # store experiences in memory
+        memory.store_vectorized(states, dbts, returns=returns)
+
+        # sample batch of experiences from memory
+        if self.mini_batch_size_type == 'adaptive':
+            mini_batch_size = round(memory.size / self.mini_batch_size)
+        else:
+            mini_batch_size = self.mini_batch_size
+        batch = memory.sample_batch(mini_batch_size)
 
         # compute actions following the policy
-        states = torch.FloatTensor(states)
-        actions = model.forward(states)
-    else:
+        actions = self.model.forward(batch['states'])
 
-        # compute relative coordinates
-        states_rel = compute_dihedral_vect(states) if env.unwrapped.is_reduced else compute_state_vect(states)
+        # estimate mean trajectory length
+        mean_length = self.env.get_wrapper_attr('lengths').mean() if self.estimate_z else 1
 
-        # torchify states
-        states = torch.FloatTensor(states)
-        states_rel = torch.FloatTensor(states_rel)
+        # compute girsanov deterministic and stochastic integrals
+        girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * self.env.unwrapped.dt
+        girs_stoch_int = dot_vect(batch['dbts'], actions)
 
-        # compute relatice actions following the model
-        actions_rel = model.forward(states_rel)
-
-        # compute absolute actions
-        n_actions = actions_rel.shape[0]
-        if env.unwrapped.is_reduced:
-            actions = compute_force_from_dihedral_action_vect_torch(states, actions_rel).view(n_actions, -1)
-        else:
-            actions = compute_force_from_action_vect_torch(states, actions_rel).view(n_actions, -1)
-
-    # torchify dbts and returns
-    dbts = torch.FloatTensor(dbts)
-    returns = torch.FloatTensor(returns)
-
-    # compute girsanov deterministic and stochastic integrals
-    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.unwrapped.dt
-    girs_stoch_int = dot_vect(dbts, actions)
-
-    # calculate loss
-    phi = girs_det_int - returns * girs_stoch_int
-    loss = phi.sum() / batch_size
-    with torch.no_grad():
-        loss_var = phi.var().numpy()
-
-    # reset gradients, compute gradients and update parameters
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    # scheduler
-    scheduler.step()
-
-    return loss, loss_var
-
-def sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
-                          mini_batch_size, mini_batch_size_type, estimate_z):
-    # sample trajectories
-    states, dbts, returns = sample_trajectories(env, model, batch_size, return_type)
-
-    # initialize memory
-    memory = Memory(size=states.shape[0]+1, state_dim=env.unwrapped.d_state, action_dim=env.unwrapped.d_action)
-
-    # store experiences in memory
-    memory.store_vectorized(states, dbts, returns=returns)
-
-    # sample batch of experiences from memory
-    if mini_batch_size_type == 'adaptive':
-        mini_batch_size = round(memory.size / mini_batch_size)
-    batch = memory.sample_batch(mini_batch_size)
-
-    # compute actions following the policy
-    actions = model.forward(batch['states'])
-
-    # estimate mean trajectory length
-    mean_length = env.get_wrapper_attr('lengths').mean() if estimate_z else 1
-
-    # compute girsanov deterministic and stochastic integrals
-    girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * env.unwrapped.dt
-    girs_stoch_int = dot_vect(batch['dbts'], actions)
-
-    # calculate loss
-    phi = girs_det_int - batch['returns'] * girs_stoch_int
-    loss = phi.mean()
-    with torch.no_grad():
-        loss_var = phi.var().numpy()
-
-    # reset and compute actor gradients
-    optimizer.zero_grad()
-    loss.backward()
-
-    # scale gradients before updating parameters
-    if estimate_z:
+        # calculate loss
+        phi = girs_det_int - batch['returns'] * girs_stoch_int
+        loss = phi.mean()
         with torch.no_grad():
-            for param in model.parameters():
-                if param.grad is not None:
-                    param.grad *= mean_length
+            loss_var = phi.var().numpy()
 
-    # scale learning rate
-    #optimizer.param_groups[0]['lr'] *= mean_length
+        # reset and compute actor gradients
+        self.optimizer.zero_grad()
+        loss.backward()
 
-    #update parameters
-    optimizer.step()
+        # scale gradients before updating parameters
+        if self.estimate_z:
+            with torch.no_grad():
+                for param in self.model.parameters():
+                    if param.grad is not None:
+                        param.grad *= mean_length
 
-    # re-scale learning rate back
-    #optimizer.param_groups[0]['lr'] /= mean_length
+        # scale learning rate
+        #optimizer.param_groups[0]['lr'] *= mean_length
 
-    return loss, loss_var
+        #update parameters
+        self.optimizer.step()
 
-def sample_value_loss(env, value, optimizer):
+        # re-scale learning rate back
+        #optimizer.param_groups[0]['lr'] /= mean_length
 
-    # compute target value
-    with torch.no_grad():
+        return loss, loss_var
 
-        # value function next
-        next_states = np.vstack(env.trajs_states)[1:]
-        next_states = np.vstack((next_states, np.zeros((1, env.d))))
-        next_states = torch.FloatTensor(next_states)
-        v_next = value.forward(next_states)
+    def sample_value_loss(self):
 
-        # compute target (using target networks)
-        done = np.hstack(env.trajs_dones)
-        done = torch.tensor(done)
-        d = torch.where(done, 1., 0.)
-        rewards = np.hstack(env.trajs_rewards)
-        rewards = torch.FloatTensor(rewards)
-        v_target = rewards + (1. - d) * v_next
+        # compute target value
+        with torch.no_grad():
 
-    # compute current q-value
-    states = np.vstack(env.trajs_states)
-    states = torch.FloatTensor(states)
-    v_current = value.forward(states)
+            # value function next
+            next_states = np.vstack(self.env.trajs_states)[1:]
+            next_states = np.vstack((next_states, np.zeros((1, self.state_dim))))
+            next_states = torch.FloatTensor(next_states)
+            v_next = self.value.forward(next_states)
 
-    # compute loss
-    loss = (v_current - v_target).pow(2).mean()
+            # compute target (using target networks)
+            done = np.hstack(self.env.trajs_dones)
+            done = torch.tensor(done)
+            d = torch.where(done, 1., 0.)
+            rewards = np.hstack(self.env.trajs_rewards)
+            rewards = torch.FloatTensor(rewards)
+            v_target = rewards + (1. - d) * v_next
 
-    # reset gradients and update parameters
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+        # compute current q-value
+        states = np.vstack(self.env.trajs_states)
+        states = torch.FloatTensor(states)
+        v_current = self.value.forward(states)
 
-    return loss
+        # compute loss
+        loss = (v_current - v_target).pow(2).mean()
 
+        # reset gradients and update parameters
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
-def reinforce_deterministic(env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
-                            theta_init, batch_size, lr, n_grad_iterations, seed, learn_value,
-                            estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
-                            memory_size=int(1e6), optim_type='adam', scheduled_lr=False, lr_final=None,
-                            lr_value=None, backup_freq=None, live_plot_freq=None, log_freq=100,
-                            policy_opt=None, value_function_opt=None, load=False):
+        return loss
 
-    if expectation_type == 'on-policy' and mini_batch_size is None:
-        raise ValueError('The mini_batch_size must be provided when using on-policy')
+    def run_agent(self, backup_freq=None, live_plot_freq=None, log_freq=100,
+                  policy_opt=None, value_function_opt=None, load=False):
 
-    # get dir path
-    dir_path = get_reinforce_det_dir_path(
-        env.unwrapped,
-        agent='reinforce-det-{}'.format(expectation_type),
-        gamma=gamma,
-        n_layers=n_layers,
-        d_hidden_layer=d_hidden_layer,
-        theta_init=theta_init,
-        return_type=return_type,
-        estimate_z=estimate_z,
-        batch_size=batch_size,
-        mini_batch_size=mini_batch_size,
-        mini_batch_size_type=mini_batch_size_type,
-        lr=lr,
-        scheduled_lr=scheduled_lr,
-        lr_final=lr_final,
-        optim_type=optim_type,
-        n_grad_iterations=n_grad_iterations,
-        learn_value=learn_value,
-        seed=seed,
-    )
+        # get dir path
+        self.dir_path = get_reinforce_det_dir_path(**self.__dict__)
 
-    # load results
-    if load:
-        return load_data(dir_path)
+        # load results
+        if load:
+            return load_data(self.dir_path)
 
-    # set seed
-    if seed is not None:
-        np.random.seed(seed)
-        torch.manual_seed(seed)
+        # set seed
+        if self.seed is not None:
+            np.random.seed(self.seed)
+            torch.manual_seed(self.seed)
 
-    # vectorized environment
-    env = RecordEpisodeStatisticsVect(env, batch_size)
-    track_dones = True if learn_value else False
-    env = SaveEpisodeTrajectoryVect(env, batch_size, track_actions=False,
-                                    track_rewards=True, track_dones=track_dones, track_dbts=True)
+        # vectorized environment
+        self.env = RecordEpisodeStatisticsVect(self.env, self.batch_size)
+        track_dones = True if self.learn_value else False
+        self.env = SaveEpisodeTrajectoryVect(self.env, self.batch_size, track_actions=False,
+                                        track_rewards=True, track_dones=track_dones, track_dbts=True)
 
-    # get dimensions of each layer
-    d_hidden_layers = [d_hidden_layer for i in range(n_layers-1)]
+        # define optimizer/s
+        if self.optim_type == 'adam':
+            self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        elif optim_type == 'sgd':
+            self.optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
+        else:
+            raise ValueError('The optimizer {optim} is not implemented')
 
-    # initialize policy model 
-    model = DeterministicPolicy(state_dim=env.unwrapped.d_state, action_dim=env.unwrapped.d_action,
-                                hidden_sizes=d_hidden_layers, activation=nn.Tanh())
+        # define scheduler
+        if self.scheduled_lr:
+            lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
+                                            lr_final=lr_final, n_iter=self.n_grad_iterations+1)
+            self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
+        else:
+            self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda it: 1)
 
-    # initialize value function model
-    value = ValueFunction(state_dim=env.d_state, hidden_sizes=d_hidden_layers, activation=nn.Tanh()) \
-            if learn_value else None
+        if self.learn_value:
+            self.value_optimizer = optim.Adam(self.value.parameters(), lr=self.lr_value)
 
-    # define optimizer/s
-    if optim_type == 'adam':
-        optimizer = optim.Adam(model.parameters(), lr=lr)
-    elif optim_type == 'sgd':
-        optimizer = optim.SGD(model.parameters(), lr=lr)
-    else:
-        raise ValueError('The optimizer {optim} is not implemented')
+        # train params to fit hjb solution
+        if self.theta_init == 'hjb':
+            train_deterministic_policy_from_hjb(self.env, self.model, policy_opt, load=True)
 
-    # define scheduler
-    if scheduled_lr:
-        lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
-                                        lr_final=lr_final, n_iter=n_grad_iterations+1)
-        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_schedule)
-    else:
-        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda it: 1)
+        # save algorithm parameters
+        excluded = ['env', 'policy', 'value', 'optimizer', 'value_optimizer', 'scheduler']
+        data = {key: value for key, value in vars(self).items() if key not in excluded}
+        save_data(data, self.dir_path)
 
-    if learn_value:
-        value_optimizer = optim.Adam(value.parameters(), lr=lr_value)
+        # save model initial parameters
+        save_model(self.model, self.dir_path, 'model_n-it{}'.format(0))
+        if self.learn_value:
+            save_model(self.value, self.dir_path, 'value_n-it{}'.format(0))
 
-    # save algorithm parameters
-    data = {
-        'gamma': gamma,
-        'n_layers': n_layers,
-        'd_hidden_layer': d_hidden_layer,
-        'batch_size': batch_size,
-        'mini_batch_size' : mini_batch_size,
-        'lr': lr,
-        'lr_value': lr_value,
-        'optim_type': optim_type,
-        'n_grad_iterations': n_grad_iterations,
-        'seed': seed,
-        'learn_value': learn_value,
-        'backup_freq': backup_freq,
-        'model': model,
-        'value': value,
-        'dir_path': dir_path,
-    }
-    save_data(data, dir_path)
+        # create object to store the is statistics of the learning
+        is_stats = ISStatistics(
+            eval_freq=1,
+            eval_batch_size=self.batch_size,
+            n_iterations=self.n_grad_iterations,
+            iter_str='grad. it.:',
+            policy_type='det',
+            track_loss=True,
+            track_ct=True,
+            track_lr=True,
+        )
+        keys_chosen = [
+            'max_lengths', 'total_lengths', 'mean_fhts', 'var_fhts',
+            'mean_returns', 'var_returns',
+            'mean_I_us', 'var_I_us', 're_I_us',
+            'losses', 'loss_vars',
+            'cts', 'lrs',
+        ]
 
-    # save model initial parameters
-    save_model(model, dir_path, 'model_n-it{}'.format(0))
-    if learn_value:
-        save_model(value, dir_path, 'value_n-it{}'.format(0))
+        # initialize live figures
+        if live_plot_freq:
+            figs_placeholder = self.initialize_figures(policy_opt, value_function_opt)
 
-    # create object to store the is statistics of the learning
-    is_stats = ISStatistics(
-        eval_freq=1,
-        eval_batch_size=batch_size,
-        n_iterations=n_grad_iterations,
-        iter_str='grad. it.:',
-        policy_type='det',
-        track_loss=True,
-        track_ct=True,
-        track_lr=True,
-    )
-    keys_chosen = [
-        'max_lengths', 'total_lengths', 'mean_fhts', 'var_fhts',
-        'mean_returns', 'var_returns',
-        'mean_I_us', 'var_I_us', 're_I_us',
-        'losses', 'loss_vars',
-        'cts', 'lrs',
-    ]
+        for i in np.arange(self.n_grad_iterations+1):
 
-    # initialize live figures
-    if live_plot_freq:
-        figs_placeholder = initialize_figures(env.unwrapped, model, value, policy_opt, value_function_opt)
+            # start timer
+            ct_initial = time.time()
 
-    for i in np.arange(n_grad_iterations+1):
+            # compute model based policy effective loss
+            if self.expectation_type == 'random-time':
+                loss, loss_var = self.sample_loss_random_time()
+            else: # expectation_type == 'on-policy'
+                loss, loss_var = self.sample_loss_on_policy()
 
-        # start timer
-        ct_initial = time.time()
+            if self.learn_value:
+                value_loss = self.sample_value_loss()
 
-        # compute model based policy effective loss
-        if expectation_type == 'random-time':
-            loss, loss_var = sample_loss_random_time(env, model, optimizer, scheduler, batch_size, return_type)
-        else: # expectation_type == 'on-policy'
-            loss, loss_var = sample_loss_on_policy(env, model, optimizer, batch_size, return_type,
-                                                   mini_batch_size, mini_batch_size_type, estimate_z)
+            # end timer
+            ct_final = time.time()
 
-        if learn_value:
-            value_loss = sample_value_loss(env, value, value_optimizer)
+            # save and log epoch 
+            self.env.env.statistics_to_numpy()
+            is_stats.save_epoch(i, self.env, loss=loss.detach().numpy(),
+                                loss_var=loss_var, ct=ct_final - ct_initial,
+                                lr=self.scheduler.get_last_lr()[0])
+            is_stats.log_epoch(i) if i % log_freq == 0 else None
 
+            # backup models
+            if backup_freq is not None and (i + 1) % backup_freq == 0:
+                save_model(self.model, self.dir_path, 'model_n-it{}'.format(i + 1))
+                if self.learn_value:
+                    save_model(self.value, self.dir_path, 'value_n-it{}'.format(i + 1))
 
-        # end timer
-        ct_final = time.time()
+            # backup statistics
+            if (i + 1) % 100 == 0:
+                stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
+                save_data(data | stats_dict, self.dir_path)
 
-        # save and log epoch 
-        env.env.statistics_to_numpy()
-        is_stats.save_epoch(i, env, loss=loss.detach().numpy(),
-                            loss_var=loss_var, ct=ct_final - ct_initial, lr=scheduler.get_last_lr()[0])
-        is_stats.log_epoch(i) if i % log_freq == 0 else None
+            # update figure
+            if live_plot_freq and i % live_plot_freq == 0:
+                self.update_figures(figs_placeholder)
 
-        # backup models
-        if backup_freq is not None and (i + 1) % backup_freq == 0:
-            save_model(model, dir_path, 'model_n-it{}'.format(i + 1))
-            if learn_value:
-                save_model(value, dir_path, 'value_n-it{}'.format(i + 1))
+        # add learning results
+        stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
+        data = data | stats_dict
+        save_data(data, self.dir_path)
+        return True, data
 
-        # backup statistics
-        if (i + 1) % 100 == 0:
-            stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
-            save_data(data | stats_dict, dir_path)
+    def load_backup_model(self, data, i=0):
+        try:
+            load_model(self.model, data['dir_path'], file_name='model_n-it{}'.format(i))
+            if data['learn_value']:
+                load_model(self.value, data['dir_path'], file_name='value_n-it{}'.format(i))
+            return True
+        except FileNotFoundError as e:
+            print('There is no backup for grad. iteration {:d}'.format(i))
+            return False
 
-        # update figure
-        if live_plot_freq and i % live_plot_freq == 0:
-            update_figures(env.unwrapped, model, value, figs_placeholder)
+    def get_policies(self, data, iterations):
+        env = self.env.unwrapped
+        n_iterations = len(iterations)
+        policies = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
+        for i, it in enumerate(iterations):
+            self.load_backup_model(data, it)
+            policies[i] = evaluate_det_policy_model(env, data['model'])
+        return policies
 
-    # add learning results
-    stats_dict = {key: is_stats.__dict__[key] for key in keys_chosen}
-    data = data | stats_dict
-    save_data(data, dir_path)
-    return True, data
+    def get_time_dependent_policies(self, data, iterations, time_step):
+        env = self.env.unwrapped
+        n_iterations = len(iterations)
+        policies = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
+        for i, it in enumerate(iterations):
+            self.load_backup_model(data, it)
+            policies[i] = evaluate_time_dependent_det_policy_model(env, data['model'], time_step)
+        return policies
 
-def initialize_figures(env, model, value, policy_opt, value_function_opt):
-    # evaluate policy and value function
-    policy = evaluate_det_policy_model(env, model).reshape(env.state_space_h.shape)
-    if value is not None:
-        values = evaluate_value_function_model(env, value).reshape(env.state_space_h.shape[:-1])
+    def get_value_functions(self, data, iterations):
+        env = self.env.unwrapped
+        n_iterations = len(iterations)
+        value_functions = np.empty((n_iterations, env.n_states), dtype=np.float32)
+        for i, it in enumerate(iterations):
+            self.load_backup_model(data, it)
+            value_functions[i] = evaluate_value_function_model(env, data['value'])
+        return value_functions
 
-    if env.d == 1:
-        policy_line = initialize_det_policy_1d_figure(env, policy, policy_opt=policy_opt)
-        value_line = initialize_value_function_1d_figure(env, values, value_function_opt) \
-                     if value is not None else None
-        return policy_line, value_line
-    elif env.d == 2:
-        policy_quiver = initialize_det_policy_2d_figure(env, policy, policy_opt)
-        value_im = initialize_value_function_2d_figure(env, values) \
-                   if value is not None else None
-        return policy_quiver, value_im
+    def initialize_figures(self, policy_opt, value_function_opt):
+        # evaluate policy and value function
+        env = self.env.unwrapped
+        policy = evaluate_det_policy_model(env, self.model).reshape(env.state_space_h.shape)
+        if self.value is not None:
+            values = evaluate_value_function_model(env, self.value).reshape(env.state_space_h.shape[:-1])
+
+        if env.d == 1:
+            policy_line = initialize_det_policy_1d_figure(env, policy, policy_opt=policy_opt)
+            value_line = initialize_value_function_1d_figure(env, values, value_function_opt) \
+                         if self.value is not None else None
+            return policy_line, value_line
+        elif env.d == 2:
+            policy_quiver = initialize_det_policy_2d_figure(env, policy, policy_opt)
+            value_im = initialize_value_function_2d_figure(env, values) \
+                       if value is not None else None
+            return policy_quiver, value_im
 
 
-def update_figures(env, model, value, figs_placeholder):
+    def update_figures(self, figs_placeholder):
 
-    # evaluate policy and value function
-    policy = evaluate_det_policy_model(env, model).reshape(env.state_space_h.shape)
-    if value is not None:
-        values = evaluate_value_function_model(env, value).reshape(env.state_space_h.shape[:-1])
+        # evaluate policy and value function
+        env = self.env.unwrapped
+        policy = evaluate_det_policy_model(env, self.model).reshape(env.state_space_h.shape)
+        if self.value is not None:
+            values = evaluate_value_function_model(env, self.value).reshape(env.state_space_h.shape[:-1])
 
-    if env.d == 1:
-        policy_line, value_line = figs_placeholder
-        update_det_policy_1d_figure(env, policy, policy_line)
-        if value is not None:
-            update_value_function_1d_figure(env, values, value_line)
+        if env.d == 1:
+            policy_line, value_line = figs_placeholder
+            update_det_policy_1d_figure(env, policy, policy_line)
+            if self.value is not None:
+                update_value_function_1d_figure(env, values, value_line)
 
-    elif env.d == 2:
-        policy_quiver, value_im = figs_placeholder
-        update_det_policy_2d_figure(env, policy, policy_quiver)
-        if value is not None:
-            update_value_function_2d_figure(env, values, value_im)
-
-def load_backup_model(data, i=0):
-    try:
-        load_model(data['model'], data['dir_path'], file_name='model_n-it{}'.format(i))
-        if data['learn_value']:
-            load_model(data['value'], data['dir_path'], file_name='value_n-it{}'.format(i))
-        return True
-    except FileNotFoundError as e:
-        print('There is no backup for grad. iteration {:d}'.format(i))
-        return False
-
-def get_policies(env, data, iterations):
-    n_iterations = len(iterations)
-    policies = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
-    for i, it in enumerate(iterations):
-        load_backup_model(data, it)
-        policies[i] = evaluate_det_policy_model(env, data['model'])
-    return policies
-
-def get_time_dependent_policies(env, data, iterations, time_step):
-    n_iterations = len(iterations)
-    policies = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
-    for i, it in enumerate(iterations):
-        load_backup_model(data, it)
-        policies[i] = evaluate_time_dependent_det_policy_model(env, data['model'], time_step)
-    return policies
-
-def get_value_functions(env, data, iterations):
-    n_iterations = len(iterations)
-    value_functions = np.empty((n_iterations, env.n_states), dtype=np.float32)
-    for i, it in enumerate(iterations):
-        load_backup_model(data, it)
-        value_functions[i] = evaluate_value_function_model(env, data['value'])
-    return value_functions
+        elif env.d == 2:
+            policy_quiver, value_im = figs_placeholder
+            update_det_policy_2d_figure(env, policy, policy_quiver)
+            if self.value is not None:
+                update_value_function_2d_figure(env, values, value_im)

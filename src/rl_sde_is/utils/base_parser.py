@@ -149,7 +149,7 @@ def get_base_parser():
     parser.add_argument(
         '--mini-batch-size-type',
         choices=['constant', 'adaptive'],
-        default='constant',
+        default='adaptive',
         help='Set type of mini batch size. Constant or adaptive relative to the \
               memory size. Default: constant',
     )
@@ -376,7 +376,7 @@ def get_base_parser():
     parser.add_argument(
         '--gaussian-policy-type',
         type=str,
-        default='const-cov',
+        default='learnt-cov',
         choices=['const-cov', 'scheduled', 'learnt-cov'],
         help='Set if the covariance of the stochastic gaussian policy is constant, scheduled, or learnt. Default: const-cov',
     )

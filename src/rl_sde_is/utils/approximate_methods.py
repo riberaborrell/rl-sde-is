@@ -274,14 +274,17 @@ def train_deterministic_policy_from_hjb(env, model, policy_opt, n_iterations=int
     print('Policy mean trained to be the optimal policy')
     return policy
 
-def train_stochastic_policy_from_hjb(env, model, policy_opt, n_iterations=int(1e4),
+def train_stochastic_policy_from_hjb(env, model, policy_opt, n_iterations=int(1e3),
                                         batch_size=int(1e3), lr=1e-1, lr_decay=0.9999,
                                         live_plot_freq=None, load=False):
 
     from rl_sde_is.utils.plots import initialize_det_policy_1d_figure
 
+    # environment
+    env = env.unwrapped
+
     # optimizer
-    optimizer = optim.Adam(policy.parameters(), lr=lr)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=lr_decay)
 
     for i in range(n_iterations):
@@ -315,7 +318,7 @@ def train_stochastic_policy_from_hjb(env, model, policy_opt, n_iterations=int(1e
                   ''.format(i, loss, optimizer.param_groups[0]['lr']))
 
     print('Policy mean trained to be the optimal policy')
-    return policy
+    return model
 
 def train_critic_discrete_from_dp(env, critic, value_function_opt, policy_opt, load=False):
     from rl_sde_is.utils.plots import initialize_qvalue_function_1d_figure, \

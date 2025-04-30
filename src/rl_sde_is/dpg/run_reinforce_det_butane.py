@@ -3,7 +3,7 @@ import numpy as np
 
 import gym_sde_is
 
-from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic
+from rl_sde_is.dpg.reinforce_deterministic_core import ReinforceDeterministic
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
 
@@ -28,7 +28,7 @@ def main():
     )
 
     # run reinforce algorithm with a deterministic policy
-    succ, data = reinforce_deterministic(
+    agent = ReinforceDeterministic(
         env,
         expectation_type='random-time',
         return_type='initial-return',
@@ -38,14 +38,19 @@ def main():
         theta_init='null',
         batch_size=args.batch_size,
         lr=args.lr,
+        scheduled_lr=args.scheduled_lr,
+        lr_final=args.lr_final,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
         learn_value=args.learn_value,
         lr_value=args.lr_value,
+    )
+    succ, data = agent.run_agent(
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,
         load=args.load,
     )
+
 
     # do plots
     if not args.plot or not succ:

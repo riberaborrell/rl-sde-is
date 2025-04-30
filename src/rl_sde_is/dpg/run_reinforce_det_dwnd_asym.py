@@ -1,8 +1,7 @@
 import gymnasium as gym
 import gym_sde_is
 
-from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic, \
-                                                       get_policies, get_value_functions
+from rl_sde_is.dpg.reinforce_deterministic_core import ReinforceDeterministic
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
 
@@ -27,7 +26,7 @@ def main():
     )
 
     # run reinforce algorithm with a deterministic policy
-    succ, data = reinforce_deterministic(
+    agent = ReinforceDeterministic(
         env,
         expectation_type=args.expectation_type,
         return_type=args.return_type,
@@ -40,12 +39,16 @@ def main():
         mini_batch_size_type=args.mini_batch_size_type,
         memory_size=args.replay_size,
         lr=args.lr,
+        scheduled_lr=args.scheduled_lr,
+        lr_final=args.lr_final,
         optim_type=args.optim_type,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
         learn_value=args.learn_value,
         estimate_z=args.estimate_z,
         lr_value=args.lr_value,
+    )
+    succ, data = agent.run_agent(
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,
         live_plot_freq=args.live_plot_freq,

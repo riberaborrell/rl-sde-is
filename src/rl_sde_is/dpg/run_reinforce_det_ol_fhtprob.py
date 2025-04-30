@@ -1,8 +1,7 @@
 import gymnasium as gym
 import gym_sde_is
 
-from rl_sde_is.dpg.reinforce_deterministic_core import reinforce_deterministic, \
-                                                       get_time_dependent_policies, get_value_functions
+from rl_sde_is.dpg.reinforce_deterministic_core import ReinforceDeterministic
 from rl_sde_is.utils.base_parser import get_base_parser
 from rl_sde_is.utils.plots import *
 
@@ -41,6 +40,8 @@ def main():
         mini_batch_size_type=args.mini_batch_size_type,
         memory_size=args.replay_size,
         lr=args.lr,
+        scheduled_lr=args.scheduled_lr,
+        lr_final=args.lr_final,
         optim_type=args.optim_type,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
@@ -70,9 +71,9 @@ def main():
     # plot policy
     if env.unwrapped.d <= 2:
         env = env.unwrapped
-        policies_init = get_time_dependent_policies(env, data, iterations, 0.)
+        policies_init = self.get_time_dependent_policies(data, iterations, 0.)
         #policies_final = get_time_dependent_policies(env, data, iterations, env.n_steps_lim)
-        policies_final = get_time_dependent_policies(env, data, iterations, env.T)
+        policies_final = self.get_time_dependent_policies(data, iterations, env.T)
         #value_functions = get_value_functions(env, data, iterations)
 
     if env.unwrapped.d == 1:
