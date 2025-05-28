@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib import colors, cm
 
-import rl_sde_is.utils.figures
 from rl_sde_is.utils.numeric import compute_running_mean, compute_running_variance
+import rl_sde_is.utils.mpl_config
 
 # tableau palettes from matplotlib 
 COLORS_TAB10 = [plt.cm.tab10(i) for i in range(20)]
@@ -51,7 +51,8 @@ def get_plot_function(ax, plot_scale):
         raise ValueError('plot_scale must be one of: lineal, semilogx, semilogy, loglog')
 
 def plot_y_per_x(x, y, run_window=1, hlines=None, title='', plot_scale='linear',
-                 xlabel='', xlim=None, ylim=None, legend=False, loc=None, file_path=None):
+                 xlabel='', xlim=None, ylim=None, legend=False, loc=None,
+                 file_path=None, kwargs_layout={}):
 
     run_mean_y = compute_running_mean(y, run_window) if run_window > 1 else None
     fig, ax = plt.subplots()
@@ -67,27 +68,33 @@ def plot_y_per_x(x, y, run_window=1, hlines=None, title='', plot_scale='linear',
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label)
     if legend: plt.legend(loc=loc)
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
-def plot_y_per_episode(x, y, **kwargs):
-    plot_y_per_x(x, y, xlabel='Episodes', **kwargs)
+def plot_y_per_iteration(x, y, **kwargs):
+    plot_y_per_x(x, y, xlabel='Iterations', **kwargs)
 
 def plot_y_per_grad_iteration(x, y, **kwargs):
-    plot_y_per_x(x, y, xlabel='Grad. iterations.', **kwargs)
+    plot_y_per_x(x, y, xlabel='Gradient iterations', **kwargs)
+
+def plot_y_per_episode(x, y, **kwargs):
+    #plot_y_per_x(x, y, xlabel='Episodes', **kwargs)
+    plot_y_per_x(x, y, xlabel='Trajectories', **kwargs)
 
 def plot_y_per_time_steps(x, y, **kwargs):
     plot_y_per_x(x, y, xlabel='Time steps', **kwargs)
 
 def plot_y_per_ct(x, y, **kwargs):
-    plot_y_per_x(x, y, xlabel='CT(s)', **kwargs)
+    plot_y_per_x(x, y, xlabel='Computational time', **kwargs)
 
-def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
-                     plot_scale='linear', legend: bool = False, loc: str = 'upper right', file_path=None):
+def plot_y_avg_per_x(x, ys, hlines=None, vlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
+                     plot_scale='linear', legend: bool = False, loc: str = 'upper right',
+                     file_path=None, kwargs_layout={}):
     y = np.mean(ys, axis=0)
     error = np.sqrt(np.var(ys, axis=0))
     fig, ax = plt.subplots()
     plot_fn = get_plot_function(ax, plot_scale)
-    ax.set_title(title, size=20)
+    ax.set_title(title)#, size=20)
     ax.set_xlabel(xlabel)
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
@@ -96,20 +103,29 @@ def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim
     if hlines:
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if vlines:
+        for (vline, color, ls, label) in vlines:
+            ax.axvline(x=vline, c=color, ls=ls, label=label)
+
     if legend: plt.legend(loc=loc)
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
-def plot_y_avg_per_episode(x, ys, **kwargs):
-    plot_y_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+def plot_y_avg_per_iteration(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Iterations', **kwargs)
 
 def plot_y_avg_per_grad_iteration(x, ys, **kwargs):
-    plot_y_avg_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+    plot_y_avg_per_x(x, ys, xlabel='Gradient iterations', **kwargs)
+
+def plot_y_avg_per_episode(x, ys, **kwargs):
+    #plot_y_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+    plot_y_avg_per_x(x, ys, xlabel='Trajectories', **kwargs)
 
 def plot_y_avg_per_time_steps(x, ys, **kwargs):
     plot_y_avg_per_x(x, ys, xlabel='Time steps', **kwargs)
 
 def plot_y_avg_per_ct(x, ys, **kwargs):
-    plot_y_avg_per_x(x, ys, xlabel='CT(s)', **kwargs)
+    plot_y_avg_per_x(x, ys, xlabel='Computational time', **kwargs)
 
 def plot_mean_and_std_per_x(x, mean_y, std_y, hlines=None, title: str = '', xlabel: str = '',
                             xlim=None, ylim=None, plot_scale='linear', legend: bool = False,
@@ -129,23 +145,23 @@ def plot_mean_and_std_per_x(x, mean_y, std_y, hlines=None, title: str = '', xlab
     plt.show()
 
 def plot_mean_and_std_per_episode(x, mean_y, std_y, **kwargs):
-    plot_mean_and_std_per_x(x, y, xlabel='Episodes', **kwargs)
+    #plot_mean_and_std_per_x(x, y, xlabel='Episodes', **kwargs)
+    plot_mean_and_std_per_x(x, y, xlabel='Trajectories', **kwargs)
 
 def plot_mean_and_std_per_grad_iteration(x, mean_y, std_y, **kwargs):
-    plot_mean_and_std_per_x(x, mean_y, std_y, xlabel='Grad. iterations.', **kwargs)
+    plot_mean_and_std_per_x(x, mean_y, std_y, xlabel='Gradient iterations', **kwargs)
 
 def plot_mean_and_std_per_time_steps(x, mean_y, std_y, **kwargs):
     plot_mean_and_std_per_x(x, mean_y, std_y, xlabel='Time steps', **kwargs)
 
 
 def plot_ys_per_x(x, ys, run_window=1, hlines=None, title='', plot_scale='linear',
-                  xlabel='', xlim=None, ylim=None, labels=None, colors=None,
-                  legend=False, loc=None, file_path=None):
+                  xlabel='', xlim=None, ylim=None, labels=None, colors=None, lstyles=None,
+                  legend=False, loc=None, file_path=None, kwargs_layout={}):
     n_lines = len(ys)
-    if labels is None:
-        labels = [None for i in range(n_lines)]
-    if colors is None:
-        colors = [COLORS_TAB10[i] for i in range(n_lines)]
+    labels = [None for i in range(n_lines)] if labels is None else labels
+    lstyles = [None for i in range(n_lines)] if lstyles is None else lstyles
+    colors = [COLORS_TAB10[i] for i in range(n_lines)] if colors is None else colors
     if type(x) is not list:
         x = [x for i in range(n_lines)]
     run_mean_ys = np.array([compute_running_mean(y, run_window) if run_window > 1 else None for y in ys])
@@ -157,32 +173,37 @@ def plot_ys_per_x(x, ys, run_window=1, hlines=None, title='', plot_scale='linear
     plot_fn = get_plot_function(ax, plot_scale)
     for i in range(n_lines):
         if run_window == 1:
-            plot_fn(x[i], ys[i], label=labels[i], color=colors[i], lw=4)
+            plot_fn(x[i], ys[i], label=labels[i], color=colors[i], ls=lstyles[i], lw=4)
         else:
-            plot_fn(x[i], ys[i], label=labels[i], color=colors[i], alpha=0.25, lw=4)
+            plot_fn(x[i], ys[i], label=labels[i], color=colors[i], ls=lstyles[i], alpha=0.25, lw=4)
             plot_fn(x[i], run_mean_ys[i], label=labels[i], color=colors[i])
     if hlines:
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label, lw=4.)
     if legend: plt.legend(loc=loc)
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
-def plot_ys_per_episode(x, ys, **kwargs):
-    plot_ys_per_x(x, ys, xlabel='Episodes', **kwargs)
+def plot_ys_per_iteration(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Iterations', **kwargs)
 
 def plot_ys_per_grad_iteration(x, ys, **kwargs):
-    plot_ys_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+    plot_ys_per_x(x, ys, xlabel='Gradient iterations', **kwargs)
+
+def plot_ys_per_episode(x, ys, **kwargs):
+    #plot_ys_per_x(x, ys, xlabel='Episodes', **kwargs)
+    plot_ys_per_x(x, ys, xlabel='Trajectories', **kwargs)
 
 def plot_ys_per_time_steps(x, ys, **kwargs):
     plot_ys_per_x(x, ys, xlabel='Time steps', **kwargs)
 
 def plot_ys_per_ct(x, ys, **kwargs):
-    plot_ys_per_x(x, ys, xlabel='CT(s)', **kwargs)
+    plot_ys_per_x(x, ys, xlabel='Computational time', **kwargs)
 
 
 def plot_ys_avg_per_x(x, ys, plot_std=True, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
                       plot_scale='linear', labels=None, colors=None, legend: bool = False,
-                      loc: str = 'upper right', file_path=None):
+                      loc: str = 'upper right', file_path=None, kwargs_layout={}):
     n_lines = len(ys)
     if labels is None:
         labels = [None for i in range(n_lines)]
@@ -194,30 +215,34 @@ def plot_ys_avg_per_x(x, ys, plot_std=True, hlines=None, title: str = '', xlabel
     errors = [np.sqrt(np.var(y, axis=0)) for y in ys] if plot_std else None
     fig, ax = plt.subplots()
     plot_fn = get_plot_function(ax, plot_scale)
-    ax.set_title(title, size=20)
+    ax.set_title(title)#, size=20)
     ax.set_xlabel(xlabel)
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
     for i in range(n_lines):
-        plot_fn(x[i], ys_mean[i], c=colors[i], label='Mean')
-        ax.fill_between(x[i], ys_mean[i]-errors[i], ys_mean[i]+errors[i], color=colors[i], alpha=0.4, label='Standard deviation') if plot_std else None
+        #plot_fn(x[i], ys_mean[i], c=colors[i], label='Mean')
+        #ax.fill_between(x[i], ys_mean[i]-errors[i], ys_mean[i]+errors[i], color=colors[i], alpha=0.4, label='Standard deviation') if plot_std else None
+        plot_fn(x[i], ys_mean[i], c=colors[i], label=labels[i])
+        ax.fill_between(x[i], ys_mean[i]-errors[i], ys_mean[i]+errors[i], color=colors[i], alpha=0.4) if plot_std else None
     if hlines:
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label)
     if legend: plt.legend(loc=loc)
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_ys_avg_per_episode(x, ys, **kwargs):
-    plot_ys_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+    #plot_ys_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+    plot_ys_avg_per_x(x, ys, xlabel='Trajectories', **kwargs)
 
 def plot_ys_avg_per_grad_iteration(x, ys, **kwargs):
-    plot_ys_avg_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+    plot_ys_avg_per_x(x, ys, xlabel='Gradient iterations', **kwargs)
 
 def plot_ys_avg_per_time_steps(x, ys, **kwargs):
     plot_ys_avg_per_x(x, ys, xlabel='Time steps', **kwargs)
 
 def plot_ys_avg_per_ct(x, ys, **kwargs):
-    plot_ys_avg_per_x(x, ys, xlabel='CT(s)', **kwargs)
+    plot_ys_avg_per_x(x, ys, xlabel='Computational time', **kwargs)
 
 def plot_time_steps_histogram(time_steps):
     n_steps_max = np.max(time_steps)
@@ -303,21 +328,45 @@ def plot_det_policy_l2_error_episodes(l2_errors, episodes=None, ylim=None):
         ax.set_ylim(ylim)
     plt.show()
 
-def plot_lr_grid_search(lrs, ys, title='', xlim=None, ylim=None, colors=None,
-                        labels=None, ls='-', sign=1, file_path=None):
+def plot_lr_grid_search(lrs, ys, plot_scale='loglog', title='', xlim=None, ylim=None, colors=None,
+                        labels=None, ls='-', sign=1, file_path=None, kwargs_layout={}):
     n_seeds = ys[0].shape[0]
     fig, ax = plt.subplots()
+    plot_fn = get_plot_function(ax, plot_scale)
     ax.set_title(title),
+    ax.set_xlabel('Learning rate')
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
     for i in range(len(lrs)):
         for j in range(n_seeds):
             if labels is not None:
-                ax.loglog(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8, label=labels[i][j])
+                plot_fn(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8, label=labels[i][j])
             else:
-                ax.loglog(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8)
+                plot_fn(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8)
     if labels is not None:
         ax.legend()
+    plt.tight_layout(**kwargs_layout)
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
+
+def plot_lr_grid_search2(lrs, ys, plot_scale='loglog', title='', xlim=None, ylim=None, colors=None,
+                        labels=None, ls='-', sign=1, file_path=None, kwargs_layout={}):
+    n_seeds = ys[0].shape[0]
+    fig, ax = plt.subplots()
+    plot_fn = get_plot_function(ax, plot_scale)
+    ax.set_title(title),
+    ax.set_xlabel('Learning rate')
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    for i in range(len(lrs)):
+        y_mean = ys[i].mean(axis=0)
+        y_error = np.sqrt(ys[i].std(axis=0))
+        if labels is not None:
+            plot_fn(lrs[i], sign*y_mean, ls=ls, marker='.', ms=15, c=colors[i], alpha=0.8, label=labels[i])
+        else:
+            plot_fn(lrs[i], sign*y_mean, ls=ls, marker='.', ms=15, c=colors[i], alpha=0.8)
+    if labels is not None:
+        ax.legend()
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def get_state_action_1d_extent(env):
@@ -475,11 +524,11 @@ def get_colors_and_labels(iterations=None, n_lines=None, iter_str='traj.', hjb=T
     if n_lines <= 2:
         colors.pop(1)
 
-    labels = ['initial'] \
+    labels = ['Initial'] \
            + ['{} {:d}'.format(iter_str, i) for i in iterations[1:]]
     if hjb:
         colors.append(COLORS_FIG['hjb'])
-        labels.append('hjb')
+        labels.append('Optimal')
 
     return colors, labels
 
@@ -731,7 +780,8 @@ def plot_det_policies_1d_black_and_white(env, policies, policy_opt):
     plt.show()
 
 def plot_ys_1d(env, ys, y_opt=None, title: str = '', xlim=None, ylim=None, labels=None,
-               colors=None, target_set_patches=None, legend: bool = False, loc='upper right', file_path=None):
+               colors=None, target_set_patches=None, texts=None,
+               legend: bool = False, loc='upper right', file_path=None):
 
     n_lines = len(ys)
 
@@ -745,7 +795,8 @@ def plot_ys_1d(env, ys, y_opt=None, title: str = '', xlim=None, ylim=None, label
 
     fig, ax = plt.subplots()
     ax.set_title(title)
-    ax.set_xlabel('States')
+    #ax.set_xlabel('States')
+    ax.set_xlabel('s')
     if xlim is not None: ax.set_xlim(xlim)
     if ylim is not None: ax.set_ylim(ylim)
 
@@ -759,13 +810,16 @@ def plot_ys_1d(env, ys, y_opt=None, title: str = '', xlim=None, ylim=None, label
         for patch in target_set_patches:
             ax.add_patch(patch)
 
+    if texts is not None:
+        for x, y, text, size, alpha in texts:
+            plt.text(x, y, text, size=size, alpha=alpha)
     #plt.text(-4.1, 6, r'$A$', size=25, rotation=0., alpha=0.6)
     #plt.text(3.5, 6, r'$B$', size=25, rotation=0., alpha=0.6)
 
     if legend: plt.legend(loc=loc, fontsize=12)
 
     # save or show figure
-    plt.subplots_adjust(left=0.11, right=0.85, bottom=0.13, top=0.98)
+    #plt.subplots_adjust(left=0.11, right=0.85, bottom=0.13, top=0.98)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 
